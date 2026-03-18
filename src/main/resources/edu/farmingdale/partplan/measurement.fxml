@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- TODO (Person 1): Set fx:controller to MeasurementController -->
+<!-- TODO (Person 1): Use BorderPane as root -->
+<!-- TODO (Person 1): TOP — header GridPane with: Insp. Ident, Part Number, Rev, Description, Drawing Number, Unit No., Series, Serial Number -->
+<!-- TODO (Person 1): TOP (below header) — toolbar HBox with buttons: Load Drawing, Save Part, Back -->
+<!-- TODO (Person 1): CENTER — TableView fx:id="measurementTable" (columns built in controller by Person 4) -->
+<!-- TODO (Person 1): BOTTOM — summary bar HBox showing total / passed / failed counts -->
+<!-- TODO (Person 2): Apply "inspection-header" class to the header GridPane -->
+<!-- TODO (Person 2): Apply "toolbar" class to the toolbar HBox -->
