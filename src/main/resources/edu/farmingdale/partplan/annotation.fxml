@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<!-- TODO (Person 1): Set fx:controller to AnnotationController -->
-<!-- TODO (Person 1): Use BorderPane as root -->
-<!-- TODO (Person 1): TOP — toolbar HBox with buttons: Load Drawing, Add Bubble, Save Drawing, Back -->
-<!-- TODO (Person 1): CENTER — ScrollPane wrapping a Pane fx:id="drawingCanvas" -->
-<!-- TODO (Person 1): RIGHT — side panel VBox with: spec number label, type selector, nominal field, tol+ field, tol- field, label field, Apply button -->
-<!-- TODO (Person 2): Apply "toolbar" class to top HBox -->
-<!-- TODO (Person 2): Apply "drawing-canvas" class to the center Pane -->
-<!-- TODO (Person 2): Apply "side-panel" class to the right VBox -->

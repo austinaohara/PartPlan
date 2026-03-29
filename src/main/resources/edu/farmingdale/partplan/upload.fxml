@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<!-- TODO (Person 1): Set fx:controller to UploadController -->
-<!-- TODO (Person 1): Use VBox or BorderPane as root -->
-<!-- TODO (Person 1): Add file picker button for PDF or image -->
-<!-- TODO (Person 1): Add form fields: Drawing Name, Part Number, Rev, Description -->
-<!-- TODO (Person 1): Add "Upload & Save" button and "Back" button -->
-<!-- TODO (Person 2): Apply "side-panel" or "form-card" CSS class to the form container -->
-<!-- TODO (Person 2): Style input fields and buttons consistently with other screens -->
