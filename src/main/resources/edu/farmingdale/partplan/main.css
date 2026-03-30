@@ -1,4 +1,24 @@
-/* TODO (Person 2): Define color variables — primary, accent red, bg, card bg, success green, danger red, warning yellow */
+:root {
+    /* based off of material ui colors: https://materialui.co/colors */
+
+    /*PRIMARY COLORS*/
+    --color-primary: #EF5350;
+
+    /*BACKGROUNDS*/
+    --color-background: #FAFAFA;
+    --color-card-background: #FFFFFF;
+
+    /*TEXT*/
+    --color-text-black: #212121;
+    --color-text-white: #FFFFFF;
+
+    /*WARNINGS*/
+    --color-error: #E53935;
+    --color-warning: #FFEB3B;
+    --color-success: #43A047;
+
+
+}
 /* TODO (Person 2): Style .root — background and default font */
 /* TODO (Person 2): Style .toolbar — background, padding, shadow */
 /* TODO (Person 2): Style .toolbar .button — padding, rounded corners, hover + pressed states */
