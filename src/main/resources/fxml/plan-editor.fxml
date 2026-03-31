@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.control.Separator?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.Group?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.layout.VBox?>
+
+<BorderPane fx:id="root" focusTraversable="true" prefHeight="700.0" prefWidth="1000.0" stylesheets="@../styles/main.css"
+            xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="view.PlanEditorController">
+    <top>
+        <VBox spacing="14.0" styleClass="top-bar">
+            <padding>
+                <Insets bottom="18.0" left="24.0" right="24.0" top="24.0" />
+            </padding>
+            <Label styleClass="screen-title" text="Plan Editor" />
+            <HBox alignment="CENTER_LEFT" spacing="12.0">
+                <Button mnemonicParsing="false" onAction="#onNewPlan" styleClass="secondary-button" text="New Plan" />
+                <Button mnemonicParsing="false" onAction="#onImportDrawing" styleClass="primary-button" text="Import Drawing" />
+                <Separator orientation="VERTICAL" prefHeight="28.0" />
+                <Label styleClass="field-label" text="Plan Name" />
+                <TextField fx:id="planNameField" onAction="#onPlanNameChanged" onKeyReleased="#onPlanNameChanged"
+                           prefWidth="280.0" promptText="Inspection plan name" />
+            </HBox>
+        </VBox>
+    </top>
+    <left>
+        <VBox prefWidth="280.0" spacing="10.0" styleClass="info-panel">
+            <padding>
+                <Insets bottom="24.0" left="24.0" right="24.0" top="24.0" />
+            </padding>
+            <Label styleClass="panel-title" text="Current Plan" />
+            <Label styleClass="field-label" text="Drawing File" />
+            <Label fx:id="drawingFileNameLabel" styleClass="field-value" text="No drawing selected" wrapText="true" />
+            <Label styleClass="field-label" text="Drawing Path" />
+            <Label fx:id="drawingPathLabel" styleClass="field-value" text="" wrapText="true" />
+        </VBox>
+    </left>
+    <center>
+        <StackPane styleClass="canvas-shell">
+            <Label fx:id="emptyStateLabel" styleClass="empty-state"
+                   text="Import a machining drawing image to start this inspection plan." wrapText="true" />
+            <ScrollPane fx:id="drawingScrollPane" fitToHeight="false" fitToWidth="false" pannable="true" styleClass="drawing-scroll-pane">
+                <content>
+                    <Group>
+                        <ImageView fx:id="drawingImageView" preserveRatio="true" smooth="true" />
+                    </Group>
+                </content>
+            </ScrollPane>
+        </StackPane>
+    </center>
+</BorderPane>

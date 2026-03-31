@@ -13,7 +13,7 @@ import java.io.File;
 import java.util.Locale;
 import java.util.Objects;
 
-public class MainWorkspaceViewModel {
+public class PlanEditorViewModel {
     private static final String DEFAULT_PLAN_NAME = "New Inspection Plan";
 
     private final ObjectProperty<InspectionPlan> currentPlan = new SimpleObjectProperty<>();
@@ -22,7 +22,7 @@ public class MainWorkspaceViewModel {
     private final StringProperty drawingPath = new SimpleStringProperty("");
     private final BooleanProperty drawingLoaded = new SimpleBooleanProperty(false);
 
-    public MainWorkspaceViewModel() {
+    public PlanEditorViewModel() {
         createNewPlan();
     }
 

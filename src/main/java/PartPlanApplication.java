@@ -8,7 +8,7 @@ import java.io.IOException;
 public class PartPlanApplication extends Application {
     @Override
     public void start(Stage stage) throws IOException {
-        FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/main-workspace.fxml"));
+        FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/plan-editor.fxml"));
         Scene scene = new Scene(loader.load(), 1000, 700);
 
         stage.setTitle("PartPlan");

@@ -1,0 +1,186 @@
+package view;
+
+import javafx.application.Platform;
+import javafx.fxml.FXML;
+import javafx.scene.Parent;
+import javafx.scene.Scene;
+import javafx.scene.control.Label;
+import javafx.scene.control.ScrollPane;
+import javafx.scene.control.TextField;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
+import javafx.scene.input.ScrollEvent;
+import javafx.stage.FileChooser;
+import javafx.stage.Window;
+import viewmodel.PlanEditorViewModel;
+
+import java.io.File;
+import java.nio.file.Files;
+import java.nio.file.Path;
+
+public class PlanEditorController {
+    private static final Path DEFAULT_IMAGE_DIRECTORY = Path.of("src", "main", "resources", "images");
+    private static final double DEFAULT_ZOOM = 1.0;
+    private static final double ZOOM_STEP = 1.1;
+    private static final double MIN_ZOOM = 0.25;
+    private static final double MAX_ZOOM = 4.0;
+
+    private final PlanEditorViewModel viewModel = new PlanEditorViewModel();
+    private double zoomLevel = DEFAULT_ZOOM;
+
+    @FXML
+    private Parent root;
+
+    @FXML
+    private TextField planNameField;
+
+    @FXML
+    private Label drawingFileNameLabel;
+
+    @FXML
+    private Label drawingPathLabel;
+
+    @FXML
+    private Label emptyStateLabel;
+
+    @FXML
+    private ImageView drawingImageView;
+
+    @FXML
+    private ScrollPane drawingScrollPane;
+
+    @FXML
+    private void initialize() {
+        planNameField.setText(viewModel.getPlanName());
+        drawingFileNameLabel.textProperty().bind(viewModel.drawingFileNameProperty());
+        drawingPathLabel.textProperty().bind(viewModel.drawingPathProperty());
+        emptyStateLabel.visibleProperty().bind(viewModel.drawingLoadedProperty().not());
+        emptyStateLabel.managedProperty().bind(emptyStateLabel.visibleProperty());
+        drawingScrollPane.visibleProperty().bind(viewModel.drawingLoadedProperty());
+        drawingScrollPane.managedProperty().bind(drawingScrollPane.visibleProperty());
+        drawingScrollPane.setPannable(true);
+        drawingImageView.setPreserveRatio(true);
+        root.sceneProperty().addListener((observable, oldScene, newScene) -> registerShortcuts(newScene));
+        drawingScrollPane.addEventFilter(ScrollEvent.SCROLL, this::handleScrollZoom);
+    }
+
+    @FXML
+    private void onNewPlan() {
+        viewModel.createNewPlan();
+        planNameField.setText(viewModel.getPlanName());
+        drawingImageView.setImage(null);
+        resetViewport();
+    }
+
+    @FXML
+    private void onPlanNameChanged() {
+        viewModel.renamePlan(planNameField.getText());
+        if (!planNameField.getText().equals(viewModel.getPlanName())) {
+            planNameField.setText(viewModel.getPlanName());
+            planNameField.positionCaret(planNameField.getText().length());
+        }
+    }
+
+    @FXML
+    private void onImportDrawing() {
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle("Select Drawing Image");
+        fileChooser.getExtensionFilters().add(
+                new FileChooser.ExtensionFilter("Image Files", "*.png", "*.jpg", "*.jpeg", "*.gif", "*.bmp")
+        );
+        configureInitialDirectory(fileChooser);
+
+        Window window = planNameField.getScene().getWindow();
+        File selectedFile = fileChooser.showOpenDialog(window);
+        if (selectedFile == null) {
+            return;
+        }
+
+        viewModel.importDrawing(selectedFile);
+        drawingImageView.setImage(new Image(selectedFile.toURI().toString()));
+        resetViewport();
+    }
+
+    private void configureInitialDirectory(FileChooser fileChooser) {
+        Path imageDirectory = DEFAULT_IMAGE_DIRECTORY.toAbsolutePath().normalize();
+        if (Files.isDirectory(imageDirectory)) {
+            fileChooser.setInitialDirectory(imageDirectory.toFile());
+        }
+    }
+
+    private void registerShortcuts(Scene scene) {
+        if (scene == null) {
+            return;
+        }
+        scene.addEventFilter(KeyEvent.KEY_PRESSED, this::handleHotkeys);
+    }
+
+    private void handleHotkeys(KeyEvent event) {
+        if (!event.isControlDown() || !viewModel.hasDrawing()) {
+            return;
+        }
+
+        if (event.getCode() == KeyCode.EQUALS || event.getCode() == KeyCode.PLUS) {
+            zoomIn();
+            event.consume();
+            return;
+        }
+        if (event.getCode() == KeyCode.MINUS) {
+            zoomOut();
+            event.consume();
+            return;
+        }
+        if (event.getCode() == KeyCode.DIGIT0 || event.getCode() == KeyCode.NUMPAD0) {
+            resetViewport();
+            event.consume();
+        }
+    }
+
+    private void handleScrollZoom(ScrollEvent event) {
+        if (!event.isControlDown() || !viewModel.hasDrawing()) {
+            return;
+        }
+
+        double previousZoom = zoomLevel;
+        if (event.getDeltaY() > 0) {
+            zoomIn();
+        } else if (event.getDeltaY() < 0) {
+            zoomOut();
+        }
+
+        if (zoomLevel != previousZoom) {
+            event.consume();
+        }
+    }
+
+    private void zoomIn() {
+        applyZoom(Math.min(zoomLevel * ZOOM_STEP, MAX_ZOOM));
+    }
+
+    private void zoomOut() {
+        applyZoom(Math.max(zoomLevel / ZOOM_STEP, MIN_ZOOM));
+    }
+
+    private void applyZoom(double newZoomLevel) {
+        zoomLevel = newZoomLevel;
+        Image image = drawingImageView.getImage();
+        if (image == null) {
+            drawingImageView.setFitWidth(0);
+            drawingImageView.setFitHeight(0);
+            return;
+        }
+
+        drawingImageView.setFitWidth(image.getWidth() * zoomLevel);
+        drawingImageView.setFitHeight(image.getHeight() * zoomLevel);
+    }
+
+    private void resetViewport() {
+        applyZoom(DEFAULT_ZOOM);
+        Platform.runLater(() -> {
+            drawingScrollPane.setHvalue(0.0);
+            drawingScrollPane.setVvalue(0.0);
+        });
+    }
+}
