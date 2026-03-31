@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<!-- TODO (Person 1): Set fx:controller to TableViewController -->
-<!-- TODO (Person 1): Use BorderPane as root -->
-<!-- TODO (Person 1): TOP — HBox with a ComboBox (drawing selector) and a Back button -->
-<!-- TODO (Person 1): CENTER — TableView fx:id="mainTable" (columns built dynamically by Person 4) -->
-<!-- TODO (Person 2): Apply "toolbar" class to top HBox -->
-<!-- TODO (Person 2): Style alternating rows and freeze first column via CSS -->
