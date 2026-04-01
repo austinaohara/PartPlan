@@ -307,6 +307,7 @@ public class PlanEditorController {
         alert.setHeaderText(null);
         alert.setContentText(message);
         alert.showAndWait();
+    }
 
     private void fitImageToViewport() {
         double scrollbarSize = 50;
