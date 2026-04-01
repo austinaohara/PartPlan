@@ -15,6 +15,13 @@ import javafx.scene.input.ScrollEvent;
 import javafx.stage.FileChooser;
 import javafx.stage.Window;
 import viewmodel.PlanEditorViewModel;
+import javafx.collections.ListChangeListener;
+import javafx.scene.control.Alert;
+import javafx.scene.control.ButtonType;
+import javafx.scene.control.ListCell;
+import javafx.scene.control.ListView;
+import model.InspectionPlan;
+import java.util.Optional;
 
 import java.io.File;
 import java.nio.file.Files;
@@ -52,6 +59,9 @@ public class PlanEditorController {
     private ScrollPane drawingScrollPane;
 
     @FXML
+    private ListView<InspectionPlan> savedPlansListView;
+
+    @FXML
     private void initialize() {
         planNameField.setText(viewModel.getPlanName());
         drawingFileNameLabel.textProperty().bind(viewModel.drawingFileNameProperty());
@@ -64,6 +74,20 @@ public class PlanEditorController {
         drawingImageView.setPreserveRatio(true);
         root.sceneProperty().addListener((observable, oldScene, newScene) -> registerShortcuts(newScene));
         drawingScrollPane.addEventFilter(ScrollEvent.SCROLL, this::handleScrollZoom);
+
+        savedPlansListView.setItems(viewModel.getSavedPlans());
+        savedPlansListView.setCellFactory(listView -> new ListCell<>() {
+
+            protected void updateItem(InspectionPlan item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                    return;
+                }
+                setText(item.getName());
+            }
+        });
+        viewModel.getSavedPlans().addListener((ListChangeListener<InspectionPlan>) change -> selectCurrentPlanIfPresent());
     }
 
     @FXML
@@ -72,8 +96,55 @@ public class PlanEditorController {
         planNameField.setText(viewModel.getPlanName());
         drawingImageView.setImage(null);
         resetViewport();
+        savedPlansListView.getSelectionModel().clearSelection();
     }
 
+    @FXML
+    private void onSavePlan() {
+        onPlanNameChanged();
+        viewModel.saveCurrentPlan();
+        planNameField.setText(viewModel.getPlanName());
+        loadDrawingPreview(viewModel.getDrawingPath());
+        selectCurrentPlanIfPresent();
+        showInformation("Plan saved locally as JSON.");
+    }
+    @FXML
+    private void onOpenPlan() {
+        InspectionPlan selectedPlan = savedPlansListView.getSelectionModel().getSelectedItem();
+        if (selectedPlan == null) {
+            showInformation("Select a saved plan first.");
+            return;
+        }
+
+        viewModel.openPlan(selectedPlan);
+        planNameField.setText(viewModel.getPlanName());
+        loadDrawingPreview(viewModel.getDrawingPath());
+        resetViewport();
+        selectCurrentPlanIfPresent();
+    }
+    @FXML
+    private void onDeletePlan() {
+        InspectionPlan selectedPlan = savedPlansListView.getSelectionModel().getSelectedItem();
+        if (selectedPlan == null) {
+            showInformation("Select a saved plan first.");
+            return;
+        }
+
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+        alert.setTitle("Delete Plan");
+        alert.setHeaderText("Delete selected plan?");
+        alert.setContentText(selectedPlan.getName());
+
+        Optional<ButtonType> result = alert.showAndWait();
+        if (result.isEmpty() || result.get() != ButtonType.OK) {
+            return;
+        }
+
+        viewModel.deletePlan(selectedPlan);
+        planNameField.setText(viewModel.getPlanName());
+        loadDrawingPreview(viewModel.getDrawingPath());
+        resetViewport();
+    }
     @FXML
     private void onPlanNameChanged() {
         viewModel.renamePlan(planNameField.getText());
@@ -99,7 +170,7 @@ public class PlanEditorController {
         }
 
         viewModel.importDrawing(selectedFile);
-        drawingImageView.setImage(new Image(selectedFile.toURI().toString()));
+        loadDrawingPreview(selectedFile.getAbsolutePath());
         resetViewport();
     }
 
@@ -118,7 +189,18 @@ public class PlanEditorController {
     }
 
     private void handleHotkeys(KeyEvent event) {
-        if (!event.isControlDown() || !viewModel.hasDrawing()) {
+
+        if (!event.isControlDown()) {
+            return;
+        }
+
+        if (event.getCode() == KeyCode.S) {
+            onSavePlan();
+            event.consume();
+            return;
+        }
+
+        if (!viewModel.hasDrawing()) {
             return;
         }
 
@@ -163,6 +245,7 @@ public class PlanEditorController {
         }
     }
 
+
     private void zoomIn() {
         applyZoom(Math.min(zoomLevel * ZOOM_STEP, MAX_ZOOM));
     }
@@ -191,6 +274,39 @@ public class PlanEditorController {
             drawingScrollPane.setVvalue(0.0);
         });
     }
+    private void loadDrawingPreview(String drawingPath) {
+        if (drawingPath == null || drawingPath.isBlank()) {
+            drawingImageView.setImage(null);
+            return;
+        }
+
+        File drawingFile = new File(drawingPath);
+        if (!drawingFile.isFile()) {
+            drawingImageView.setImage(null);
+            return;
+        }
+
+        drawingImageView.setImage(new Image(drawingFile.toURI().toString()));
+    }
+    private void selectCurrentPlanIfPresent() {
+        InspectionPlan currentPlan = viewModel.getCurrentPlan();
+        if (currentPlan == null) {
+            return;
+        }
+
+        for (InspectionPlan savedPlan : viewModel.getSavedPlans()) {
+            if (savedPlan.getId().equals(currentPlan.getId())) {
+                savedPlansListView.getSelectionModel().select(savedPlan);
+                return;
+            }
+        }
+    }
+    private void showInformation(String message) {
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setTitle("PartPlan");
+        alert.setHeaderText(null);
+        alert.setContentText(message);
+        alert.showAndWait();
 
     private void fitImageToViewport() {
         double scrollbarSize = 50;

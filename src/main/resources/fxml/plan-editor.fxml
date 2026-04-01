@@ -12,6 +12,7 @@
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.VBox?>
+<?import javafx.scene.control.ListView?>
 
 <BorderPane fx:id="root" focusTraversable="true" prefHeight="700.0" prefWidth="1000.0" stylesheets="@../styles/main.css"
             xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
@@ -24,6 +25,9 @@
             <Label styleClass="screen-title" text="Plan Editor" />
             <HBox alignment="CENTER_LEFT" spacing="12.0">
                 <Button mnemonicParsing="false" onAction="#onNewPlan" styleClass="secondary-button" text="New Plan" />
+                <Button mnemonicParsing="false" onAction="#onSavePlan" styleClass="primary-button" text="Save Plan" />
+                <Button mnemonicParsing="false" onAction="#onOpenPlan" styleClass="secondary-button" text="Open Plan" />
+                <Button mnemonicParsing="false" onAction="#onDeletePlan" styleClass="secondary-button" text="Delete Plan" />
                 <Button mnemonicParsing="false" onAction="#onImportDrawing" styleClass="primary-button" text="Import Drawing" />
                 <Separator orientation="VERTICAL" prefHeight="28.0" />
                 <Label styleClass="field-label" text="Plan Name" />
@@ -37,6 +41,9 @@
             <padding>
                 <Insets bottom="24.0" left="24.0" right="24.0" top="24.0" />
             </padding>
+            <Label styleClass="panel-title" text="Saved Plans" />
+            <ListView fx:id="savedPlansListView" prefHeight="280.0" styleClass="saved-plans-list" />
+            <Separator />
             <Label styleClass="panel-title" text="Current Plan" />
             <Label styleClass="field-label" text="Drawing File" />
             <Label fx:id="drawingFileNameLabel" styleClass="field-value" text="No drawing selected" wrapText="true" />
