@@ -10,6 +10,10 @@ import model.InspectionPlan;
 import model.PlanDrawing;
 
 import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.Locale;
 import java.util.Objects;
 
@@ -42,18 +46,47 @@ public class PlanEditorViewModel {
 
     public void importDrawing(File imageFile) {
         Objects.requireNonNull(imageFile, "imageFile must not be null");
-
         InspectionPlan plan = requireCurrentPlan();
-        PlanDrawing drawing = new PlanDrawing(
-                imageFile.getName(),
-                imageFile.getAbsolutePath(),
-                determineFileType(imageFile.getName())
-        );
+        try {
+            Path planDirectory = Path.of("app-data", "plans", plan.getId());
+            Files.createDirectories(planDirectory);
+            Path target = planDirectory.resolve(imageFile.getName());
 
-        plan.setDrawing(drawing);
-        drawingFileName.set(drawing.getFileName());
-        drawingPath.set(drawing.getStoredPath());
-        drawingLoaded.set(true);
+            Files.copy(imageFile.toPath(), target, StandardCopyOption.REPLACE_EXISTING);
+
+            PlanDrawing drawing = new PlanDrawing(
+                    imageFile.getName(),
+                    target.toString(),
+                    determineFileType(imageFile.getName())
+            );
+
+            plan.setDrawing(drawing);
+            drawingFileName.set(drawing.getFileName());
+            drawingPath.set(drawing.getStoredPath());
+            drawingLoaded.set(true);
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to restore drawing", e);
+        }
+
+    }
+
+    public void setCurrentPlan(InspectionPlan plan) {
+        currentPlan.set(plan);
+        planName.set(plan.getName());
+        PlanDrawing drawing = plan.getDrawing();
+
+        if (drawing != null && drawing.getStoredPath() != null) {
+            File file = new File(drawing.getStoredPath());
+            if (file.exists()) {
+                drawingFileName.set(drawing.getFileName());
+                drawingPath.set(drawing.getStoredPath());
+                drawingLoaded.set(true);
+            } else {
+                clearDrawingState();
+            }
+        } else {
+            clearDrawingState();
+        }
     }
 
     public boolean hasDrawing() {

@@ -103,6 +103,22 @@ public class PlanEditorController {
         resetViewport();
     }
 
+    private void restoreDrawing() {
+        if (!viewModel.isDrawingLoaded()) {
+            drawingImageView.setImage(null);
+            return;
+        }
+
+        File file = new File(viewModel.getDrawingFileName());
+
+        if (file.exists()) {
+            drawingImageView.setImage(new Image(file.toURI().toString()));
+            resetViewport();
+        } else {
+            drawingImageView.setImage(null);
+        }
+    }
+
     private void configureInitialDirectory(FileChooser fileChooser) {
         Path imageDirectory = DEFAULT_IMAGE_DIRECTORY.toAbsolutePath().normalize();
         if (Files.isDirectory(imageDirectory)) {
