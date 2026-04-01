@@ -135,6 +135,14 @@ public class PlanEditorController {
         if (event.getCode() == KeyCode.DIGIT0 || event.getCode() == KeyCode.NUMPAD0) {
             resetViewport();
             event.consume();
+            return;
+        }
+
+        // fit image to viewport
+        if (event.getCode() == KeyCode.F){
+            fitImageToViewport();
+            event.consume();
+            return;
         }
     }
 
@@ -182,5 +190,18 @@ public class PlanEditorController {
             drawingScrollPane.setHvalue(0.0);
             drawingScrollPane.setVvalue(0.0);
         });
+    }
+
+    private void fitImageToViewport() {
+        double scrollbarSize = 50;
+        double paneWidth = drawingScrollPane.getWidth() - scrollbarSize;
+        double paneHeight = drawingScrollPane.getHeight() - scrollbarSize;
+        double imageWidth = drawingImageView.getImage().getWidth();
+        double imageHeight = drawingImageView.getImage().getHeight();
+
+        double scaleX = paneWidth / imageWidth;
+        double scaleY = paneHeight / imageHeight;
+
+        applyZoom(Math.min(scaleX, scaleY));
     }
 }
