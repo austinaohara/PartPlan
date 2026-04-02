@@ -3,13 +3,12 @@ package model;
 public class Part {
     private int specNumber;
     private int place;
-    //unknown: specification;
+    private String specType;
+    private float specNominalSize;
+    private float specTolerance;
     private String type;
-    //unknown: bonusTol;
-    /*unknown: measurement;
-        - measurement can be both a float and a string (PASS on spec 6)?
-        - columnControlBar will be controlled by this
-    */
+    private float bonusTol;
+    private float measurement; // columnControlBar will be controlled by this
     private String inspectMethod;
 
 
