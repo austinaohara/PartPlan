@@ -3,20 +3,20 @@
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
 
-<BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="400.0" prefWidth="600.0" xmlns="http://javafx.com/javafx/17.0.12" xmlns:fx="http://javafx.com/fxml/1">
+<BorderPane fx:id="root" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="400.0" prefWidth="600.0" xmlns="http://javafx.com/javafx/17.0.12" xmlns:fx="http://javafx.com/fxml/1">
    <center>
-      <VBox prefHeight="200.0" prefWidth="100.0" BorderPane.alignment="CENTER">
+      <VBox fx:id="vbox" prefHeight="200.0" prefWidth="100.0" BorderPane.alignment="CENTER">
          <children>
-            <TableView prefHeight="200.0" prefWidth="200.0">
+            <TableView fx:id="table" prefHeight="200.0" prefWidth="200.0">
               <columns>
-                <TableColumn prefWidth="75.0" text="Spec No." />
-                <TableColumn prefWidth="75.0" text="Place" />
-                  <TableColumn prefWidth="75.0" text="Specification" />
-                  <TableColumn prefWidth="75.0" text="Type" />
-                  <TableColumn prefWidth="75.0" text="Bonus Tol." />
-                  <TableColumn prefWidth="75.0" text="Measurement" />
-                  <TableColumn prefWidth="75.0" text="Control bar" />
-                  <TableColumn prefWidth="75.0" text="Inspect. Method" />
+                <TableColumn fx:id="columnSpecNumber" prefWidth="75.0" text="Spec No." />
+                <TableColumn fx:id="columnPlace" prefWidth="75.0" text="Place" />
+                  <TableColumn fx:id="columnSpecification" prefWidth="75.0" text="Specification" />
+                  <TableColumn fx:id="columnType" prefWidth="75.0" text="Type" />
+                  <TableColumn fx:id="columnBonusTol" prefWidth="75.0" text="Bonus Tol." />
+                  <TableColumn fx:id="columnMeasurement" prefWidth="75.0" text="Measurement" />
+                  <TableColumn fx:id="columnControlBar" prefWidth="75.0" text="Control bar" />
+                  <TableColumn fx:id="columnInspectMethod" prefWidth="75.0" text="Inspect. Method" />
               </columns>
             </TableView>
          </children>
