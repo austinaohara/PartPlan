@@ -11,5 +11,87 @@ public class Part {
     private float measurement; // columnControlBar will be controlled by this
     private String inspectMethod;
 
+    public Part(int specNumber, int place, String specType, float specNominalSize, float specTolerance, String type, float bonusTol, float measurement, String inspectMethod) {
+        this.specNumber = specNumber;
+        this.place = place;
+        this.specType = specType;
+        this.specNominalSize = specNominalSize;
+        this.specTolerance = specTolerance;
+        this.type = type;
+        this.bonusTol = bonusTol;
+        this.measurement = measurement;
+        this.inspectMethod = inspectMethod;
+    }
 
+    public int specNumber() {
+        return specNumber;
+    }
+
+    public void setSpecNumber(int specNumber) {
+        this.specNumber = specNumber;
+    }
+
+    public int place() {
+        return place;
+    }
+
+    public void setPlace(int place) {
+        this.place = place;
+    }
+
+    public String specType() {
+        return specType;
+    }
+
+    public void setSpecType(String specType) {
+        this.specType = specType;
+    }
+
+    public float specNominalSize() {
+        return specNominalSize;
+    }
+
+    public void setSpecNominalSize(float specNominalSize) {
+        this.specNominalSize = specNominalSize;
+    }
+
+    public float specTolerance() {
+        return specTolerance;
+    }
+
+    public void setSpecTolerance(float specTolerance) {
+        this.specTolerance = specTolerance;
+    }
+
+    public String type() {
+        return type;
+    }
+
+    public void setType(String type) {
+        this.type = type;
+    }
+
+    public float bonusTol() {
+        return bonusTol;
+    }
+
+    public void setBonusTol(float bonusTol) {
+        this.bonusTol = bonusTol;
+    }
+
+    public float measurement() {
+        return measurement;
+    }
+
+    public void setMeasurement(float measurement) {
+        this.measurement = measurement;
+    }
+
+    public String inspectMethod() {
+        return inspectMethod;
+    }
+
+    public void setInspectMethod(String inspectMethod) {
+        this.inspectMethod = inspectMethod;
+    }
 }
