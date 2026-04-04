@@ -2,6 +2,7 @@ package view;
 
 import javafx.application.Platform;
 import javafx.fxml.FXML;
+import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.Label;
@@ -13,6 +14,7 @@ import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.ScrollEvent;
 import javafx.stage.FileChooser;
+import javafx.stage.Stage;
 import javafx.stage.Window;
 import viewmodel.PlanEditorViewModel;
 import javafx.collections.ListChangeListener;
@@ -60,6 +62,8 @@ public class PlanEditorController {
 
     @FXML
     private ListView<InspectionPlan> savedPlansListView;
+
+    private Stage dataEditorStage;
 
     @FXML
     private void initialize() {
@@ -172,6 +176,27 @@ public class PlanEditorController {
         viewModel.importDrawing(selectedFile);
         loadDrawingPreview(selectedFile.getAbsolutePath());
         resetViewport();
+    }
+
+    @FXML
+    private void onOpenTableEditor(){
+        try {
+            if (dataEditorStage == null || !dataEditorStage.isShowing()) { // prevents multiple dataEditor windows
+                FXMLLoader fxmlLoader = new FXMLLoader();
+                fxmlLoader.setLocation(getClass().getResource("/fxml/data-editor.fxml"));
+                Parent root = fxmlLoader.load();
+
+                DataEditorController controller = fxmlLoader.getController();
+
+                dataEditorStage = new Stage();
+                dataEditorStage.setScene(new Scene(root));
+                dataEditorStage.show();
+            } else {
+                dataEditorStage.toFront();
+            }
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
     private void configureInitialDirectory(FileChooser fileChooser) {
