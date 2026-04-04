@@ -23,7 +23,7 @@ public class Part {
         this.inspectMethod = inspectMethod;
     }
 
-    public int specNumber() {
+    public int getSpecNumber() {
         return specNumber;
     }
 
@@ -31,7 +31,7 @@ public class Part {
         this.specNumber = specNumber;
     }
 
-    public int place() {
+    public int getPlace() {
         return place;
     }
 
@@ -39,7 +39,7 @@ public class Part {
         this.place = place;
     }
 
-    public String specType() {
+    public String getSpecType() {
         return specType;
     }
 
@@ -47,7 +47,7 @@ public class Part {
         this.specType = specType;
     }
 
-    public float specNominalSize() {
+    public float getSpecNominalSize() {
         return specNominalSize;
     }
 
@@ -55,7 +55,7 @@ public class Part {
         this.specNominalSize = specNominalSize;
     }
 
-    public float specTolerance() {
+    public float getSpecTolerance() {
         return specTolerance;
     }
 
@@ -63,7 +63,7 @@ public class Part {
         this.specTolerance = specTolerance;
     }
 
-    public String type() {
+    public String getType() {
         return type;
     }
 
@@ -71,7 +71,7 @@ public class Part {
         this.type = type;
     }
 
-    public float bonusTol() {
+    public float getBonusTol() {
         return bonusTol;
     }
 
@@ -79,7 +79,7 @@ public class Part {
         this.bonusTol = bonusTol;
     }
 
-    public float measurement() {
+    public float getMeasurement() {
         return measurement;
     }
 
@@ -87,7 +87,7 @@ public class Part {
         this.measurement = measurement;
     }
 
-    public String inspectMethod() {
+    public String getInspectMethod() {
         return inspectMethod;
     }
 
