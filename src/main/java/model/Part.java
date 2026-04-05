@@ -1,19 +1,20 @@
 package model;
 
+import javafx.beans.binding.DoubleBinding;
 import javafx.beans.property.*;
 
 public class Part {
     private final IntegerProperty specNumber = new SimpleIntegerProperty();
     private final IntegerProperty place = new SimpleIntegerProperty();
     private final StringProperty specType = new SimpleStringProperty();
-    private final FloatProperty specNominalSize = new SimpleFloatProperty();
-    private final FloatProperty specTolerance = new SimpleFloatProperty();
+    private final DoubleProperty specNominalSize = new SimpleDoubleProperty();
+    private final DoubleProperty specTolerance = new SimpleDoubleProperty();
     private final StringProperty type = new SimpleStringProperty();
-    private final FloatProperty bonusTol = new SimpleFloatProperty();
-    private final FloatProperty measurement = new SimpleFloatProperty(); // columnControlBar will be controlled by this
+    private final DoubleProperty bonusTol = new SimpleDoubleProperty();
+    private final DoubleProperty measurement = new SimpleDoubleProperty(); // columnControlBar will be controlled by this
     private final StringProperty inspectMethod = new SimpleStringProperty();
 
-    public Part(int specNumber, int place, String specType, float specNominalSize, float specTolerance, String type, float bonusTol, float measurement, String inspectMethod) {
+    public Part(int specNumber, int place, String specType, double specNominalSize, double specTolerance, String type, double bonusTol, double measurement, String inspectMethod) {
         this.specNumber.set(specNumber);
         this.place.set(place);
         this.specType.set(specType);
@@ -49,19 +50,19 @@ public class Part {
         return specType;
     }
 
-    public float getSpecNominalSize() {
+    public double getSpecNominalSize() {
         return specNominalSize.get();
     }
 
-    public FloatProperty specNominalSizeProperty() {
+    public DoubleProperty specNominalSizeProperty() {
         return specNominalSize;
     }
 
-    public float getSpecTolerance() {
+    public double getSpecTolerance() {
         return specTolerance.get();
     }
 
-    public FloatProperty specToleranceProperty() {
+    public DoubleProperty specToleranceProperty() {
         return specTolerance;
     }
 
@@ -73,20 +74,26 @@ public class Part {
         return type;
     }
 
-    public float getBonusTol() {
+    public double getBonusTol() {
         return bonusTol.get();
     }
 
-    public FloatProperty bonusTolProperty() {
+    public DoubleProperty bonusTolProperty() {
         return bonusTol;
     }
 
-    public float getMeasurement() {
+    public double getMeasurement() {
         return measurement.get();
     }
 
-    public FloatProperty measurementProperty() {
+    public DoubleProperty measurementProperty() {
         return measurement;
+    }
+
+    public DoubleBinding specDeviation() {
+        return specNominalSize
+                .subtract(measurementProperty())
+                .divide(specTolerance);
     }
 
     public String getInspectMethod() {
