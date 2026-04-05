@@ -1,97 +1,99 @@
 package model;
 
+import javafx.beans.property.*;
+
 public class Part {
-    private int specNumber;
-    private int place;
-    private String specType;
-    private float specNominalSize;
-    private float specTolerance;
-    private String type;
-    private float bonusTol;
-    private float measurement; // columnControlBar will be controlled by this
-    private String inspectMethod;
+    private final IntegerProperty specNumber = new SimpleIntegerProperty();
+    private final IntegerProperty place = new SimpleIntegerProperty();
+    private final StringProperty specType = new SimpleStringProperty();
+    private final FloatProperty specNominalSize = new SimpleFloatProperty();
+    private final FloatProperty specTolerance = new SimpleFloatProperty();
+    private final StringProperty type = new SimpleStringProperty();
+    private final FloatProperty bonusTol = new SimpleFloatProperty();
+    private final FloatProperty measurement = new SimpleFloatProperty(); // columnControlBar will be controlled by this
+    private final StringProperty inspectMethod = new SimpleStringProperty();
 
     public Part(int specNumber, int place, String specType, float specNominalSize, float specTolerance, String type, float bonusTol, float measurement, String inspectMethod) {
-        this.specNumber = specNumber;
-        this.place = place;
-        this.specType = specType;
-        this.specNominalSize = specNominalSize;
-        this.specTolerance = specTolerance;
-        this.type = type;
-        this.bonusTol = bonusTol;
-        this.measurement = measurement;
-        this.inspectMethod = inspectMethod;
+        this.specNumber.set(specNumber);
+        this.place.set(place);
+        this.specType.set(specType);
+        this.specNominalSize.set(specNominalSize);
+        this.specTolerance.set(specTolerance);
+        this.type.set(type);
+        this.bonusTol.set(bonusTol);
+        this.measurement.set(measurement); // columnControlBar will be controlled by this
+        this.inspectMethod.set(inspectMethod);
     }
 
     public int getSpecNumber() {
+        return specNumber.get();
+    }
+
+    public IntegerProperty specNumberProperty() {
         return specNumber;
     }
 
-    public void setSpecNumber(int specNumber) {
-        this.specNumber = specNumber;
+    public int getPlace() {
+        return place.get();
     }
 
-    public int getPlace() {
+    public IntegerProperty placeProperty() {
         return place;
     }
 
-    public void setPlace(int place) {
-        this.place = place;
+    public String getSpecType() {
+        return specType.get();
     }
 
-    public String getSpecType() {
+    public StringProperty specTypeProperty() {
         return specType;
     }
 
-    public void setSpecType(String specType) {
-        this.specType = specType;
+    public float getSpecNominalSize() {
+        return specNominalSize.get();
     }
 
-    public float getSpecNominalSize() {
+    public FloatProperty specNominalSizeProperty() {
         return specNominalSize;
     }
 
-    public void setSpecNominalSize(float specNominalSize) {
-        this.specNominalSize = specNominalSize;
+    public float getSpecTolerance() {
+        return specTolerance.get();
     }
 
-    public float getSpecTolerance() {
+    public FloatProperty specToleranceProperty() {
         return specTolerance;
     }
 
-    public void setSpecTolerance(float specTolerance) {
-        this.specTolerance = specTolerance;
+    public String getType() {
+        return type.get();
     }
 
-    public String getType() {
+    public StringProperty typeProperty() {
         return type;
     }
 
-    public void setType(String type) {
-        this.type = type;
+    public float getBonusTol() {
+        return bonusTol.get();
     }
 
-    public float getBonusTol() {
+    public FloatProperty bonusTolProperty() {
         return bonusTol;
     }
 
-    public void setBonusTol(float bonusTol) {
-        this.bonusTol = bonusTol;
+    public float getMeasurement() {
+        return measurement.get();
     }
 
-    public float getMeasurement() {
+    public FloatProperty measurementProperty() {
         return measurement;
     }
 
-    public void setMeasurement(float measurement) {
-        this.measurement = measurement;
-    }
-
     public String getInspectMethod() {
-        return inspectMethod;
+        return inspectMethod.get();
     }
 
-    public void setInspectMethod(String inspectMethod) {
-        this.inspectMethod = inspectMethod;
+    public StringProperty inspectMethodProperty() {
+        return inspectMethod;
     }
 }
