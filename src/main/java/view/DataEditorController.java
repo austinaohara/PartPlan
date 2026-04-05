@@ -39,19 +39,19 @@ public class DataEditorController implements Initializable {
     private TableColumn<Part, Integer>  columnPlace;
 
     @FXML
-    private TableColumn<Part, Float>  columnSpecification;
+    private TableColumn<Part, Double>  columnSpecification;
 
     @FXML
     private TableColumn<Part, String>  columnType;
 
     @FXML
-    private TableColumn<Part, Float>  columnBonusTol; // TODO: unknown what this is
+    private TableColumn<Part, Double>  columnBonusTol; // TODO: unknown what this is
 
     @FXML
-    private TableColumn<Part, Float>  columnMeasurement;
+    private TableColumn<Part, Double>  columnMeasurement;
 
     @FXML
-    private TableColumn<Part, Float>  columnControlBar;
+    private TableColumn<Part, Double>  columnControlBar;
 
     @FXML
     private TableColumn<Part, String>  columnInspectMethod;
@@ -63,7 +63,8 @@ public class DataEditorController implements Initializable {
         columnPlace.setCellValueFactory(data -> data.getValue().placeProperty().asObject());
 //        columnPlace.setCellFactory(TextFieldTableCell.forTableColumn(new IntegerStringConverter()));
 
-        columnControlBar.setCellValueFactory(data -> data.getValue().measurementProperty().asObject());
+        columnControlBar.setCellFactory(col -> new ControlBarCell());
+        columnControlBar.setCellValueFactory(data -> data.getValue().specDeviation().asObject());
 
         columnType.setCellValueFactory(data -> data.getValue().typeProperty());
 
@@ -74,6 +75,6 @@ public class DataEditorController implements Initializable {
         tableView.setItems(viewModel.getParts());
         tableView.setEditable(true);
 
-        viewModel.addPart(new Part(1, 1, "1", 1, 1, "1", 1, 1, "1"));
+        viewModel.addPart(new Part(1, 1, "1", 5.0, 1, "1", 1, 2.0, "1"));
     }
 }
