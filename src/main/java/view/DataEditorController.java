@@ -1,15 +1,27 @@
 package view;
 
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
+import javafx.fxml.Initializable;
 import javafx.scene.Parent;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
+import javafx.scene.control.cell.PropertyValueFactory;
+import javafx.scene.control.cell.TextFieldTableCell;
 import javafx.scene.layout.VBox;
+import javafx.util.converter.IntegerStringConverter;
 import model.InspectionPlan;
+import model.Part;
+import view.tableCells.ControlBarCell;
 import viewmodel.DataEditorViewModel;
 
-public class DataEditorController {
+import java.net.URL;
+import java.util.ResourceBundle;
+
+public class DataEditorController implements Initializable {
     private final DataEditorViewModel viewModel = new DataEditorViewModel();
+
 
     @FXML
     private Parent root;
@@ -18,33 +30,50 @@ public class DataEditorController {
     private VBox vbox;
 
     @FXML
-    private TableView<InspectionPlan> tableView;
+    private TableView<Part> tableView;
 
     @FXML
-    private TableColumn<InspectionPlan, Integer> columnSpecNumber;
+    private TableColumn<Part, Integer> columnSpecNumber;
 
     @FXML
-    private TableColumn<InspectionPlan, Integer>  columnPlace;
-
-    /*TODO: figure out what variable types to use.
-    *  some of them seem to be images + text. use hbox? or use more columns?*/
-//    @FXML
-//    private TableColumn<InspectionPlan, VALUE>  columnSpecification;
+    private TableColumn<Part, Integer>  columnPlace;
 
     @FXML
-    private TableColumn<InspectionPlan, String>  columnType;
-
-//    @FXML
-//    private TableColumn<InspectionPlan, VALUE>  columnBonusTol;
-
-//    @FXML
-//    private TableColumn<InspectionPlan, VALUE>  columnMeasurement;
-
-//    // TODO: make control bar a resizable bar of colors
-//    @FXML
-//    private TableColumn<InspectionPlan, VALUE>  columnControlBar;
+    private TableColumn<Part, Float>  columnSpecification;
 
     @FXML
-    private TableColumn<InspectionPlan, String>  columnInspectMethod;
+    private TableColumn<Part, String>  columnType;
 
+    @FXML
+    private TableColumn<Part, Float>  columnBonusTol; // TODO: unknown what this is
+
+    @FXML
+    private TableColumn<Part, Float>  columnMeasurement;
+
+    @FXML
+    private TableColumn<Part, Float>  columnControlBar;
+
+    @FXML
+    private TableColumn<Part, String>  columnInspectMethod;
+
+    @Override
+    public void initialize(URL location, ResourceBundle resources) {
+        columnSpecNumber.setCellValueFactory(data -> data.getValue().specNumberProperty().asObject());
+
+        columnPlace.setCellValueFactory(data -> data.getValue().placeProperty().asObject());
+//        columnPlace.setCellFactory(TextFieldTableCell.forTableColumn(new IntegerStringConverter()));
+
+        columnControlBar.setCellValueFactory(data -> data.getValue().measurementProperty().asObject());
+
+        columnType.setCellValueFactory(data -> data.getValue().typeProperty());
+
+        columnBonusTol.setCellValueFactory(data -> data.getValue().bonusTolProperty().asObject());
+
+        columnInspectMethod.setCellValueFactory(data -> data.getValue().inspectMethodProperty());
+
+        tableView.setItems(viewModel.getParts());
+        tableView.setEditable(true);
+
+        viewModel.addPart(new Part(1, 1, "1", 1, 1, "1", 1, 1, "1"));
+    }
 }
