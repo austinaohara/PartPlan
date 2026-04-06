@@ -14,6 +14,10 @@ import service.PlanStorageService;
 
 import java.io.File;
 import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
@@ -50,15 +54,46 @@ public class PlanEditorViewModel {
         Objects.requireNonNull(imageFile, "imageFile must not be null");
 
         InspectionPlan plan = requireCurrentPlan();
-        PlanDrawing drawing = new PlanDrawing(
-                imageFile.getName(),
-                imageFile.getAbsolutePath(),
-                determineFileType(imageFile.getName())
-        );
+        try {
+            Path planDirectory = Path.of("app-data", "plans", plan.getId());
+            Files.createDirectories(planDirectory);
+            Path target = planDirectory.resolve(imageFile.getName());
 
+            Files.copy(imageFile.toPath(), target, StandardCopyOption.REPLACE_EXISTING);
 
-                plan.setDrawing(drawing);
-        updateDrawingState(drawing);
+            PlanDrawing drawing = new PlanDrawing(
+                    imageFile.getName(),
+                    target.toString(),
+                    determineFileType(imageFile.getName())
+            );
+
+            plan.setDrawing(drawing);
+            drawingFileName.set(drawing.getFileName());
+            drawingPath.set(drawing.getStoredPath());
+            drawingLoaded.set(true);
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to restore drawing", e);
+        }
+
+    }
+
+    public void setCurrentPlan(InspectionPlan plan) {
+        currentPlan.set(plan);
+        planName.set(plan.getName());
+        PlanDrawing drawing = plan.getDrawing();
+
+        if (drawing != null && drawing.getStoredPath() != null) {
+            File file = new File(drawing.getStoredPath());
+            if (file.exists()) {
+                drawingFileName.set(drawing.getFileName());
+                drawingPath.set(drawing.getStoredPath());
+                drawingLoaded.set(true);
+            } else {
+                clearDrawingState();
+            }
+        } else {
+            clearDrawingState();
+        }
     }
 
     public void saveCurrentPlan() {
@@ -69,6 +104,7 @@ public class PlanEditorViewModel {
         }
         refreshSavedPlans();
     }
+
     public void openPlan(InspectionPlan selectedPlan) {
         if (selectedPlan == null) {
             return;
@@ -96,6 +132,7 @@ public class PlanEditorViewModel {
         List<InspectionPlan> plans = storageService.loadPlans();
         savedPlans.setAll(plans);
     }
+
     public boolean hasDrawing() {
         return drawingLoaded.get();
     }
@@ -104,7 +141,10 @@ public class PlanEditorViewModel {
         return currentPlan.get();
     }
 
-    public ObservableList<InspectionPlan> getSavedPlans(){return savedPlans;}
+    public ObservableList<InspectionPlan> getSavedPlans() {
+        return savedPlans;
+    }
+
     public ObjectProperty<InspectionPlan> currentPlanProperty() {
         return currentPlan;
     }
@@ -152,6 +192,7 @@ public class PlanEditorViewModel {
 
         updateDrawingState(plan.getDrawing());
     }
+
     private void updateDrawingState(PlanDrawing drawing) {
         drawingFileName.set(drawing.getFileName());
         drawingPath.set(drawing.getStoredPath());
