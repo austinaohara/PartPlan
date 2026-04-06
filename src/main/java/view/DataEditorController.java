@@ -1,19 +1,13 @@
 package view;
 
-import javafx.collections.FXCollections;
-import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.Parent;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
-import javafx.scene.control.cell.PropertyValueFactory;
-import javafx.scene.control.cell.TextFieldTableCell;
 import javafx.scene.layout.VBox;
-import javafx.util.converter.IntegerStringConverter;
-import model.InspectionPlan;
 import model.Part;
-import view.tableCells.ControlBarCell;
+import view.tableCells.ControlBarTableCell;
 import viewmodel.DataEditorViewModel;
 
 import java.net.URL;
@@ -63,7 +57,7 @@ public class DataEditorController implements Initializable {
         columnPlace.setCellValueFactory(data -> data.getValue().placeProperty().asObject());
 //        columnPlace.setCellFactory(TextFieldTableCell.forTableColumn(new IntegerStringConverter()));
 
-        columnControlBar.setCellFactory(col -> new ControlBarCell());
+        columnControlBar.setCellFactory(col -> new ControlBarTableCell());
         columnControlBar.setCellValueFactory(data -> data.getValue().specDeviation().asObject());
 
         columnType.setCellValueFactory(data -> data.getValue().typeProperty());

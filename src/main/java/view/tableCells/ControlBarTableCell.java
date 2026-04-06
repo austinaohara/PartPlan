@@ -6,7 +6,7 @@ import javafx.scene.control.TableCell;
 import javafx.scene.paint.Color;
 import model.Part;
 
-public class ControlBarCell extends TableCell<Part, Double> {
+public class ControlBarTableCell extends TableCell<Part, Double> {
 
     private static final double BAR_HEIGHT = 20;
 
@@ -19,7 +19,7 @@ public class ControlBarCell extends TableCell<Part, Double> {
 
     private final Canvas canvas = new Canvas();
 
-    public ControlBarCell() {
+    public ControlBarTableCell() {
         tableColumnProperty().addListener((obs, oldCol, newCol) -> {
             if (newCol != null) {
                 newCol.widthProperty().addListener((o, oldW, newW) -> draw());
