@@ -1,6 +1,9 @@
 package service;
 
+import model.Bubble;
+import model.BubbleStatus;
 import model.InspectionPlan;
+import model.InspectionType;
 import model.PlanDrawing;
 
 import java.io.IOException;
@@ -107,6 +110,7 @@ public class PlanStorageService {
         String description = readStringValue(json, "description");
         String createdAtText = readStringValue(json, "createdAt");
         String updatedAtText = readStringValue(json, "updatedAt");
+        List<Bubble> bubbles = readBubbles(json);
 
         PlanDrawing drawing = null;
         if (json.contains("\"drawing\"")) {
@@ -125,6 +129,7 @@ public class PlanStorageService {
                 revision,
                 description,
                 drawing,
+                bubbles,
                 LocalDateTime.parse(createdAtText),
                 LocalDateTime.parse(updatedAtText)
         );
@@ -179,12 +184,156 @@ public class PlanStorageService {
             builder.append("    \"storedPath\": \"").append(escape(drawing.getStoredPath())).append("\",\n");
             builder.append("    \"fileType\": \"").append(escape(drawing.getFileType())).append("\"\n");
             builder.append("  }\n");
+        }
+
+        if (!plan.getBubbles().isEmpty()) {
+            builder.append(",\n");
+            builder.append("  \"bubbles\": [\n");
+            for (int index = 0; index < plan.getBubbles().size(); index++) {
+                appendBubbleJson(builder, plan.getBubbles().get(index));
+                if (index < plan.getBubbles().size() - 1) {
+                    builder.append(",");
+                }
+                builder.append("\n");
+            }
+            builder.append("  ]\n");
         } else {
             builder.append("\n");
         }
 
         builder.append("}\n");
         return builder.toString();
+    }
+
+    private void appendBubbleJson(StringBuilder builder, Bubble bubble) {
+        builder.append("    {\n");
+        builder.append("      \"id\": \"").append(escape(bubble.getId())).append("\",\n");
+        builder.append("      \"x\": \"").append(bubble.getX()).append("\",\n");
+        builder.append("      \"y\": \"").append(bubble.getY()).append("\",\n");
+        builder.append("      \"radius\": \"").append(bubble.getRadius()).append("\",\n");
+        builder.append("      \"color\": \"").append(escape(bubble.getColor())).append("\",\n");
+        builder.append("      \"label\": \"").append(escape(bubble.getLabel())).append("\",\n");
+        builder.append("      \"characteristic\": \"").append(escape(bubble.getCharacteristic())).append("\",\n");
+        builder.append("      \"inspectionType\": \"").append(bubble.getInspectionType()).append("\",\n");
+        builder.append("      \"nominalValue\": \"").append(nullableDouble(bubble.getNominalValue())).append("\",\n");
+        builder.append("      \"lowerTolerance\": \"").append(nullableDouble(bubble.getLowerTolerance())).append("\",\n");
+        builder.append("      \"upperTolerance\": \"").append(nullableDouble(bubble.getUpperTolerance())).append("\",\n");
+        builder.append("      \"expectedPassFail\": \"").append(nullableBoolean(bubble.getExpectedPassFail())).append("\",\n");
+        builder.append("      \"measuredValue\": \"").append(nullableDouble(bubble.getMeasuredValue())).append("\",\n");
+        builder.append("      \"actualPassFail\": \"").append(nullableBoolean(bubble.getActualPassFail())).append("\",\n");
+        builder.append("      \"status\": \"").append(bubble.getStatus()).append("\",\n");
+        builder.append("      \"note\": \"").append(escape(bubble.getNote())).append("\",\n");
+        builder.append("      \"sequenceNumber\": \"").append(bubble.getSequenceNumber()).append("\",\n");
+        builder.append("      \"createdAt\": \"").append(bubble.getCreatedAt()).append("\",\n");
+        builder.append("      \"updatedAt\": \"").append(bubble.getUpdatedAt()).append("\"\n");
+        builder.append("    }");
+    }
+
+    private List<Bubble> readBubbles(String json) {
+        List<Bubble> bubbles = new ArrayList<>();
+        String arrayText = readArrayText(json, "bubbles");
+        if (arrayText.isBlank()) {
+            return bubbles;
+        }
+
+        for (String bubbleJson : readObjectTexts(arrayText)) {
+            bubbles.add(readBubble(bubbleJson));
+        }
+
+        return bubbles;
+    }
+
+    private Bubble readBubble(String json) {
+        return new Bubble(
+                readStringValue(json, "id"),
+                parseDouble(readStringValue(json, "x"), 0.0),
+                parseDouble(readStringValue(json, "y"), 0.0),
+                parseDouble(readStringValue(json, "radius"), 18.0),
+                readStringOrDefault(json, "color", "#E53935"),
+                readStringValue(json, "label"),
+                readStringValue(json, "characteristic"),
+                parseInspectionType(readStringValue(json, "inspectionType")),
+                parseNullableDouble(readStringValue(json, "nominalValue")),
+                parseNullableDouble(readStringValue(json, "lowerTolerance")),
+                parseNullableDouble(readStringValue(json, "upperTolerance")),
+                parseNullableBoolean(readStringValue(json, "expectedPassFail")),
+                parseNullableDouble(readStringValue(json, "measuredValue")),
+                parseNullableBoolean(readStringValue(json, "actualPassFail")),
+                parseBubbleStatus(readStringValue(json, "status")),
+                readStringValue(json, "note"),
+                parseInteger(readStringValue(json, "sequenceNumber"), 0),
+                parseLocalDateTime(readStringValue(json, "createdAt")),
+                parseLocalDateTime(readStringValue(json, "updatedAt"))
+        );
+    }
+
+    private String readArrayText(String json, String key) {
+        String marker = "\"" + key + "\"";
+        int keyIndex = json.indexOf(marker);
+        if (keyIndex < 0) {
+            return "";
+        }
+
+        int openingBracketIndex = json.indexOf('[', keyIndex);
+        if (openingBracketIndex < 0) {
+            return "";
+        }
+
+        int closingBracketIndex = findMatchingBracket(json, openingBracketIndex, '[', ']');
+        if (closingBracketIndex < 0) {
+            return "";
+        }
+
+        return json.substring(openingBracketIndex + 1, closingBracketIndex);
+    }
+
+    private List<String> readObjectTexts(String arrayText) {
+        List<String> objects = new ArrayList<>();
+        int index = 0;
+        while (index < arrayText.length()) {
+            int openingBraceIndex = arrayText.indexOf('{', index);
+            if (openingBraceIndex < 0) {
+                break;
+            }
+
+            int closingBraceIndex = findMatchingBracket(arrayText, openingBraceIndex, '{', '}');
+            if (closingBraceIndex < 0) {
+                break;
+            }
+
+            objects.add(arrayText.substring(openingBraceIndex, closingBraceIndex + 1));
+            index = closingBraceIndex + 1;
+        }
+
+        return objects;
+    }
+
+    private int findMatchingBracket(String text, int openingIndex, char openingCharacter, char closingCharacter) {
+        int depth = 0;
+        boolean inString = false;
+
+        for (int index = openingIndex; index < text.length(); index++) {
+            char character = text.charAt(index);
+            if (character == '"' && (index == 0 || text.charAt(index - 1) != '\\')) {
+                inString = !inString;
+            }
+
+            if (inString) {
+                continue;
+            }
+
+            if (character == openingCharacter) {
+                depth++;
+            } else if (character == closingCharacter) {
+                depth--;
+            }
+
+            if (depth == 0) {
+                return index;
+            }
+        }
+
+        return -1;
     }
 
     private String readStringValue(String json, String key) {
@@ -211,6 +360,83 @@ public class PlanStorageService {
 
         String value = json.substring(openingQuoteIndex + 1, closingQuoteIndex);
         return unescape(value);
+    }
+
+    private String readStringOrDefault(String json, String key, String defaultValue) {
+        String value = readStringValue(json, key);
+        return value.isBlank() ? defaultValue : value;
+    }
+
+    private InspectionType parseInspectionType(String value) {
+        if (value == null || value.isBlank()) {
+            return InspectionType.NUMERIC;
+        }
+
+        try {
+            return InspectionType.valueOf(value);
+        } catch (IllegalArgumentException exception) {
+            return InspectionType.NUMERIC;
+        }
+    }
+
+    private BubbleStatus parseBubbleStatus(String value) {
+        if (value == null || value.isBlank()) {
+            return BubbleStatus.OPEN;
+        }
+
+        try {
+            return BubbleStatus.valueOf(value);
+        } catch (IllegalArgumentException exception) {
+            return BubbleStatus.OPEN;
+        }
+    }
+
+    private LocalDateTime parseLocalDateTime(String value) {
+        if (value == null || value.isBlank()) {
+            return LocalDateTime.now();
+        }
+
+        return LocalDateTime.parse(value);
+    }
+
+    private Double parseNullableDouble(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+
+        return Double.parseDouble(value);
+    }
+
+    private double parseDouble(String value, double defaultValue) {
+        if (value == null || value.isBlank()) {
+            return defaultValue;
+        }
+
+        return Double.parseDouble(value);
+    }
+
+    private Boolean parseNullableBoolean(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+
+        return Boolean.parseBoolean(value);
+    }
+
+    private int parseInteger(String value, int defaultValue) {
+        if (value == null || value.isBlank()) {
+            return defaultValue;
+        }
+
+        return Integer.parseInt(value);
+    }
+
+    private String nullableDouble(Double value) {
+        return value == null ? "" : value.toString();
+    }
+
+    private String nullableBoolean(Boolean value) {
+        return value == null ? "" : value.toString();
     }
 
     private String escape(String value) {
