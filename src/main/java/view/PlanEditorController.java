@@ -1,13 +1,12 @@
 package view;
 
 import javafx.application.Platform;
+import javafx.collections.ListChangeListener;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
-import javafx.scene.control.Label;
-import javafx.scene.control.ScrollPane;
-import javafx.scene.control.TextField;
+import javafx.scene.control.*;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.KeyCode;
@@ -18,19 +17,14 @@ import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import javafx.stage.Window;
-import viewmodel.PlanEditorViewModel;
-import javafx.collections.ListChangeListener;
-import javafx.scene.control.Alert;
-import javafx.scene.control.ButtonType;
-import javafx.scene.control.ListCell;
-import javafx.scene.control.ListView;
 import model.InspectionPlan;
 import model.PlanPage;
-import java.util.Optional;
+import viewmodel.PlanEditorViewModel;
 
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Optional;
 
 public class PlanEditorController {
     private static final Path DEFAULT_IMAGE_DIRECTORY = Path.of("src", "main", "resources", "images");
@@ -244,7 +238,7 @@ public class PlanEditorController {
     }
 
     @FXML
-    private void onOpenTableEditor(){
+    private void OnOpenDataEditor() {
         try {
             if (dataEditorStage == null || !dataEditorStage.isShowing()) { // prevents multiple dataEditor windows
                 FXMLLoader fxmlLoader = new FXMLLoader();
