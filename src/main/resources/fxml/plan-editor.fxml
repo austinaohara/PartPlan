@@ -28,7 +28,7 @@
                 <Button mnemonicParsing="false" onAction="#onSavePlan" styleClass="primary-button" text="Save Plan" />
                 <Button mnemonicParsing="false" onAction="#onOpenPlan" styleClass="secondary-button" text="Open Plan" />
                 <Button mnemonicParsing="false" onAction="#onDeletePlan" styleClass="secondary-button" text="Delete Plan" />
-                <Button mnemonicParsing="false" onAction="#onImportDrawing" styleClass="primary-button" text="Import Drawing" />
+                <Button mnemonicParsing="false" onAction="#onImportDrawing" styleClass="primary-button" text="Add Page" />
                 <Separator orientation="VERTICAL" prefHeight="28.0" />
                 <Label styleClass="field-label" text="Plan Name" />
                 <TextField fx:id="planNameField" onAction="#onPlanNameChanged" onKeyReleased="#onPlanNameChanged"
@@ -54,6 +54,8 @@
                     <ListView fx:id="savedPlansListView" prefHeight="280.0" styleClass="saved-plans-list" />
                     <Separator />
                     <Label styleClass="tool-window-section-title" text="Current Plan" />
+                    <Label styleClass="field-label" text="Pages" />
+                    <ListView fx:id="planPagesListView" prefHeight="150.0" styleClass="saved-plans-list" />
                     <Label styleClass="field-label" text="Drawing File" />
                     <Label fx:id="drawingFileNameLabel" styleClass="field-value" text="No drawing selected" wrapText="true" />
                     <Label styleClass="field-label" text="Drawing Path" />
@@ -77,7 +79,10 @@
     <center>
         <StackPane styleClass="canvas-shell">
             <Label fx:id="emptyStateLabel" styleClass="empty-state"
-                   text="Import a machining drawing image to start this inspection plan." wrapText="true" />
+                   text="Add a drawing page to start this inspection plan." wrapText="true" />
+            <Label fx:id="pdfPreviewLabel" managed="false" styleClass="empty-state"
+                   text="PDF selected. The file is saved with the plan, but PDF preview is not available in this editor."
+                   visible="false" wrapText="true" />
             <ScrollPane fx:id="drawingScrollPane" fitToHeight="false" fitToWidth="false" pannable="true" styleClass="drawing-scroll-pane">
                 <content>
                     <Group>

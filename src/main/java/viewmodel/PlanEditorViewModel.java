@@ -10,14 +10,12 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import model.InspectionPlan;
 import model.PlanDrawing;
+import model.PlanPage;
+import service.PdfPageRenderingService;
 import service.PlanStorageService;
 
 import java.io.File;
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
@@ -26,11 +24,15 @@ public class PlanEditorViewModel {
     private static final String DEFAULT_PLAN_NAME = "New Inspection Plan";
 
     private final PlanStorageService storageService = new PlanStorageService();
+    private final PdfPageRenderingService pdfPageRenderingService = new PdfPageRenderingService();
     private final ObjectProperty<InspectionPlan> currentPlan = new SimpleObjectProperty<>();
+    private final ObjectProperty<PlanPage> selectedPage = new SimpleObjectProperty<>();
     private final ObservableList<InspectionPlan> savedPlans = FXCollections.observableArrayList();
+    private final ObservableList<PlanPage> planPages = FXCollections.observableArrayList();
     private final StringProperty planName = new SimpleStringProperty();
     private final StringProperty drawingFileName = new SimpleStringProperty("No drawing selected");
     private final StringProperty drawingPath = new SimpleStringProperty("");
+    private final StringProperty pageName = new SimpleStringProperty("");
     private final BooleanProperty drawingLoaded = new SimpleBooleanProperty(false);
 
     public PlanEditorViewModel() {
@@ -50,61 +52,76 @@ public class PlanEditorViewModel {
         planName.set(plan.getName());
     }
 
-    public void importDrawing(File imageFile) {
-        Objects.requireNonNull(imageFile, "imageFile must not be null");
+    public void importDrawing(File drawingFile) {
+        Objects.requireNonNull(drawingFile, "drawingFile must not be null");
 
         InspectionPlan plan = requireCurrentPlan();
-        try {
-            Path planDirectory = Path.of("app-data", "plans", plan.getId());
-            Files.createDirectories(planDirectory);
-            Path target = planDirectory.resolve(imageFile.getName());
-
-            Files.copy(imageFile.toPath(), target, StandardCopyOption.REPLACE_EXISTING);
-
-            PlanDrawing drawing = new PlanDrawing(
-                    imageFile.getName(),
-                    target.toString(),
-                    determineFileType(imageFile.getName())
-            );
-
-            plan.setDrawing(drawing);
-            drawingFileName.set(drawing.getFileName());
-            drawingPath.set(drawing.getStoredPath());
-            drawingLoaded.set(true);
-        } catch (IOException e) {
-            throw new RuntimeException("Failed to restore drawing", e);
+        if (isPdf(drawingFile)) {
+            importPdfPages(plan, drawingFile);
+            return;
         }
 
+        addPageFromFile(plan, drawingFile);
     }
 
-    public void setCurrentPlan(InspectionPlan plan) {
-        currentPlan.set(plan);
-        planName.set(plan.getName());
-        PlanDrawing drawing = plan.getDrawing();
-
-        if (drawing != null && drawing.getStoredPath() != null) {
-            File file = new File(drawing.getStoredPath());
-            if (file.exists()) {
-                drawingFileName.set(drawing.getFileName());
-                drawingPath.set(drawing.getStoredPath());
-                drawingLoaded.set(true);
-            } else {
-                clearDrawingState();
+    private void importPdfPages(InspectionPlan plan, File pdfFile) {
+        Path outputDirectory = Path.of(
+                System.getProperty("user.home"),
+                ".partplan",
+                "imports",
+                plan.getId(),
+                stripExtension(pdfFile.getName()) + "-" + System.nanoTime()
+        );
+        List<File> renderedPages = pdfPageRenderingService.renderPdfPages(pdfFile, outputDirectory);
+        PlanPage firstImportedPage = null;
+        for (File renderedPage : renderedPages) {
+            PlanPage page = addPageFromFile(plan, renderedPage);
+            if (firstImportedPage == null) {
+                firstImportedPage = page;
             }
-        } else {
-            clearDrawingState();
         }
+
+        if (firstImportedPage != null) {
+            selectPage(firstImportedPage);
+        }
+    }
+
+    private PlanPage addPageFromFile(InspectionPlan plan, File drawingFile) {
+        PlanDrawing drawing = new PlanDrawing(
+                drawingFile.getName(),
+                drawingFile.getAbsolutePath(),
+                determineFileType(drawingFile.getName())
+        );
+        int pageNumber = plan.nextPageNumber();
+        PlanPage page = new PlanPage("Page " + pageNumber, pageNumber, drawing);
+        plan.addPage(page);
+        planPages.setAll(plan.getPages());
+        selectPage(page);
+        return page;
+    }
+
+    public void selectPage(PlanPage page) {
+        selectedPage.set(page);
+        if (page == null || page.getDrawing() == null) {
+            clearDrawingState();
+            return;
+        }
+
+        pageName.set(page.getName());
+        updateDrawingState(page.getDrawing());
     }
 
     public void saveCurrentPlan() {
         InspectionPlan plan = requireCurrentPlan();
         storageService.savePlan(plan);
-        if (plan.getDrawing() != null) {
+        planPages.setAll(plan.getPages());
+        if (!planPages.isEmpty()) {
+            selectPage(planPages.getFirst());
+        } else if (plan.getDrawing() != null) {
             updateDrawingState(plan.getDrawing());
         }
         refreshSavedPlans();
     }
-
     public void openPlan(InspectionPlan selectedPlan) {
         if (selectedPlan == null) {
             return;
@@ -132,7 +149,6 @@ public class PlanEditorViewModel {
         List<InspectionPlan> plans = storageService.loadPlans();
         savedPlans.setAll(plans);
     }
-
     public boolean hasDrawing() {
         return drawingLoaded.get();
     }
@@ -141,8 +157,17 @@ public class PlanEditorViewModel {
         return currentPlan.get();
     }
 
-    public ObservableList<InspectionPlan> getSavedPlans() {
-        return savedPlans;
+    public ObservableList<InspectionPlan> getSavedPlans(){return savedPlans;}
+    public ObservableList<PlanPage> getPlanPages() {
+        return planPages;
+    }
+
+    public PlanPage getSelectedPage() {
+        return selectedPage.get();
+    }
+
+    public ObjectProperty<PlanPage> selectedPageProperty() {
+        return selectedPage;
     }
 
     public ObjectProperty<InspectionPlan> currentPlanProperty() {
@@ -173,6 +198,14 @@ public class PlanEditorViewModel {
         return drawingPath;
     }
 
+    public String getPageName() {
+        return pageName.get();
+    }
+
+    public StringProperty pageNameProperty() {
+        return pageName;
+    }
+
     public boolean isDrawingLoaded() {
         return drawingLoaded.get();
     }
@@ -184,15 +217,15 @@ public class PlanEditorViewModel {
     private void loadPlan(InspectionPlan plan) {
         currentPlan.set(plan);
         planName.set(plan.getName());
+        planPages.setAll(plan.getPages());
 
-        if (plan.getDrawing() == null) {
+        if (planPages.isEmpty()) {
             clearDrawingState();
             return;
         }
 
-        updateDrawingState(plan.getDrawing());
+        selectPage(planPages.getFirst());
     }
-
     private void updateDrawingState(PlanDrawing drawing) {
         drawingFileName.set(drawing.getFileName());
         drawingPath.set(drawing.getStoredPath());
@@ -222,7 +255,19 @@ public class PlanEditorViewModel {
         return fileName.substring(extensionIndex + 1).toLowerCase(Locale.ROOT);
     }
 
+    private boolean isPdf(File file) {
+        return determineFileType(file.getName()).equals("pdf");
+    }
+
+    private String stripExtension(String fileName) {
+        int extensionIndex = fileName.lastIndexOf('.');
+        String baseName = extensionIndex < 0 ? fileName : fileName.substring(0, extensionIndex);
+        return baseName.replaceAll("[^A-Za-z0-9._-]", "_");
+    }
+
     private void clearDrawingState() {
+        selectedPage.set(null);
+        pageName.set("");
         drawingFileName.set("No drawing selected");
         drawingPath.set("");
         drawingLoaded.set(false);
