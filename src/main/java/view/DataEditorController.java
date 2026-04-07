@@ -1,5 +1,6 @@
 package view;
 
+import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.Parent;
@@ -52,23 +53,25 @@ public class DataEditorController implements Initializable {
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
-        columnSpecNumber.setCellValueFactory(data -> data.getValue().specNumberProperty().asObject());
+        columnSpecNumber.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(data.getValue().getSpecNumber()));
 
-        columnPlace.setCellValueFactory(data -> data.getValue().placeProperty().asObject());
+        columnPlace.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(data.getValue().getPlace()));
 //        columnPlace.setCellFactory(TextFieldTableCell.forTableColumn(new IntegerStringConverter()));
 
         columnControlBar.setCellFactory(col -> new ControlBarTableCell());
-        columnControlBar.setCellValueFactory(data -> data.getValue().specDeviation().asObject());
+        columnControlBar.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(data.getValue().specDeviation()));
 
-        columnType.setCellValueFactory(data -> data.getValue().typeProperty());
+        columnType.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(data.getValue().getType()));
 
-        columnBonusTol.setCellValueFactory(data -> data.getValue().bonusTolProperty().asObject());
+        columnBonusTol.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(data.getValue().getBonusTol()));
 
-        columnInspectMethod.setCellValueFactory(data -> data.getValue().inspectMethodProperty());
+        columnMeasurement.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(data.getValue().getMeasurement()));
+
+        columnInspectMethod.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(data.getValue().getInspectMethod()));
 
         tableView.setItems(viewModel.getParts());
         tableView.setEditable(true);
 
-        viewModel.addPart(new Part(1, 1, "1", 5.0, 1, "1", 1, 2.0, "1"));
+        viewModel.addPart(new Part(1, 1, "Basic", 122.0, 0.5, "NUM", 1, 122.489, "Height Gage"));
     }
 }

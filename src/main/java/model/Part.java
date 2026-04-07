@@ -1,106 +1,102 @@
 package model;
 
-import javafx.beans.binding.DoubleBinding;
-import javafx.beans.property.*;
-
 public class Part {
-    private final IntegerProperty specNumber = new SimpleIntegerProperty();
-    private final IntegerProperty place = new SimpleIntegerProperty();
-    private final StringProperty specType = new SimpleStringProperty();
-    private final DoubleProperty specNominalSize = new SimpleDoubleProperty();
-    private final DoubleProperty specTolerance = new SimpleDoubleProperty();
-    private final StringProperty type = new SimpleStringProperty();
-    private final DoubleProperty bonusTol = new SimpleDoubleProperty();
-    private final DoubleProperty measurement = new SimpleDoubleProperty(); // columnControlBar will be controlled by this
-    private final StringProperty inspectMethod = new SimpleStringProperty();
+    private int specNumber;
+    private int place;
+    private String specType;
+    private double specNominalSize;
+    private double specTolerance;
+    private String type;
+    private double bonusTol;
+    private double measurement; // columnControlBar will be controlled by this
+    private String inspectMethod;
 
-    public Part(int specNumber, int place, String specType, double specNominalSize, double specTolerance, String type, double bonusTol, double measurement, String inspectMethod) {
-        this.specNumber.set(specNumber);
-        this.place.set(place);
-        this.specType.set(specType);
-        this.specNominalSize.set(specNominalSize);
-        this.specTolerance.set(specTolerance);
-        this.type.set(type);
-        this.bonusTol.set(bonusTol);
-        this.measurement.set(measurement); // columnControlBar will be controlled by this
-        this.inspectMethod.set(inspectMethod);
+    public Part(int specNumber, int place, String specType, double specNominalSize, double specTolerance,
+                String type, double bonusTol, double measurement, String inspectMethod) {
+        this.specNumber = specNumber;
+        this.place = place;
+        this.specType = specType;
+        this.specNominalSize = specNominalSize;
+        this.specTolerance = specTolerance;
+        this.type = type;
+        this.bonusTol = bonusTol;
+        this.measurement = measurement; // columnControlBar will be controlled by this
+        this.inspectMethod = inspectMethod;
     }
 
     public int getSpecNumber() {
-        return specNumber.get();
-    }
-
-    public IntegerProperty specNumberProperty() {
         return specNumber;
     }
 
-    public int getPlace() {
-        return place.get();
+    public void setSpecNumber(int specNumber) {
+        this.specNumber = specNumber;
     }
 
-    public IntegerProperty placeProperty() {
+    public int getPlace() {
         return place;
     }
 
-    public String getSpecType() {
-        return specType.get();
+    public void setPlace(int place) {
+        this.place = place;
     }
 
-    public StringProperty specTypeProperty() {
+    public String getSpecType() {
         return specType;
     }
 
-    public double getSpecNominalSize() {
-        return specNominalSize.get();
+    public void setSpecType(String specType) {
+        this.specType = specType;
     }
 
-    public DoubleProperty specNominalSizeProperty() {
+    public double getSpecNominalSize() {
         return specNominalSize;
     }
 
-    public double getSpecTolerance() {
-        return specTolerance.get();
+    public void setSpecNominalSize(double specNominalSize) {
+        this.specNominalSize = specNominalSize;
     }
 
-    public DoubleProperty specToleranceProperty() {
+    public double getSpecTolerance() {
         return specTolerance;
     }
 
-    public String getType() {
-        return type.get();
+    public void setSpecTolerance(double specTolerance) {
+        this.specTolerance = specTolerance;
     }
 
-    public StringProperty typeProperty() {
+    public String getType() {
         return type;
     }
 
-    public double getBonusTol() {
-        return bonusTol.get();
+    public void setType(String type) {
+        this.type = type;
     }
 
-    public DoubleProperty bonusTolProperty() {
+    public double getBonusTol() {
         return bonusTol;
     }
 
-    public double getMeasurement() {
-        return measurement.get();
+    public void setBonusTol(double bonusTol) {
+        this.bonusTol = bonusTol;
     }
 
-    public DoubleProperty measurementProperty() {
+    public double getMeasurement() {
         return measurement;
     }
 
-    public DoubleBinding specDeviation() {
-        return specNominalSize
-                .subtract(measurementProperty())
-                .divide(specTolerance);
+    public void setMeasurement(double measurement) {
+        this.measurement = measurement;
+    }
+
+    public double specDeviation() {
+        return (specNominalSize - measurement) / specTolerance;
     }
 
     public String getInspectMethod() {
-        return inspectMethod.get();
+        return inspectMethod;
     }
 
-    public StringProperty inspectMethodProperty() {
-        return inspectMethod;
+    public void setInspectMethod(String inspectMethod) {
+        this.inspectMethod = inspectMethod;
     }
 }
