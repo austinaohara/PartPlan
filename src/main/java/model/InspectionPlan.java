@@ -1,6 +1,9 @@
 package model;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
 import java.util.UUID;
 
 public class InspectionPlan {
@@ -10,15 +13,17 @@ public class InspectionPlan {
     private String revision;
     private String description;
     private PlanDrawing drawing;
+    private List<PlanPage> pages;
+    private List<Bubble> bubbles;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
     public InspectionPlan() {
-        this(UUID.randomUUID().toString(), "", "", "", "", null, LocalDateTime.now(), LocalDateTime.now());
+        this(UUID.randomUUID().toString(), "", "", "", "", null, new ArrayList<>(), LocalDateTime.now(), LocalDateTime.now());
     }
 
     public InspectionPlan(String name) {
-        this(UUID.randomUUID().toString(), name, "", "", "", null, LocalDateTime.now(), LocalDateTime.now());
+        this(UUID.randomUUID().toString(), name, "", "", "", null, new ArrayList<>(), LocalDateTime.now(), LocalDateTime.now());
     }
 
     public InspectionPlan(
@@ -31,12 +36,58 @@ public class InspectionPlan {
             LocalDateTime createdAt,
             LocalDateTime updatedAt
     ) {
+        this(id, name, partNumber, revision, description, drawing, new ArrayList<>(), createdAt, updatedAt);
+    }
+
+    public InspectionPlan(
+            String id,
+            String name,
+            String partNumber,
+            String revision,
+            String description,
+            PlanDrawing drawing,
+            List<Bubble> bubbles,
+            LocalDateTime createdAt,
+            LocalDateTime updatedAt
+    ) {
         this.id = id;
         this.name = name;
         this.partNumber = partNumber;
         this.revision = revision;
         this.description = description;
         this.drawing = drawing;
+        this.pages = new ArrayList<>();
+        if (drawing != null) {
+            this.pages.add(new PlanPage("Page 1", 1, drawing));
+        }
+        this.bubbles = bubbles == null ? new ArrayList<>() : new ArrayList<>(bubbles);
+        this.createdAt = createdAt;
+        this.updatedAt = updatedAt;
+    }
+
+    public InspectionPlan(
+            String id,
+            String name,
+            String partNumber,
+            String revision,
+            String description,
+            PlanDrawing drawing,
+            List<PlanPage> pages,
+            List<Bubble> bubbles,
+            LocalDateTime createdAt,
+            LocalDateTime updatedAt
+    ) {
+        this.id = id;
+        this.name = name;
+        this.partNumber = partNumber;
+        this.revision = revision;
+        this.description = description;
+        this.drawing = drawing;
+        this.pages = pages == null ? new ArrayList<>() : new ArrayList<>(pages);
+        if (this.drawing == null && !this.pages.isEmpty()) {
+            this.drawing = this.pages.getFirst().getDrawing();
+        }
+        this.bubbles = bubbles == null ? new ArrayList<>() : new ArrayList<>(bubbles);
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
     }
@@ -87,7 +138,96 @@ public class InspectionPlan {
 
     public void setDrawing(PlanDrawing drawing) {
         this.drawing = drawing;
+        this.pages.clear();
+        if (drawing != null) {
+            this.pages.add(new PlanPage("Page 1", 1, drawing));
+        }
         touch();
+    }
+
+    public List<PlanPage> getPages() {
+        return pages;
+    }
+
+    public void setPages(List<PlanPage> pages) {
+        this.pages = pages == null ? new ArrayList<>() : new ArrayList<>(pages);
+        this.drawing = this.pages.isEmpty() ? null : this.pages.getFirst().getDrawing();
+        touch();
+    }
+
+    public void addPage(PlanPage page) {
+        if (page == null) {
+            return;
+        }
+
+        pages.add(page);
+        if (drawing == null) {
+            drawing = page.getDrawing();
+        }
+        touch();
+    }
+
+    public void removePage(PlanPage page) {
+        if (page == null) {
+            return;
+        }
+
+        pages.remove(page);
+        drawing = pages.isEmpty() ? null : pages.getFirst().getDrawing();
+        touch();
+    }
+
+    public int nextPageNumber() {
+        return pages.stream()
+                .mapToInt(PlanPage::getPageNumber)
+                .max()
+                .orElse(0) + 1;
+    }
+
+    public List<Bubble> getBubbles() {
+        return bubbles;
+    }
+
+    public void setBubbles(List<Bubble> bubbles) {
+        this.bubbles = bubbles == null ? new ArrayList<>() : new ArrayList<>(bubbles);
+        touch();
+    }
+
+    public void addBubble(Bubble bubble) {
+        if (bubble == null) {
+            return;
+        }
+
+        bubbles.add(bubble);
+        touch();
+    }
+
+    public void removeBubble(Bubble bubble) {
+        if (bubble == null) {
+            return;
+        }
+
+        bubbles.remove(bubble);
+        touch();
+    }
+
+    public List<Bubble> getBubblesByStatus(BubbleStatus status) {
+        return bubbles.stream()
+                .filter(bubble -> bubble.getStatus() == status)
+                .toList();
+    }
+
+    public List<Bubble> getBubblesInSequenceOrder() {
+        return bubbles.stream()
+                .sorted(Comparator.comparingInt(Bubble::getSequenceNumber))
+                .toList();
+    }
+
+    public int nextBubbleSequenceNumber() {
+        return bubbles.stream()
+                .mapToInt(Bubble::getSequenceNumber)
+                .max()
+                .orElse(0) + 1;
     }
 
     public LocalDateTime getCreatedAt() {

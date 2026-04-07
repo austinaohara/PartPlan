@@ -23,6 +23,7 @@ import javafx.scene.control.ButtonType;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
 import model.InspectionPlan;
+import model.PlanPage;
 import java.util.Optional;
 
 import java.io.File;
@@ -47,9 +48,11 @@ public class PlanEditorController {
     @FXML private Label drawingFileNameLabel;
     @FXML private Label drawingPathLabel;
     @FXML private Label emptyStateLabel;
+    @FXML private Label pdfPreviewLabel;
     @FXML private ImageView drawingImageView;
     @FXML private ScrollPane drawingScrollPane;
     @FXML private ListView<InspectionPlan> savedPlansListView;
+    @FXML private ListView<PlanPage> planPagesListView;
 
     // Panel collapse fields
     @FXML private VBox leftPanel;
@@ -73,8 +76,10 @@ public class PlanEditorController {
         drawingPathLabel.textProperty().bind(viewModel.drawingPathProperty());
         emptyStateLabel.visibleProperty().bind(viewModel.drawingLoadedProperty().not());
         emptyStateLabel.managedProperty().bind(emptyStateLabel.visibleProperty());
-        drawingScrollPane.visibleProperty().bind(viewModel.drawingLoadedProperty());
-        drawingScrollPane.managedProperty().bind(drawingScrollPane.visibleProperty());
+        drawingScrollPane.setVisible(false);
+        drawingScrollPane.setManaged(false);
+        pdfPreviewLabel.setVisible(false);
+        pdfPreviewLabel.setManaged(false);
         drawingScrollPane.setPannable(true);
         drawingImageView.setPreserveRatio(true);
         root.sceneProperty().addListener((observable, oldScene, newScene) -> registerShortcuts(newScene));
@@ -87,6 +92,20 @@ public class PlanEditorController {
                 if (empty || item == null) { setText(null); return; }
                 setText(item.getName());
             }
+        });
+        planPagesListView.setItems(viewModel.getPlanPages());
+        planPagesListView.setCellFactory(listView -> new ListCell<>() {
+            protected void updateItem(PlanPage item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) { setText(null); return; }
+                String fileName = item.getDrawing() == null ? "No file" : item.getDrawing().getFileName();
+                setText(item.getName() + " - " + fileName);
+            }
+        });
+        planPagesListView.getSelectionModel().selectedItemProperty().addListener((observable, oldPage, newPage) -> {
+            viewModel.selectPage(newPage);
+            loadDrawingPreview(viewModel.getDrawingPath());
+            resetViewport();
         });
         viewModel.getSavedPlans().addListener(
                 (ListChangeListener<InspectionPlan>) change -> selectCurrentPlanIfPresent());
@@ -146,7 +165,8 @@ public class PlanEditorController {
     private void onNewPlan() {
         viewModel.createNewPlan();
         planNameField.setText(viewModel.getPlanName());
-        drawingImageView.setImage(null);
+        planPagesListView.getSelectionModel().clearSelection();
+        clearDrawingPreview();
         resetViewport();
         savedPlansListView.getSelectionModel().clearSelection();
     }
@@ -157,6 +177,7 @@ public class PlanEditorController {
         viewModel.saveCurrentPlan();
         planNameField.setText(viewModel.getPlanName());
         loadDrawingPreview(viewModel.getDrawingPath());
+        selectCurrentPageIfPresent();
         selectCurrentPlanIfPresent();
         showInformation("Plan saved locally as JSON.");
     }
@@ -167,6 +188,7 @@ public class PlanEditorController {
         if (selectedPlan == null) { showInformation("Select a saved plan first."); return; }
         viewModel.openPlan(selectedPlan);
         planNameField.setText(viewModel.getPlanName());
+        selectCurrentPageIfPresent();
         loadDrawingPreview(viewModel.getDrawingPath());
         resetViewport();
         selectCurrentPlanIfPresent();
@@ -184,6 +206,7 @@ public class PlanEditorController {
         if (result.isEmpty() || result.get() != ButtonType.OK) return;
         viewModel.deletePlan(selectedPlan);
         planNameField.setText(viewModel.getPlanName());
+        selectCurrentPageIfPresent();
         loadDrawingPreview(viewModel.getDrawingPath());
         resetViewport();
     }
@@ -200,16 +223,19 @@ public class PlanEditorController {
     @FXML
     private void onImportDrawing() {
         FileChooser fileChooser = new FileChooser();
-        fileChooser.setTitle("Select Drawing Image");
-        fileChooser.getExtensionFilters().add(
-                new FileChooser.ExtensionFilter("Image Files", "*.png", "*.jpg", "*.jpeg", "*.gif", "*.bmp")
+        fileChooser.setTitle("Select Drawing Page");
+        fileChooser.getExtensionFilters().addAll(
+                new FileChooser.ExtensionFilter("Drawing Files", "*.png", "*.jpg", "*.jpeg", "*.gif", "*.bmp", "*.pdf"),
+                new FileChooser.ExtensionFilter("Image Files", "*.png", "*.jpg", "*.jpeg", "*.gif", "*.bmp"),
+                new FileChooser.ExtensionFilter("PDF Files", "*.pdf")
         );
         configureInitialDirectory(fileChooser);
         Window window = planNameField.getScene().getWindow();
         File selectedFile = fileChooser.showOpenDialog(window);
         if (selectedFile == null) return;
         viewModel.importDrawing(selectedFile);
-        loadDrawingPreview(selectedFile.getAbsolutePath());
+        selectCurrentPageIfPresent();
+        loadDrawingPreview(viewModel.getDrawingPath());
         resetViewport();
     }
 
@@ -257,10 +283,36 @@ public class PlanEditorController {
     }
 
     private void loadDrawingPreview(String drawingPath) {
-        if (drawingPath == null || drawingPath.isBlank()) { drawingImageView.setImage(null); return; }
+        if (drawingPath == null || drawingPath.isBlank()) {
+            clearDrawingPreview();
+            return;
+        }
         File drawingFile = new File(drawingPath);
-        if (!drawingFile.isFile()) { drawingImageView.setImage(null); return; }
+        if (!drawingFile.isFile()) {
+            clearDrawingPreview();
+            return;
+        }
+        if (isPdf(drawingFile)) {
+            drawingImageView.setImage(null);
+            drawingScrollPane.setVisible(false);
+            drawingScrollPane.setManaged(false);
+            pdfPreviewLabel.setVisible(true);
+            pdfPreviewLabel.setManaged(true);
+            return;
+        }
+        pdfPreviewLabel.setVisible(false);
+        pdfPreviewLabel.setManaged(false);
+        drawingScrollPane.setVisible(true);
+        drawingScrollPane.setManaged(true);
         drawingImageView.setImage(new Image(drawingFile.toURI().toString()));
+    }
+
+    private void clearDrawingPreview() {
+        drawingImageView.setImage(null);
+        drawingScrollPane.setVisible(false);
+        drawingScrollPane.setManaged(false);
+        pdfPreviewLabel.setVisible(false);
+        pdfPreviewLabel.setManaged(false);
     }
 
     private void selectCurrentPlanIfPresent() {
@@ -269,6 +321,21 @@ public class PlanEditorController {
         for (InspectionPlan savedPlan : viewModel.getSavedPlans()) {
             if (savedPlan.getId().equals(currentPlan.getId())) {
                 savedPlansListView.getSelectionModel().select(savedPlan);
+                return;
+            }
+        }
+    }
+
+    private void selectCurrentPageIfPresent() {
+        PlanPage currentPage = viewModel.getSelectedPage();
+        if (currentPage == null) {
+            planPagesListView.getSelectionModel().clearSelection();
+            return;
+        }
+
+        for (PlanPage page : viewModel.getPlanPages()) {
+            if (page.getId().equals(currentPage.getId())) {
+                planPagesListView.getSelectionModel().select(page);
                 return;
             }
         }
@@ -283,11 +350,19 @@ public class PlanEditorController {
     }
 
     private void fitImageToViewport() {
+        if (drawingImageView.getImage() == null) {
+            return;
+        }
+
         double scrollbarSize = 50;
         double paneWidth = drawingScrollPane.getWidth() - scrollbarSize;
         double paneHeight = drawingScrollPane.getHeight() - scrollbarSize;
         double imageWidth = drawingImageView.getImage().getWidth();
         double imageHeight = drawingImageView.getImage().getHeight();
         applyZoom(Math.min(paneWidth / imageWidth, paneHeight / imageHeight));
+    }
+
+    private boolean isPdf(File file) {
+        return file.getName().toLowerCase().endsWith(".pdf");
     }
 }
