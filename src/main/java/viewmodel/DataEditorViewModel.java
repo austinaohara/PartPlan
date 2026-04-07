@@ -7,7 +7,7 @@ import model.Bubble;
 public class DataEditorViewModel {
     private final ObservableList<Bubble> bubbles = FXCollections.observableArrayList();
 
-    public ObservableList<Bubble> getParts(){
+    public ObservableList<Bubble> getBubbles(){
         return bubbles;
     }
 

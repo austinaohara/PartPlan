@@ -58,7 +58,7 @@ public class DataEditorController implements Initializable {
 
         columnInspectMethod.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(data.getValue().getInspectionType().toString()));
 
-        tableView.setItems(viewModel.getParts());
+        tableView.setItems(viewModel.getBubbles());
         tableView.setEditable(true);
     }
 }
