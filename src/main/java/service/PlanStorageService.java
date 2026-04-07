@@ -5,6 +5,7 @@ import model.BubbleStatus;
 import model.InspectionPlan;
 import model.InspectionType;
 import model.PlanDrawing;
+import model.PlanPage;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -21,6 +22,7 @@ public class PlanStorageService {
     private static final String PLANS_DIRECTORY_NAME = "plans";
     private static final String PLAN_FILE_NAME = "plan.json";
     private static final String DRAWING_DIRECTORY_NAME = "drawing";
+    private static final String PAGES_DIRECTORY_NAME = "pages";
 
     public void savePlan(InspectionPlan plan) {
         if (plan == null) {
@@ -31,9 +33,14 @@ public class PlanStorageService {
             Path planDirectory = getPlanDirectory(plan.getId());
             Files.createDirectories(planDirectory);
 
-            PlanDrawing savedDrawing = copyDrawingIfNeeded(plan, planDirectory);
-            if (savedDrawing != null) {
-                plan.setDrawing(savedDrawing);
+            List<PlanPage> savedPages = copyPagesIfNeeded(plan, planDirectory);
+            if (!savedPages.isEmpty()) {
+                plan.setPages(savedPages);
+            } else {
+                PlanDrawing savedDrawing = copyDrawingIfNeeded(plan, planDirectory);
+                if (savedDrawing != null) {
+                    plan.setDrawing(savedDrawing);
+                }
             }
 
             plan.setUpdatedAt(LocalDateTime.now());
@@ -110,6 +117,7 @@ public class PlanStorageService {
         String description = readStringValue(json, "description");
         String createdAtText = readStringValue(json, "createdAt");
         String updatedAtText = readStringValue(json, "updatedAt");
+        List<PlanPage> pages = readPages(json);
         List<Bubble> bubbles = readBubbles(json);
 
         PlanDrawing drawing = null;
@@ -129,6 +137,7 @@ public class PlanStorageService {
                 revision,
                 description,
                 drawing,
+                pages,
                 bubbles,
                 LocalDateTime.parse(createdAtText),
                 LocalDateTime.parse(updatedAtText)
@@ -150,6 +159,45 @@ public class PlanStorageService {
         Files.createDirectories(drawingDirectory);
 
         Path targetPath = drawingDirectory.resolve(drawing.getFileName());
+        if (!sourcePath.toAbsolutePath().normalize().equals(targetPath.toAbsolutePath().normalize())) {
+            Files.copy(sourcePath, targetPath, StandardCopyOption.REPLACE_EXISTING);
+        }
+
+        return new PlanDrawing(drawing.getFileName(), targetPath.toString(), drawing.getFileType());
+    }
+
+    private List<PlanPage> copyPagesIfNeeded(InspectionPlan plan, Path planDirectory) throws IOException {
+        List<PlanPage> savedPages = new ArrayList<>();
+        if (plan.getPages().isEmpty()) {
+            return savedPages;
+        }
+
+        Path pagesDirectory = planDirectory.resolve(PAGES_DIRECTORY_NAME);
+        Files.createDirectories(pagesDirectory);
+
+        for (PlanPage page : plan.getPages()) {
+            PlanDrawing savedDrawing = copyPageDrawingIfNeeded(page, pagesDirectory);
+            savedPages.add(new PlanPage(page.getId(), page.getName(), page.getPageNumber(), savedDrawing));
+        }
+
+        return savedPages;
+    }
+
+    private PlanDrawing copyPageDrawingIfNeeded(PlanPage page, Path pagesDirectory) throws IOException {
+        PlanDrawing drawing = page.getDrawing();
+        if (drawing == null || drawing.getStoredPath() == null || drawing.getStoredPath().isBlank()) {
+            return drawing;
+        }
+
+        Path sourcePath = Path.of(drawing.getStoredPath());
+        if (!Files.isRegularFile(sourcePath)) {
+            return drawing;
+        }
+
+        Path pageDirectory = pagesDirectory.resolve("page-" + page.getPageNumber());
+        Files.createDirectories(pageDirectory);
+
+        Path targetPath = pageDirectory.resolve(drawing.getFileName());
         if (!sourcePath.toAbsolutePath().normalize().equals(targetPath.toAbsolutePath().normalize())) {
             Files.copy(sourcePath, targetPath, StandardCopyOption.REPLACE_EXISTING);
         }
@@ -186,6 +234,19 @@ public class PlanStorageService {
             builder.append("  }\n");
         }
 
+        if (!plan.getPages().isEmpty()) {
+            builder.append(",\n");
+            builder.append("  \"pages\": [\n");
+            for (int index = 0; index < plan.getPages().size(); index++) {
+                appendPageJson(builder, plan.getPages().get(index));
+                if (index < plan.getPages().size() - 1) {
+                    builder.append(",");
+                }
+                builder.append("\n");
+            }
+            builder.append("  ]\n");
+        }
+
         if (!plan.getBubbles().isEmpty()) {
             builder.append(",\n");
             builder.append("  \"bubbles\": [\n");
@@ -203,6 +264,58 @@ public class PlanStorageService {
 
         builder.append("}\n");
         return builder.toString();
+    }
+
+    private void appendPageJson(StringBuilder builder, PlanPage page) {
+        PlanDrawing drawing = page.getDrawing();
+        builder.append("    {\n");
+        builder.append("      \"id\": \"").append(escape(page.getId())).append("\",\n");
+        builder.append("      \"name\": \"").append(escape(page.getName())).append("\",\n");
+        builder.append("      \"pageNumber\": \"").append(page.getPageNumber()).append("\"");
+        if (drawing != null) {
+            builder.append(",\n");
+            builder.append("      \"drawing\": {\n");
+            builder.append("        \"fileName\": \"").append(escape(drawing.getFileName())).append("\",\n");
+            builder.append("        \"storedPath\": \"").append(escape(drawing.getStoredPath())).append("\",\n");
+            builder.append("        \"fileType\": \"").append(escape(drawing.getFileType())).append("\"\n");
+            builder.append("      }\n");
+        } else {
+            builder.append("\n");
+        }
+        builder.append("    }");
+    }
+
+    private List<PlanPage> readPages(String json) {
+        List<PlanPage> pages = new ArrayList<>();
+        String arrayText = readArrayText(json, "pages");
+        if (arrayText.isBlank()) {
+            return pages;
+        }
+
+        for (String pageJson : readObjectTexts(arrayText)) {
+            pages.add(readPage(pageJson));
+        }
+
+        return pages;
+    }
+
+    private PlanPage readPage(String json) {
+        PlanDrawing drawing = null;
+        if (json.contains("\"drawing\"")) {
+            String drawingFileName = readStringValue(json, "fileName");
+            String drawingPath = readStringValue(json, "storedPath");
+            String drawingType = readStringValue(json, "fileType");
+            if (!drawingFileName.isBlank() || !drawingPath.isBlank()) {
+                drawing = new PlanDrawing(drawingFileName, drawingPath, drawingType);
+            }
+        }
+
+        return new PlanPage(
+                readStringValue(json, "id"),
+                readStringValue(json, "name"),
+                parseInteger(readStringValue(json, "pageNumber"), 0),
+                drawing
+        );
     }
 
     private void appendBubbleJson(StringBuilder builder, Bubble bubble) {
