@@ -7,7 +7,7 @@ import javafx.scene.Parent;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.layout.VBox;
-import model.Part;
+import model.Bubble;
 import view.tableCells.ControlBarTableCell;
 import viewmodel.DataEditorViewModel;
 
@@ -25,53 +25,40 @@ public class DataEditorController implements Initializable {
     private VBox vbox;
 
     @FXML
-    private TableView<Part> tableView;
+    private TableView<Bubble> tableView;
 
     @FXML
-    private TableColumn<Part, Integer> columnSpecNumber;
+    private TableColumn<Bubble, Integer> columnSpecNumber;
 
     @FXML
-    private TableColumn<Part, Integer>  columnPlace;
+    private TableColumn<Bubble, Double>  columnSpecification;
 
     @FXML
-    private TableColumn<Part, Double>  columnSpecification;
+    private TableColumn<Bubble, String>  columnType;
 
     @FXML
-    private TableColumn<Part, String>  columnType;
+    private TableColumn<Bubble, Double>  columnMeasurement;
 
     @FXML
-    private TableColumn<Part, Double>  columnBonusTol; // TODO: unknown what this is
+    private TableColumn<Bubble, Double>  columnControlBar;
 
     @FXML
-    private TableColumn<Part, Double>  columnMeasurement;
-
-    @FXML
-    private TableColumn<Part, Double>  columnControlBar;
-
-    @FXML
-    private TableColumn<Part, String>  columnInspectMethod;
+    private TableColumn<Bubble, String>  columnInspectMethod;
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
-        columnSpecNumber.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(data.getValue().getSpecNumber()));
-
-        columnPlace.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(data.getValue().getPlace()));
-//        columnPlace.setCellFactory(TextFieldTableCell.forTableColumn(new IntegerStringConverter()));
+        columnSpecNumber.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(data.getValue().getSequenceNumber()));
 
         columnControlBar.setCellFactory(col -> new ControlBarTableCell());
-        columnControlBar.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(data.getValue().specDeviation()));
+        columnControlBar.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(data.getValue().getMeasuredValue())); //TODO: fix this
 
-        columnType.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(data.getValue().getType()));
+        columnType.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(data.getValue().getInspectionType().toString()));
 
-        columnBonusTol.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(data.getValue().getBonusTol()));
+        columnMeasurement.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(data.getValue().getMeasuredValue()));
 
-        columnMeasurement.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(data.getValue().getMeasurement()));
-
-        columnInspectMethod.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(data.getValue().getInspectMethod()));
+        columnInspectMethod.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(data.getValue().getInspectionType().toString()));
 
         tableView.setItems(viewModel.getParts());
         tableView.setEditable(true);
-
-        viewModel.addPart(new Part(1, 1, "Basic", 122.0, 0.5, "NUM", 1, 122.489, "Height Gage"));
     }
 }

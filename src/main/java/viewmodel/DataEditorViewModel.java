@@ -1,24 +1,22 @@
 package viewmodel;
 
-import javafx.beans.property.DoubleProperty;
-import javafx.beans.property.SimpleDoubleProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
-import model.Part;
+import model.Bubble;
 
 public class DataEditorViewModel {
-    private ObservableList<Part> parts = FXCollections.observableArrayList();
+    private final ObservableList<Bubble> bubbles = FXCollections.observableArrayList();
 
-    public ObservableList<Part> getParts(){
-        return parts;
+    public ObservableList<Bubble> getParts(){
+        return bubbles;
     }
 
-    public void addPart(Part part){
-        parts.add(part);
+    public void addBubble(Bubble bubble){
+        bubbles.add(bubble);
     }
 
-    public void removePart(Part part){
-        parts.remove(part);
+    public void removeBubble(Bubble bubble){
+        bubbles.remove(bubble);
     }
 
 

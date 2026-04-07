@@ -4,9 +4,9 @@ import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.control.TableCell;
 import javafx.scene.paint.Color;
-import model.Part;
+import model.Bubble;
 
-public class ControlBarTableCell extends TableCell<Part, Double> {
+public class ControlBarTableCell extends TableCell<Bubble, Double> {
 
     private static final double BAR_HEIGHT = 20;
 
@@ -75,7 +75,7 @@ public class ControlBarTableCell extends TableCell<Part, Double> {
         if (empty || value == null) {
             setGraphic(null);
         } else {
-            specDeviation = getTableRow().getItem().getSpecNominalSize();
+            specDeviation = getTableRow().getItem().getNominalValue();
             this.value = value;
             System.out.printf("specDev: %f\nvalue: %f", specDeviation, value);
             draw();
