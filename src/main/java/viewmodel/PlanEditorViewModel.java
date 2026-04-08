@@ -15,7 +15,10 @@ import service.PdfPageRenderingService;
 import service.PlanStorageService;
 
 import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
@@ -80,24 +83,48 @@ public class PlanEditorViewModel {
                 firstImportedPage = page;
             }
         }
-
         if (firstImportedPage != null) {
             selectPage(firstImportedPage);
         }
     }
 
     private PlanPage addPageFromFile(InspectionPlan plan, File drawingFile) {
-        PlanDrawing drawing = new PlanDrawing(
-                drawingFile.getName(),
-                drawingFile.getAbsolutePath(),
-                determineFileType(drawingFile.getName())
-        );
-        int pageNumber = plan.nextPageNumber();
-        PlanPage page = new PlanPage("Page " + pageNumber, pageNumber, drawing);
-        plan.addPage(page);
-        planPages.setAll(plan.getPages());
-        selectPage(page);
-        return page;
+        try {
+            Path planDirectory = Path.of(
+                    System.getProperty("user.home"),
+                    ".partplan",
+                    "plans",
+                    plan.getId()
+            );
+
+            Files.createDirectories(planDirectory);
+
+            String fileType = determineFileType(drawingFile.getName());
+            String storedFileName = "page_" + plan.nextPageNumber() + "." + fileType;
+            Path storedFilePath = planDirectory.resolve(storedFileName);
+
+            Files.copy(
+                    drawingFile.toPath(),
+                    storedFilePath,
+                    StandardCopyOption.REPLACE_EXISTING
+            );
+
+            PlanDrawing drawing = new PlanDrawing(
+                    drawingFile.getName(),
+                    storedFilePath.toString(),
+                    fileType
+            );
+
+            int pageNumber = plan.nextPageNumber();
+            PlanPage page = new PlanPage("Page " + pageNumber, pageNumber, drawing);
+            plan.addPage(page);
+            planPages.setAll(plan.getPages());
+            selectPage(page);
+            return page;
+
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to store drawing", e);
+        }
     }
 
     public void selectPage(PlanPage page) {
@@ -106,7 +133,6 @@ public class PlanEditorViewModel {
             clearDrawingState();
             return;
         }
-
         pageName.set(page.getName());
         updateDrawingState(page.getDrawing());
     }
@@ -122,6 +148,7 @@ public class PlanEditorViewModel {
         }
         refreshSavedPlans();
     }
+
     public void openPlan(InspectionPlan selectedPlan) {
         if (selectedPlan == null) {
             return;
@@ -149,6 +176,7 @@ public class PlanEditorViewModel {
         List<InspectionPlan> plans = storageService.loadPlans();
         savedPlans.setAll(plans);
     }
+
     public boolean hasDrawing() {
         return drawingLoaded.get();
     }
@@ -157,7 +185,10 @@ public class PlanEditorViewModel {
         return currentPlan.get();
     }
 
-    public ObservableList<InspectionPlan> getSavedPlans(){return savedPlans;}
+    public ObservableList<InspectionPlan> getSavedPlans() {
+        return savedPlans;
+    }
+
     public ObservableList<PlanPage> getPlanPages() {
         return planPages;
     }
@@ -226,7 +257,18 @@ public class PlanEditorViewModel {
 
         selectPage(planPages.getFirst());
     }
+
     private void updateDrawingState(PlanDrawing drawing) {
+
+        if (drawing == null || drawing.getStoredPath() == null) {
+            clearDrawingState();
+            return;
+        }
+        File file = new File(drawing.getStoredPath());
+        if (!file.exists()) {
+            clearDrawingState();
+            return;
+        }
         drawingFileName.set(drawing.getFileName());
         drawingPath.set(drawing.getStoredPath());
         drawingLoaded.set(true);

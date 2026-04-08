@@ -24,6 +24,7 @@ import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
 import model.InspectionPlan;
 import model.PlanPage;
+
 import java.util.Optional;
 
 import java.io.File;
@@ -43,24 +44,40 @@ public class PlanEditorController {
     private double zoomLevel = DEFAULT_ZOOM;
 
     // Existing fields
-    @FXML private Parent root;
-    @FXML private TextField planNameField;
-    @FXML private Label drawingFileNameLabel;
-    @FXML private Label drawingPathLabel;
-    @FXML private Label emptyStateLabel;
-    @FXML private Label pdfPreviewLabel;
-    @FXML private ImageView drawingImageView;
-    @FXML private ScrollPane drawingScrollPane;
-    @FXML private ListView<InspectionPlan> savedPlansListView;
-    @FXML private ListView<PlanPage> planPagesListView;
+    @FXML
+    private Parent root;
+    @FXML
+    private TextField planNameField;
+    @FXML
+    private Label drawingFileNameLabel;
+    @FXML
+    private Label drawingPathLabel;
+    @FXML
+    private Label emptyStateLabel;
+    @FXML
+    private Label pdfPreviewLabel;
+    @FXML
+    private ImageView drawingImageView;
+    @FXML
+    private ScrollPane drawingScrollPane;
+    @FXML
+    private ListView<InspectionPlan> savedPlansListView;
+    @FXML
+    private ListView<PlanPage> planPagesListView;
 
     // Panel collapse fields
-    @FXML private VBox leftPanel;
-    @FXML private VBox leftCollapsedTab;
-    @FXML private VBox leftResizeHandle;
-    @FXML private VBox rightPanel;
-    @FXML private VBox rightCollapsedTab;
-    @FXML private VBox rightResizeHandle;
+    @FXML
+    private VBox leftPanel;
+    @FXML
+    private VBox leftCollapsedTab;
+    @FXML
+    private VBox leftResizeHandle;
+    @FXML
+    private VBox rightPanel;
+    @FXML
+    private VBox rightCollapsedTab;
+    @FXML
+    private VBox rightResizeHandle;
 
     private boolean leftExpanded = true;
     private boolean rightExpanded = true;
@@ -89,7 +106,10 @@ public class PlanEditorController {
         savedPlansListView.setCellFactory(listView -> new ListCell<>() {
             protected void updateItem(InspectionPlan item, boolean empty) {
                 super.updateItem(item, empty);
-                if (empty || item == null) { setText(null); return; }
+                if (empty || item == null) {
+                    setText(null);
+                    return;
+                }
                 setText(item.getName());
             }
         });
@@ -97,7 +117,10 @@ public class PlanEditorController {
         planPagesListView.setCellFactory(listView -> new ListCell<>() {
             protected void updateItem(PlanPage item, boolean empty) {
                 super.updateItem(item, empty);
-                if (empty || item == null) { setText(null); return; }
+                if (empty || item == null) {
+                    setText(null);
+                    return;
+                }
                 String fileName = item.getDrawing() == null ? "No file" : item.getDrawing().getFileName();
                 setText(item.getName() + " - " + fileName);
             }
@@ -185,7 +208,10 @@ public class PlanEditorController {
     @FXML
     private void onOpenPlan() {
         InspectionPlan selectedPlan = savedPlansListView.getSelectionModel().getSelectedItem();
-        if (selectedPlan == null) { showInformation("Select a saved plan first."); return; }
+        if (selectedPlan == null) {
+            showInformation("Select a saved plan first.");
+            return;
+        }
         viewModel.openPlan(selectedPlan);
         planNameField.setText(viewModel.getPlanName());
         selectCurrentPageIfPresent();
@@ -197,7 +223,10 @@ public class PlanEditorController {
     @FXML
     private void onDeletePlan() {
         InspectionPlan selectedPlan = savedPlansListView.getSelectionModel().getSelectedItem();
-        if (selectedPlan == null) { showInformation("Select a saved plan first."); return; }
+        if (selectedPlan == null) {
+            showInformation("Select a saved plan first.");
+            return;
+        }
         Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
         alert.setTitle("Delete Plan");
         alert.setHeaderText("Delete selected plan?");
@@ -245,13 +274,11 @@ public class PlanEditorController {
             return;
         }
 
-        File file = new File(viewModel.getDrawingFileName());
+        File file = new File(viewModel.getDrawingPath());
 
         if (file.exists()) {
             drawingImageView.setImage(new Image(file.toURI().toString()));
             resetViewport();
-        } else {
-            drawingImageView.setImage(null);
         }
     }
 
@@ -267,35 +294,67 @@ public class PlanEditorController {
 
     private void handleHotkeys(KeyEvent event) {
         if (!event.isControlDown()) return;
-        if (event.getCode() == KeyCode.S) { onSavePlan(); event.consume(); return; }
+        if (event.getCode() == KeyCode.S) {
+            onSavePlan();
+            event.consume();
+            return;
+        }
         if (!viewModel.hasDrawing()) return;
-        if (event.getCode() == KeyCode.EQUALS || event.getCode() == KeyCode.PLUS) { zoomIn(); event.consume(); return; }
-        if (event.getCode() == KeyCode.MINUS) { zoomOut(); event.consume(); return; }
-        if (event.getCode() == KeyCode.DIGIT0 || event.getCode() == KeyCode.NUMPAD0) { resetViewport(); event.consume(); return; }
-        if (event.getCode() == KeyCode.F) { fitImageToViewport(); event.consume(); }
+        if (event.getCode() == KeyCode.EQUALS || event.getCode() == KeyCode.PLUS) {
+            zoomIn();
+            event.consume();
+            return;
+        }
+        if (event.getCode() == KeyCode.MINUS) {
+            zoomOut();
+            event.consume();
+            return;
+        }
+        if (event.getCode() == KeyCode.DIGIT0 || event.getCode() == KeyCode.NUMPAD0) {
+            resetViewport();
+            event.consume();
+            return;
+        }
+        if (event.getCode() == KeyCode.F) {
+            fitImageToViewport();
+            event.consume();
+        }
     }
 
     private void handleScrollZoom(ScrollEvent event) {
         if (!event.isControlDown() || !viewModel.hasDrawing()) return;
         double previousZoom = zoomLevel;
-        if (event.getDeltaY() > 0) zoomIn(); else if (event.getDeltaY() < 0) zoomOut();
+        if (event.getDeltaY() > 0) zoomIn();
+        else if (event.getDeltaY() < 0) zoomOut();
         if (zoomLevel != previousZoom) event.consume();
     }
 
-    private void zoomIn() { applyZoom(Math.min(zoomLevel * ZOOM_STEP, MAX_ZOOM)); }
-    private void zoomOut() { applyZoom(Math.max(zoomLevel / ZOOM_STEP, MIN_ZOOM)); }
+    private void zoomIn() {
+        applyZoom(Math.min(zoomLevel * ZOOM_STEP, MAX_ZOOM));
+    }
+
+    private void zoomOut() {
+        applyZoom(Math.max(zoomLevel / ZOOM_STEP, MIN_ZOOM));
+    }
 
     private void applyZoom(double newZoomLevel) {
         zoomLevel = newZoomLevel;
         Image image = drawingImageView.getImage();
-        if (image == null) { drawingImageView.setFitWidth(0); drawingImageView.setFitHeight(0); return; }
+        if (image == null) {
+            drawingImageView.setFitWidth(0);
+            drawingImageView.setFitHeight(0);
+            return;
+        }
         drawingImageView.setFitWidth(image.getWidth() * zoomLevel);
         drawingImageView.setFitHeight(image.getHeight() * zoomLevel);
     }
 
     private void resetViewport() {
         applyZoom(DEFAULT_ZOOM);
-        Platform.runLater(() -> { drawingScrollPane.setHvalue(0.0); drawingScrollPane.setVvalue(0.0); });
+        Platform.runLater(() -> {
+            drawingScrollPane.setHvalue(0.0);
+            drawingScrollPane.setVvalue(0.0);
+        });
     }
 
     private void loadDrawingPreview(String drawingPath) {
