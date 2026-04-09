@@ -10,13 +10,14 @@ import javafx.scene.layout.VBox;
 import model.Bubble;
 import view.tableCells.ControlBarTableCell;
 import viewmodel.DataEditorViewModel;
+import viewmodel.PlanEditorViewModel;
 
 import java.net.URL;
 import java.util.ResourceBundle;
 
 public class DataEditorController implements Initializable {
-    private final DataEditorViewModel viewModel = new DataEditorViewModel();
-
+    private final PlanEditorViewModel planEditorViewModel = new PlanEditorViewModel();
+    private final DataEditorViewModel dataEditorViewModel = new DataEditorViewModel();
 
     @FXML
     private Parent root;
@@ -58,7 +59,9 @@ public class DataEditorController implements Initializable {
 
         columnInspectMethod.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(data.getValue().getInspectionType().toString()));
 
-        tableView.setItems(viewModel.getBubbles());
+        dataEditorViewModel.addBubble(new Bubble());
+        dataEditorViewModel.addBubble(new Bubble());
+        tableView.setItems(dataEditorViewModel.getBubbles());
         tableView.setEditable(true);
     }
 }
