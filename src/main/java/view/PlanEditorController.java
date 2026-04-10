@@ -243,9 +243,13 @@ public class PlanEditorController {
             if (dataEditorStage == null || !dataEditorStage.isShowing()) { // prevents multiple dataEditor windows
                 FXMLLoader fxmlLoader = new FXMLLoader();
                 fxmlLoader.setLocation(getClass().getResource("/fxml/data-editor.fxml"));
+                fxmlLoader.setController(new DataEditorController(this.viewModel));
                 Parent root = fxmlLoader.load();
 
+                System.out.println(viewModel.getPlanName());
+
                 DataEditorController controller = fxmlLoader.getController();
+                System.out.println(controller.toString());
 
                 dataEditorStage = new Stage();
                 dataEditorStage.setScene(new Scene(root));

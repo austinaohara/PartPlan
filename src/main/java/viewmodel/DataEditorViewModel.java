@@ -1,23 +1,15 @@
 package viewmodel;
 
-import javafx.collections.FXCollections;
-import javafx.collections.ObservableList;
-import model.Bubble;
+import model.InspectionPlan;
 
 public class DataEditorViewModel {
-    private final ObservableList<Bubble> bubbles = FXCollections.observableArrayList();
+    private final PlanEditorViewModel planEditorViewModel;
 
-    public ObservableList<Bubble> getBubbles(){
-        return bubbles;
+    public DataEditorViewModel(PlanEditorViewModel planEditorViewModel) {
+        this.planEditorViewModel = planEditorViewModel;
     }
 
-    public void addBubble(Bubble bubble){
-        bubbles.add(bubble);
+    public InspectionPlan getPlan(){
+        return planEditorViewModel.getCurrentPlan();
     }
-
-    public void removeBubble(Bubble bubble){
-        bubbles.remove(bubble);
-    }
-
-
 }

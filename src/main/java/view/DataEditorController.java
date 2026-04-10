@@ -16,8 +16,7 @@ import java.net.URL;
 import java.util.ResourceBundle;
 
 public class DataEditorController implements Initializable {
-    private final PlanEditorViewModel planEditorViewModel = new PlanEditorViewModel();
-    private final DataEditorViewModel dataEditorViewModel = new DataEditorViewModel();
+    private final DataEditorViewModel dataEditorViewModel;
 
     @FXML
     private Parent root;
@@ -46,6 +45,10 @@ public class DataEditorController implements Initializable {
     @FXML
     private TableColumn<Bubble, String>  columnInspectMethod;
 
+    public DataEditorController(PlanEditorViewModel planEditorViewModel) { //requires planEditorViewmodel
+        this.dataEditorViewModel = new DataEditorViewModel(planEditorViewModel);
+    }
+
     @Override
     public void initialize(URL location, ResourceBundle resources) {
         columnSpecNumber.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(data.getValue().getSequenceNumber()));
@@ -59,9 +62,12 @@ public class DataEditorController implements Initializable {
 
         columnInspectMethod.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(data.getValue().getInspectionType().toString()));
 
-        dataEditorViewModel.addBubble(new Bubble());
-        dataEditorViewModel.addBubble(new Bubble());
-        tableView.setItems(dataEditorViewModel.getBubbles());
+        System.out.println(this.toString());
+
         tableView.setEditable(true);
+    }
+
+    public DataEditorViewModel getDataEditorViewModel(){
+        return this.dataEditorViewModel;
     }
 }
