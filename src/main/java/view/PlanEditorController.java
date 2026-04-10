@@ -246,8 +246,6 @@ public class PlanEditorController {
                 fxmlLoader.setController(new DataEditorController(this.viewModel));
                 Parent root = fxmlLoader.load();
 
-                DataEditorController controller = fxmlLoader.getController();
-
                 dataEditorStage = new Stage();
                 dataEditorStage.setScene(new Scene(root));
                 dataEditorStage.show();
