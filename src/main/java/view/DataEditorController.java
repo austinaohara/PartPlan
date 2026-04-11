@@ -1,7 +1,6 @@
 package view;
 
 import javafx.beans.property.ReadOnlyObjectWrapper;
-import javafx.beans.property.SimpleObjectProperty;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.Parent;
@@ -82,7 +81,13 @@ public class DataEditorController implements Initializable {
     public void initialize(URL location, ResourceBundle resources) {
         currentPlanLabel.textProperty().bind(dataEditorViewModel.getPlanEditorViewModel().planNameProperty());
 
-        columnSequenceNumber.setCellValueFactory(data -> new SimpleObjectProperty<>(data.getValue().getSequenceNumber()));
+        columnSequenceNumber.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(data.getValue().getSequenceNumber()));
+
+        columnRadius.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>());
+        columnRadius.setCellFactory(TextFieldTableCell.forTableColumn(new DoubleStringConverter()));
+        columnRadius.setOnEditCommit(event -> {
+            event.getRowValue().setRadius(event.getNewValue());
+        });
 
         columnLabel.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(data.getValue().getLabel()));
         columnSequenceNumber.setCellFactory(TextFieldTableCell.forTableColumn(new IntegerStringConverter()));
@@ -129,10 +134,7 @@ public class DataEditorController implements Initializable {
         columnActualPassFail.setOnEditCommit(event -> {
         event.getRowValue().setActualPassFail(event.getNewValue());});
 
-        columnStatus.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(data.getValue().getStatus()));
-//        columnStatus.setCellFactory(TextFieldTableCell.forTableColumn(new ???);
-//        columnStatus.setOnEditCommit(event -> {
-//        event.getRowValue().setStatus(event.getNewValue());});
+        columnStatus.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(data.getValue().getStatus())); //TODO: figure out what to use for this
 
         columnNote.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(data.getValue().getNote()));
         columnNote.setCellFactory(TextFieldTableCell.forTableColumn(new DefaultStringConverter()));
