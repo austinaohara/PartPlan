@@ -34,7 +34,7 @@
                 <HBox alignment="CENTER_LEFT" styleClass="tool-window-header">
                     <Label styleClass="tool-window-title" text="Saved Plans" HBox.hgrow="ALWAYS" />
                     <HBox HBox.hgrow="ALWAYS" />
-                    <Button onAction="#onToggleLeftPanel" styleClass="tool-window-close-btn" text="✕" />
+                    <Button onAction="#onToggleLeftPanel" styleClass="tool-window-close-btn" text="X" />
                 </HBox>
                 <VBox spacing="10.0" VBox.vgrow="ALWAYS">
                     <padding>
@@ -92,9 +92,9 @@
 
             <!-- Expanded right panel -->
             <VBox fx:id="rightPanel" prefWidth="280.0" styleClass="tool-window">
-                <HBox alignment="CENTER_LEFT" styleClass="tool-window-header">
-                    <Button onAction="#onToggleRightPanel" styleClass="tool-window-close-btn" text="✕" />
-                    <Label styleClass="tool-window-title" text="Bubble Data" HBox.hgrow="ALWAYS" />
+                <HBox styleClass="tool-window-header" alignment="CENTER_LEFT">
+                    <Button onAction="#onToggleRightPanel" styleClass="tool-window-close-btn" text="X" />
+                    <Label text="Bubble Data" styleClass="tool-window-title" HBox.hgrow="ALWAYS" />
                 </HBox>
                 <VBox spacing="10.0" VBox.vgrow="ALWAYS">
                     <padding>
