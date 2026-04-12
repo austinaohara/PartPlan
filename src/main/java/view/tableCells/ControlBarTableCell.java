@@ -14,8 +14,9 @@ public class ControlBarTableCell extends TableCell<Bubble, Double> {
     private static final double YELLOW_RATIO = 0.15;
     private static final double GREEN_RATIO  = 0.40;
 
-    private double specDeviation;
-    private double value;
+    private double lowerTolerance;
+    private double upperTolerance;
+    private double deviationValue;
 
     private final Canvas canvas = new Canvas();
 
@@ -61,8 +62,9 @@ public class ControlBarTableCell extends TableCell<Bubble, Double> {
         gc.fillRect(redW + yellowW + greenW + yellowW, 0, redW, h);
 
         // --- draw the indicator line ---
-        double clampedValue = Math.max(-specDeviation, Math.min(specDeviation, value));
-        double lineX = (w / 2.0) + (clampedValue / specDeviation) * (w / 2.0);
+        double clampedValue = Math.max(-lowerTolerance, Math.min(deviationValue, upperTolerance));
+        double range = clampedValue >= 0 ? upperTolerance : lowerTolerance;
+        double lineX = (w / 2.0) + (clampedValue / range) * (w / 2.0); // normalizes range to -1 to 1
 
         gc.setStroke(Color.BLACK);
         gc.setLineWidth(2);
@@ -75,11 +77,13 @@ public class ControlBarTableCell extends TableCell<Bubble, Double> {
         if (empty || value == null) {
             setGraphic(null);
         } else {
-            specDeviation = getTableRow().getItem().getNominalValue();
-            this.value = value;
-            System.out.printf("specDev: %f\nvalue: %f", specDeviation, value);
-            draw();
-            setGraphic(canvas);
+            Bubble currentBubble = getTableRow().getItem();
+            this.lowerTolerance = currentBubble.getLowerTolerance();
+            this.upperTolerance = currentBubble.getUpperTolerance();
+
+            double nominalValue = currentBubble.getNominalValue();
+            double measuredValue = value;
+            this.deviationValue = measuredValue - nominalValue;
         }
     }
 }
