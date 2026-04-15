@@ -1,22 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <?import javafx.geometry.Insets?>
-<?import javafx.scene.control.Button?>
-<?import javafx.scene.control.Label?>
-<?import javafx.scene.control.ScrollPane?>
-<?import javafx.scene.control.Separator?>
-<?import javafx.scene.control.TextField?>
-<?import javafx.scene.image.ImageView?>
-<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.control.*?>
 <?import javafx.scene.Group?>
-<?import javafx.scene.layout.HBox?>
-<?import javafx.scene.layout.StackPane?>
-<?import javafx.scene.layout.VBox?>
-<?import javafx.scene.control.ListView?>
-
-<BorderPane fx:id="root" focusTraversable="true" prefHeight="700.0" prefWidth="1100.0" stylesheets="@../styles/main.css"
-            xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
-            fx:controller="view.PlanEditorController">
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.layout.*?>
+<BorderPane fx:id="root" focusTraversable="true" prefHeight="700.0" prefWidth="1100.0" stylesheets="@../styles/main.css" xmlns="http://javafx.com/javafx/17.0.12" xmlns:fx="http://javafx.com/fxml/1" fx:controller="view.PlanEditorController">
     <top>
         <VBox spacing="14.0" styleClass="top-bar">
             <padding>
@@ -31,8 +20,8 @@
                 <Button mnemonicParsing="false" onAction="#onImportDrawing" styleClass="primary-button" text="Add Page" />
                 <Separator orientation="VERTICAL" prefHeight="28.0" />
                 <Label styleClass="field-label" text="Plan Name" />
-                <TextField fx:id="planNameField" onAction="#onPlanNameChanged" onKeyReleased="#onPlanNameChanged"
-                           prefWidth="280.0" promptText="Inspection plan name" />
+                <TextField fx:id="planNameField" onAction="#onPlanNameChanged" onKeyReleased="#onPlanNameChanged" prefWidth="280.0" promptText="Inspection plan name" />
+            <Button mnemonicParsing="false" onAction="#OnOpenDataEditor" styleClass="secondary-button" text="Open in Data Editor" />
             </HBox>
         </VBox>
     </top>
@@ -42,8 +31,8 @@
             <!-- Expanded left panel -->
             <VBox fx:id="leftPanel" prefWidth="280.0" styleClass="tool-window">
                 <!-- Title bar: title on left, X on right -->
-                <HBox styleClass="tool-window-header" alignment="CENTER_LEFT">
-                    <Label text="Saved Plans" styleClass="tool-window-title" HBox.hgrow="ALWAYS" />
+                <HBox alignment="CENTER_LEFT" styleClass="tool-window-header">
+                    <Label styleClass="tool-window-title" text="Saved Plans" HBox.hgrow="ALWAYS" />
                     <HBox HBox.hgrow="ALWAYS" />
                     <Button onAction="#onToggleLeftPanel" styleClass="tool-window-close-btn" text="X" />
                 </HBox>
@@ -64,13 +53,12 @@
             </VBox>
 
             <!-- Resize handle (right edge of left panel) -->
-            <VBox fx:id="leftResizeHandle" styleClass="resize-handle-v" prefWidth="5.0" />
+            <VBox fx:id="leftResizeHandle" prefWidth="5.0" styleClass="resize-handle-v" />
 
             <!-- Collapsed left strip -->
-            <VBox fx:id="leftCollapsedTab" styleClass="tool-strip" alignment="TOP_CENTER"
-                  prefWidth="28.0" managed="false" visible="false" onMouseClicked="#onToggleLeftPanel">
+            <VBox fx:id="leftCollapsedTab" alignment="TOP_CENTER" managed="false" onMouseClicked="#onToggleLeftPanel" prefWidth="28.0" styleClass="tool-strip" visible="false">
                 <Group>
-                    <Label text="Saved Plans" styleClass="tool-strip-label" rotate="-90" />
+                    <Label rotate="-90" styleClass="tool-strip-label" text="Saved Plans" />
                 </Group>
             </VBox>
         </HBox>
@@ -78,11 +66,8 @@
 
     <center>
         <StackPane styleClass="canvas-shell">
-            <Label fx:id="emptyStateLabel" styleClass="empty-state"
-                   text="Add a drawing page to start this inspection plan." wrapText="true" />
-            <Label fx:id="pdfPreviewLabel" managed="false" styleClass="empty-state"
-                   text="PDF selected. The file is saved with the plan, but PDF preview is not available in this editor."
-                   visible="false" wrapText="true" />
+            <Label fx:id="emptyStateLabel" styleClass="empty-state" text="Add a drawing page to start this inspection plan." wrapText="true" />
+            <Label fx:id="pdfPreviewLabel" managed="false" styleClass="empty-state" text="PDF selected. The file is saved with the plan, but PDF preview is not available in this editor." visible="false" wrapText="true" />
             <ScrollPane fx:id="drawingScrollPane" fitToHeight="false" fitToWidth="false" pannable="true" styleClass="drawing-scroll-pane">
                 <content>
                     <Group>
@@ -96,15 +81,14 @@
     <right>
         <HBox>
             <!-- Collapsed right strip -->
-            <VBox fx:id="rightCollapsedTab" styleClass="tool-strip" alignment="TOP_CENTER"
-                  prefWidth="28.0" managed="false" visible="false" onMouseClicked="#onToggleRightPanel">
+            <VBox fx:id="rightCollapsedTab" alignment="TOP_CENTER" managed="false" onMouseClicked="#onToggleRightPanel" prefWidth="28.0" styleClass="tool-strip" visible="false">
                 <Group>
-                    <Label text="Bubble Data" styleClass="tool-strip-label" rotate="90" />
+                    <Label rotate="90" styleClass="tool-strip-label" text="Bubble Data" />
                 </Group>
             </VBox>
 
             <!-- Resize handle (left edge of right panel) -->
-            <VBox fx:id="rightResizeHandle" styleClass="resize-handle-v" prefWidth="5.0" />
+            <VBox fx:id="rightResizeHandle" prefWidth="5.0" styleClass="resize-handle-v" />
 
             <!-- Expanded right panel -->
             <VBox fx:id="rightPanel" prefWidth="280.0" styleClass="tool-window">
