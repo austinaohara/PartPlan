@@ -198,6 +198,7 @@ public class InspectionPlan {
             return;
         }
 
+        insertBubbleAtSequence(bubble, bubble.getSequenceNumber());
         bubbles.add(bubble);
         touch();
     }
@@ -208,6 +209,32 @@ public class InspectionPlan {
         }
 
         bubbles.remove(bubble);
+        resequencePageBubbles(bubble.getPageId());
+        touch();
+    }
+
+    public void moveBubbleToSequence(Bubble bubble, int requestedSequence) {
+        if (bubble == null) {
+            return;
+        }
+
+        String pageId = bubble.getPageId();
+        List<Bubble> pageBubbles = bubbles.stream()
+                .filter(candidate -> pageId.equals(candidate.getPageId()) && !candidate.getId().equals(bubble.getId()))
+                .sorted(Comparator.comparingInt(Bubble::getSequenceNumber))
+                .toList();
+
+        int boundedSequence = Math.max(1, Math.min(requestedSequence, pageBubbles.size() + 1));
+        for (Bubble candidate : pageBubbles) {
+            if (candidate.getSequenceNumber() >= boundedSequence) {
+                candidate.setSequenceNumber(candidate.getSequenceNumber() + 1);
+                candidate.setLabel(String.valueOf(candidate.getSequenceNumber()));
+            }
+        }
+
+        bubble.setSequenceNumber(boundedSequence);
+        bubble.setLabel(String.valueOf(boundedSequence));
+        resequencePageBubbles(pageId);
         touch();
     }
 
@@ -253,6 +280,42 @@ public class InspectionPlan {
     public void rename(String newName) {
         this.name = newName;
         touch();
+    }
+
+    private void insertBubbleAtSequence(Bubble bubble, int requestedSequence) {
+        String pageId = bubble.getPageId();
+        int boundedSequence = Math.max(1, Math.min(requestedSequence, nextBubbleSequenceNumberForPage(pageId)));
+        for (Bubble candidate : bubbles) {
+            if (pageId.equals(candidate.getPageId()) && candidate.getSequenceNumber() >= boundedSequence) {
+                candidate.setSequenceNumber(candidate.getSequenceNumber() + 1);
+                candidate.setLabel(String.valueOf(candidate.getSequenceNumber()));
+            }
+        }
+
+        bubble.setSequenceNumber(boundedSequence);
+        bubble.setLabel(String.valueOf(boundedSequence));
+    }
+
+    private void resequencePageBubbles(String pageId) {
+        List<Bubble> pageBubbles = bubbles.stream()
+                .filter(bubble -> pageId.equals(bubble.getPageId()))
+                .sorted(Comparator.comparingInt(Bubble::getSequenceNumber))
+                .toList();
+
+        for (int index = 0; index < pageBubbles.size(); index++) {
+            int sequence = index + 1;
+            Bubble bubble = pageBubbles.get(index);
+            bubble.setSequenceNumber(sequence);
+            bubble.setLabel(String.valueOf(sequence));
+        }
+    }
+
+    private int nextBubbleSequenceNumberForPage(String pageId) {
+        return bubbles.stream()
+                .filter(bubble -> pageId.equals(bubble.getPageId()))
+                .mapToInt(Bubble::getSequenceNumber)
+                .max()
+                .orElse(0) + 1;
     }
 
     private void touch() {

@@ -37,6 +37,20 @@
     -fx-font-size: 14px;
 }
 
+.combo-box,
+.text-area {
+    -fx-background-color: rgba(255, 255, 255, 0.96);
+    -fx-background-radius: 10px;
+    -fx-border-radius: 10px;
+    -fx-border-color: transparent;
+    -fx-font-size: 14px;
+}
+
+.text-area .content {
+    -fx-background-color: rgba(255, 255, 255, 0.96);
+    -fx-background-radius: 10px;
+}
+
 .button {
     -fx-background-radius: 10px;
     -fx-padding: 10px 16px;
@@ -54,6 +68,13 @@
     -fx-background-color: rgba(255, 255, 255, 0.16);
     -fx-text-fill: #f6fbff;
     -fx-border-color: rgba(255, 255, 255, 0.28);
+    -fx-border-radius: 10px;
+}
+
+.danger-button {
+    -fx-background-color: #fbe4e2;
+    -fx-text-fill: #8c1d18;
+    -fx-border-color: #d97b74;
     -fx-border-radius: 10px;
 }
 
@@ -148,6 +169,18 @@
     -fx-font-size: 12px;
     -fx-font-weight: 700;
     -fx-text-fill: #1e1e1e;
+}
+
+.bubble-selected-label {
+    -fx-text-fill: #b3261e;
+    -fx-font-size: 18px;
+    -fx-font-weight: 700;
+}
+
+.compact-checkbox {
+    -fx-padding: 0;
+    -fx-scale-x: 0.8;
+    -fx-scale-y: 0.8;
 }
 
 .tool-window-close-btn {

@@ -20,7 +20,7 @@
                 <Button mnemonicParsing="false" onAction="#onImportDrawing" styleClass="primary-button" text="Add Page" />
                 <Separator orientation="VERTICAL" prefHeight="28.0" />
                 <Label styleClass="field-label" text="Plan Name" />
-                <TextField fx:id="planNameField" onAction="#onPlanNameChanged" onKeyReleased="#onPlanNameChanged" prefWidth="280.0" promptText="Inspection plan name" />
+                <TextField fx:id="planNameField" onAction="#onPlanNameChanged" onKeyReleased="#onPlanNameChanged" prefWidth="280.0" promptText="New Inspection Plan" />
             <Button mnemonicParsing="false" onAction="#OnOpenDataEditor" styleClass="secondary-button" text="Open in Data Editor" />
             </HBox>
         </VBox>
@@ -72,6 +72,7 @@
                 <content>
                     <Group>
                         <ImageView fx:id="drawingImageView" preserveRatio="true" smooth="true" />
+                        <Pane fx:id="bubbleOverlayPane" pickOnBounds="true" />
                     </Group>
                 </content>
             </ScrollPane>
@@ -100,7 +101,45 @@
                     <padding>
                         <Insets bottom="16.0" left="16.0" right="16.0" top="12.0" />
                     </padding>
-                    <Label styleClass="field-value" text="Bubble entry coming soon." />
+                    <Label fx:id="bubbleModeLabel" styleClass="field-label" text="Default Bubble Settings" />
+                    <Label fx:id="bubbleHintLabel" styleClass="field-value" text="Shift + Click to place a bubble." wrapText="true" />
+                    <Separator />
+                    <Label styleClass="field-label" text="Bubble Number" />
+                    <TextField fx:id="bubbleNumberField" promptText="Bubble number" />
+                    <HBox alignment="CENTER_LEFT" spacing="6.0">
+                        <CheckBox fx:id="useDefaultDiameterCheckBox" mnemonicParsing="false" selected="true" styleClass="compact-checkbox">
+                            <tooltip>
+                                <Tooltip text="Use the default diameter value" />
+                            </tooltip>
+                        </CheckBox>
+                        <Label styleClass="field-label" text="Diameter" />
+                    </HBox>
+                    <TextField fx:id="bubbleDiameterField" promptText="Bubble diameter" />
+                    <HBox alignment="CENTER_LEFT" spacing="6.0">
+                        <CheckBox fx:id="useDefaultColorCheckBox" mnemonicParsing="false" selected="true" styleClass="compact-checkbox">
+                            <tooltip>
+                                <Tooltip text="Use the default bubble color" />
+                            </tooltip>
+                        </CheckBox>
+                        <Label styleClass="field-label" text="Color" />
+                    </HBox>
+                    <TextField fx:id="bubbleColorField" promptText="#E53935" />
+                    <Label styleClass="field-label" text="Characteristic" />
+                    <TextField fx:id="characteristicField" promptText="Enter characteristic" />
+                    <Label styleClass="field-label" text="Inspection Type" />
+                    <ComboBox fx:id="inspectionTypeComboBox" />
+                    <Label styleClass="field-label" text="Nominal Value" />
+                    <TextField fx:id="nominalValueField" promptText="Optional numeric value" />
+                    <Label styleClass="field-label" text="Lower Tolerance" />
+                    <TextField fx:id="lowerToleranceField" promptText="Optional numeric value" />
+                    <Label styleClass="field-label" text="Upper Tolerance" />
+                    <TextField fx:id="upperToleranceField" promptText="Optional numeric value" />
+                    <Label styleClass="field-label" text="Notes" />
+                    <TextArea fx:id="bubbleNoteArea" prefRowCount="6" promptText="Enter notes for this bubble" wrapText="true" />
+                    <HBox spacing="8.0">
+                        <Button fx:id="saveBubbleButton" maxWidth="Infinity" mnemonicParsing="false" onAction="#onSaveBubble" styleClass="primary-button" text="Save Defaults" HBox.hgrow="ALWAYS" />
+                        <Button fx:id="deleteBubbleButton" maxWidth="Infinity" mnemonicParsing="false" onAction="#onDeleteBubble" styleClass="danger-button" text="Delete" HBox.hgrow="ALWAYS" />
+                    </HBox>
                 </VBox>
             </VBox>
         </HBox>
