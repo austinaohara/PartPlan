@@ -6,6 +6,7 @@ import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
+import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
@@ -33,10 +34,13 @@ import java.io.File;
 import javafx.geometry.Point2D;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Comparator;
+import java.util.List;
 import java.util.Optional;
 
 public class PlanEditorController {
     private static final Path DEFAULT_IMAGE_DIRECTORY = Path.of("src", "main", "resources", "images");
+    private static final String DEFAULT_PLAN_NAME = "New Inspection Plan";
     private static final double DEFAULT_ZOOM = 1.0;
     private static final double ZOOM_STEP = 1.1;
     private static final double MIN_ZOOM = 0.25;
@@ -80,6 +84,7 @@ public class PlanEditorController {
     @FXML private TextField upperToleranceField;
     @FXML private TextArea bubbleNoteArea;
     @FXML private Button saveBubbleButton;
+    @FXML private Button deleteBubbleButton;
 
     private boolean leftExpanded = true;
     private boolean rightExpanded = true;
@@ -105,7 +110,7 @@ public class PlanEditorController {
 
     @FXML
     private void initialize() {
-        planNameField.setText(viewModel.getPlanName());
+        planNameField.setText(displayPlanName(viewModel.getPlanName()));
         drawingFileNameLabel.textProperty().bind(viewModel.drawingFileNameProperty());
         drawingPathLabel.textProperty().bind(viewModel.drawingPathProperty());
         emptyStateLabel.visibleProperty().bind(viewModel.drawingLoadedProperty().not());
@@ -223,7 +228,7 @@ public class PlanEditorController {
     @FXML
     private void onNewPlan() {
         viewModel.createNewPlan();
-        planNameField.setText(viewModel.getPlanName());
+        planNameField.setText(displayPlanName(viewModel.getPlanName()));
         planPagesListView.getSelectionModel().clearSelection();
         clearDrawingPreview();
         resetViewport();
@@ -234,7 +239,7 @@ public class PlanEditorController {
     private void onSavePlan() {
         onPlanNameChanged();
         viewModel.saveCurrentPlan();
-        planNameField.setText(viewModel.getPlanName());
+        planNameField.setText(displayPlanName(viewModel.getPlanName()));
         loadDrawingPreview(viewModel.getDrawingPath());
         selectCurrentPageIfPresent();
         selectCurrentPlanIfPresent();
@@ -246,7 +251,7 @@ public class PlanEditorController {
         InspectionPlan selectedPlan = savedPlansListView.getSelectionModel().getSelectedItem();
         if (selectedPlan == null) { showInformation("Select a saved plan first."); return; }
         viewModel.openPlan(selectedPlan);
-        planNameField.setText(viewModel.getPlanName());
+        planNameField.setText(displayPlanName(viewModel.getPlanName()));
         selectCurrentPageIfPresent();
         loadDrawingPreview(viewModel.getDrawingPath());
         resetViewport();
@@ -264,7 +269,7 @@ public class PlanEditorController {
         Optional<ButtonType> result = alert.showAndWait();
         if (result.isEmpty() || result.get() != ButtonType.OK) return;
         viewModel.deletePlan(selectedPlan);
-        planNameField.setText(viewModel.getPlanName());
+        planNameField.setText(displayPlanName(viewModel.getPlanName()));
         selectCurrentPageIfPresent();
         loadDrawingPreview(viewModel.getDrawingPath());
         resetViewport();
@@ -273,8 +278,9 @@ public class PlanEditorController {
     @FXML
     private void onPlanNameChanged() {
         viewModel.renamePlan(planNameField.getText());
-        if (!planNameField.getText().equals(viewModel.getPlanName())) {
-            planNameField.setText(viewModel.getPlanName());
+        String displayName = displayPlanName(viewModel.getPlanName());
+        if (!planNameField.getText().equals(displayName)) {
+            planNameField.setText(displayName);
             planNameField.positionCaret(planNameField.getText().length());
         }
     }
@@ -315,7 +321,9 @@ public class PlanEditorController {
 
             viewModel.saveSelectedBubble(
                     radius,
+                    shouldUseDefaultDiameter(),
                     color,
+                    shouldUseDefaultColor(),
                     characteristicField.getText(),
                     inspectionTypeComboBox.getValue(),
                     nominalValueField.getText(),
@@ -326,6 +334,15 @@ public class PlanEditorController {
         } catch (NumberFormatException exception) {
             showInformation("Diameter, nominal value, and tolerances must be valid numbers.");
         }
+    }
+
+    @FXML
+    private void onDeleteBubble() {
+        if (viewModel.getSelectedBubble() == null) {
+            return;
+        }
+
+        viewModel.deleteSelectedBubble();
     }
 
     @FXML
@@ -359,6 +376,17 @@ public class PlanEditorController {
     }
 
     private void handleHotkeys(KeyEvent event) {
+        if (isArrowNavigationEvent(event)) {
+            navigateBubbleSelection(event);
+            return;
+        }
+
+        if (isDeleteBubbleEvent(event)) {
+            onDeleteBubble();
+            event.consume();
+            return;
+        }
+
         if (!event.isControlDown()) return;
         if (event.getCode() == KeyCode.S) { onSavePlan(); event.consume(); return; }
         if (!viewModel.hasDrawing()) return;
@@ -484,6 +512,88 @@ public class PlanEditorController {
         return file.getName().toLowerCase().endsWith(".pdf");
     }
 
+    private boolean isArrowNavigationEvent(KeyEvent event) {
+        if (event.isControlDown() || event.isAltDown() || event.isMetaDown()) {
+            return false;
+        }
+
+        if (event.getCode() != KeyCode.LEFT
+                && event.getCode() != KeyCode.RIGHT
+                && event.getCode() != KeyCode.UP
+                && event.getCode() != KeyCode.DOWN) {
+            return false;
+        }
+
+        Scene scene = root.getScene();
+        if (scene == null) {
+            return false;
+        }
+
+        Node focusOwner = scene.getFocusOwner();
+        return !(focusOwner instanceof TextInputControl)
+                && !(focusOwner instanceof ComboBoxBase<?>)
+                && !(focusOwner instanceof ListView<?>)
+                && !(focusOwner instanceof TableView<?>);
+    }
+
+    private boolean isDeleteBubbleEvent(KeyEvent event) {
+        if (event.isControlDown() || event.isAltDown() || event.isMetaDown()) {
+            return false;
+        }
+
+        if (event.getCode() != KeyCode.DELETE && event.getCode() != KeyCode.BACK_SPACE) {
+            return false;
+        }
+
+        if (viewModel.getSelectedBubble() == null) {
+            return false;
+        }
+
+        Scene scene = root.getScene();
+        if (scene == null) {
+            return false;
+        }
+
+        Node focusOwner = scene.getFocusOwner();
+        return !(focusOwner instanceof TextInputControl)
+                && !(focusOwner instanceof ComboBoxBase<?>)
+                && !(focusOwner instanceof ListView<?>)
+                && !(focusOwner instanceof TableView<?>);
+    }
+
+    private void navigateBubbleSelection(KeyEvent event) {
+        List<Bubble> bubbles = viewModel.getPageBubbles().stream()
+                .sorted(Comparator.comparingInt(Bubble::getSequenceNumber))
+                .toList();
+        if (bubbles.isEmpty()) {
+            event.consume();
+            return;
+        }
+
+        int direction = (event.getCode() == KeyCode.LEFT || event.getCode() == KeyCode.UP) ? -1 : 1;
+        Bubble currentBubble = viewModel.getSelectedBubble();
+        int currentIndex = currentBubble == null ? -1 : indexOfBubble(bubbles, currentBubble.getId());
+        int nextIndex;
+
+        if (currentIndex < 0) {
+            nextIndex = direction > 0 ? 0 : bubbles.size() - 1;
+        } else {
+            nextIndex = (currentIndex + direction + bubbles.size()) % bubbles.size();
+        }
+
+        viewModel.selectBubble(bubbles.get(nextIndex));
+        event.consume();
+    }
+
+    private int indexOfBubble(List<Bubble> bubbles, String bubbleId) {
+        for (int index = 0; index < bubbles.size(); index++) {
+            if (bubbles.get(index).getId().equals(bubbleId)) {
+                return index;
+            }
+        }
+        return -1;
+    }
+
     private void handleDrawingClick(MouseEvent event) {
         if (drawingImageView.getImage() == null || viewModel.getSelectedPage() == null) {
             return;
@@ -501,7 +611,9 @@ public class PlanEditorController {
                     event.getX() / scale,
                     event.getY() / scale,
                     defaultBubbleDiameter / 2.0,
+                    true,
                     defaultBubbleColor,
+                    true,
                     defaultCharacteristic,
                     defaultInspectionType,
                     parseNullableDouble(defaultNominalValue),
@@ -539,7 +651,7 @@ public class PlanEditorController {
 
             Text text = new Text(circle.getCenterX(), circle.getCenterY(), bubble.getLabel());
             text.setFill(bubbleColor);
-            text.setFont(Font.font("Segoe UI", FontWeight.BOLD, Math.max(12.0, 14.0 * scale)));
+            text.setFont(Font.font("Segoe UI", FontWeight.BOLD, bubbleLabelFontSize(bubble, scale)));
             text.setMouseTransparent(true);
             text.applyCss();
             text.setX(circle.getCenterX() - text.getLayoutBounds().getWidth() / 2.0);
@@ -643,6 +755,7 @@ public class PlanEditorController {
             bubbleModeLabel.setText("Default Bubble Settings");
             bubbleHintLabel.setText("Shift + Click to place a bubble.");
             saveBubbleButton.setText("Save Defaults");
+            deleteBubbleButton.setDisable(true);
             updatingBubbleDefaultsUi = true;
             useDefaultDiameterCheckBox.setSelected(true);
             useDefaultColorCheckBox.setSelected(true);
@@ -662,9 +775,10 @@ public class PlanEditorController {
         bubbleModeLabel.setText("Selected Bubble");
         bubbleHintLabel.setText("Bubble " + selectedBubble.getLabel() + String.format(" at %.1f, %.1f", selectedBubble.getX(), selectedBubble.getY()));
         saveBubbleButton.setText("Save Bubble");
+        deleteBubbleButton.setDisable(false);
         updatingBubbleDefaultsUi = true;
-        useDefaultDiameterCheckBox.setSelected(isUsingDefaultDiameter(selectedBubble));
-        useDefaultColorCheckBox.setSelected(isUsingDefaultColor(selectedBubble));
+        useDefaultDiameterCheckBox.setSelected(selectedBubble.isUseDefaultDiameter());
+        useDefaultColorCheckBox.setSelected(selectedBubble.isUseDefaultColor());
         bubbleDiameterField.setText(useDefaultDiameterCheckBox.isSelected()
                 ? formatNumber(defaultBubbleDiameter)
                 : formatNumber(selectedBubble.getRadius() * 2.0));
@@ -690,6 +804,7 @@ public class PlanEditorController {
         defaultLowerTolerance = valueOrEmpty(lowerToleranceField.getText());
         defaultUpperTolerance = valueOrEmpty(upperToleranceField.getText());
         defaultNote = valueOrEmpty(bubbleNoteArea.getText());
+        viewModel.applyBubbleDefaults(defaultBubbleDiameter, defaultBubbleColor);
         refreshBubbleEditor(null);
     }
 
@@ -700,12 +815,18 @@ public class PlanEditorController {
 
         Bubble selectedBubble = viewModel.getSelectedBubble();
 
+        if (selectedBubble == null) {
+            bubbleDiameterField.setDisable(false);
+            bubbleColorField.setDisable(false);
+            return;
+        }
+
         if (shouldUseDefaultDiameter()) {
             bubbleDiameterField.setText(formatNumber(defaultBubbleDiameter));
             bubbleDiameterField.setDisable(true);
         } else {
             bubbleDiameterField.setDisable(false);
-            if (selectedBubble != null && isUsingDefaultDiameter(selectedBubble)) {
+            if (selectedBubble.isUseDefaultDiameter()) {
                 bubbleDiameterField.setText(formatNumber(selectedBubble.getRadius() * 2.0));
             }
         }
@@ -715,7 +836,7 @@ public class PlanEditorController {
             bubbleColorField.setDisable(true);
         } else {
             bubbleColorField.setDisable(false);
-            if (selectedBubble != null && isUsingDefaultColor(selectedBubble)) {
+            if (selectedBubble.isUseDefaultColor()) {
                 bubbleColorField.setText(selectedBubble.getColor());
             }
         }
@@ -729,14 +850,6 @@ public class PlanEditorController {
         return useDefaultColorCheckBox.isSelected();
     }
 
-    private boolean isUsingDefaultDiameter(Bubble bubble) {
-        return bubble != null && Math.abs((bubble.getRadius() * 2.0) - defaultBubbleDiameter) < 0.0001;
-    }
-
-    private boolean isUsingDefaultColor(Bubble bubble) {
-        return bubble != null && defaultBubbleColor.equalsIgnoreCase(valueOrEmpty(bubble.getColor()));
-    }
-
     private String formatNullableNumber(Double value) {
         return value == null ? "" : value.toString();
     }
@@ -747,6 +860,17 @@ public class PlanEditorController {
 
     private String valueOrEmpty(String value) {
         return value == null ? "" : value.trim();
+    }
+
+    private String displayPlanName(String planName) {
+        return DEFAULT_PLAN_NAME.equals(planName) ? "" : planName;
+    }
+
+    private double bubbleLabelFontSize(Bubble bubble, double scale) {
+        double diameter = bubble.getRadius() * 2.0 * scale;
+        double labelLength = Math.max(1, bubble.getLabel() == null ? 1 : bubble.getLabel().length());
+        double estimatedSize = (diameter * 0.95) / labelLength;
+        return Math.max(10.0, Math.min(diameter * 0.7, estimatedSize));
     }
 
     private void syncSelectedPage(PlanPage page) {

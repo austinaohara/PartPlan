@@ -325,7 +325,9 @@ public class PlanStorageService {
         builder.append("      \"x\": \"").append(bubble.getX()).append("\",\n");
         builder.append("      \"y\": \"").append(bubble.getY()).append("\",\n");
         builder.append("      \"radius\": \"").append(bubble.getRadius()).append("\",\n");
+        builder.append("      \"useDefaultDiameter\": \"").append(bubble.isUseDefaultDiameter()).append("\",\n");
         builder.append("      \"color\": \"").append(escape(bubble.getColor())).append("\",\n");
+        builder.append("      \"useDefaultColor\": \"").append(bubble.isUseDefaultColor()).append("\",\n");
         builder.append("      \"label\": \"").append(escape(bubble.getLabel())).append("\",\n");
         builder.append("      \"characteristic\": \"").append(escape(bubble.getCharacteristic())).append("\",\n");
         builder.append("      \"inspectionType\": \"").append(bubble.getInspectionType()).append("\",\n");
@@ -364,7 +366,9 @@ public class PlanStorageService {
                 parseDouble(readStringValue(json, "x"), 0.0),
                 parseDouble(readStringValue(json, "y"), 0.0),
                 parseDouble(readStringValue(json, "radius"), 18.0),
+                parseBoolean(readStringValue(json, "useDefaultDiameter"), true),
                 readStringOrDefault(json, "color", "#E53935"),
+                parseBoolean(readStringValue(json, "useDefaultColor"), true),
                 readStringValue(json, "label"),
                 readStringValue(json, "characteristic"),
                 parseInspectionType(readStringValue(json, "inspectionType")),
@@ -535,6 +539,13 @@ public class PlanStorageService {
             return null;
         }
 
+        return Boolean.parseBoolean(value);
+    }
+
+    private boolean parseBoolean(String value, boolean defaultValue) {
+        if (value == null || value.isBlank()) {
+            return defaultValue;
+        }
         return Boolean.parseBoolean(value);
     }
 

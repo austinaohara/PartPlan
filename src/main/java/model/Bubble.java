@@ -6,6 +6,8 @@ import java.util.UUID;
 public class Bubble extends Annotation {
     private String pageId;
     private double radius;
+    private boolean useDefaultDiameter;
+    private boolean useDefaultColor;
     private String label;
     private String characteristic;
     private InspectionType inspectionType;
@@ -20,13 +22,13 @@ public class Bubble extends Annotation {
     private int sequenceNumber;
 
     public Bubble() {
-        this(UUID.randomUUID().toString(), "", 0.0, 0.0, 18.0, "#E53935", "", "", InspectionType.NUMERIC,
+        this(UUID.randomUUID().toString(), "", 0.0, 0.0, 18.0, true, "#E53935", true, "", "", InspectionType.NUMERIC,
                 null, null, null, true, null, null, BubbleStatus.OPEN, "", 0,
                 LocalDateTime.now(), LocalDateTime.now());
     }
 
     public Bubble(String pageId, double x, double y, int sequenceNumber) {
-        this(UUID.randomUUID().toString(), pageId, x, y, 18.0, "#E53935", String.valueOf(sequenceNumber), "",
+        this(UUID.randomUUID().toString(), pageId, x, y, 18.0, true, "#E53935", true, String.valueOf(sequenceNumber), "",
                 InspectionType.NUMERIC, null, null, null, true, null, null, BubbleStatus.OPEN, "", sequenceNumber,
                 LocalDateTime.now(), LocalDateTime.now());
     }
@@ -37,7 +39,9 @@ public class Bubble extends Annotation {
             double x,
             double y,
             double radius,
+            boolean useDefaultDiameter,
             String color,
+            boolean useDefaultColor,
             String label,
             String characteristic,
             InspectionType inspectionType,
@@ -56,6 +60,8 @@ public class Bubble extends Annotation {
         super(id, x, y, color, createdAt, updatedAt);
         this.pageId = pageId;
         this.radius = radius;
+        this.useDefaultDiameter = useDefaultDiameter;
+        this.useDefaultColor = useDefaultColor;
         this.label = label;
         this.characteristic = characteristic;
         this.inspectionType = inspectionType;
@@ -101,6 +107,24 @@ public class Bubble extends Annotation {
 
     public void setRadius(double radius) {
         this.radius = radius;
+        touch();
+    }
+
+    public boolean isUseDefaultDiameter() {
+        return useDefaultDiameter;
+    }
+
+    public void setUseDefaultDiameter(boolean useDefaultDiameter) {
+        this.useDefaultDiameter = useDefaultDiameter;
+        touch();
+    }
+
+    public boolean isUseDefaultColor() {
+        return useDefaultColor;
+    }
+
+    public void setUseDefaultColor(boolean useDefaultColor) {
+        this.useDefaultColor = useDefaultColor;
         touch();
     }
 

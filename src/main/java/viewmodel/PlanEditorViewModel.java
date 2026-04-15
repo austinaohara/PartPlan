@@ -226,14 +226,16 @@ public class PlanEditorViewModel {
     }
 
     public Bubble placeBubble(double x, double y) {
-        return placeBubble(x, y, 18.0, "#E53935", "", InspectionType.NUMERIC, null, null, null, "");
+        return placeBubble(x, y, 18.0, true, "#E53935", true, "", InspectionType.NUMERIC, null, null, null, "");
     }
 
     public Bubble placeBubble(
             double x,
             double y,
             double radius,
+            boolean useDefaultDiameter,
             String color,
+            boolean useDefaultColor,
             String characteristic,
             InspectionType inspectionType,
             Double nominalValue,
@@ -250,7 +252,9 @@ public class PlanEditorViewModel {
         int sequenceNumber = nextBubbleSequenceNumberForPage(page.getId());
         Bubble bubble = new Bubble(page.getId(), x, y, sequenceNumber);
         bubble.setRadius(radius);
+        bubble.setUseDefaultDiameter(useDefaultDiameter);
         bubble.setColor(color == null || color.isBlank() ? "#E53935" : color.trim());
+        bubble.setUseDefaultColor(useDefaultColor);
         bubble.setCharacteristic(valueOrEmpty(characteristic));
         bubble.setInspectionType(inspectionType == null ? InspectionType.NUMERIC : inspectionType);
         bubble.setNominalValue(nominalValue);
@@ -269,7 +273,9 @@ public class PlanEditorViewModel {
 
     public void saveSelectedBubble(
             double radius,
+            boolean useDefaultDiameter,
             String color,
+            boolean useDefaultColor,
             String characteristic,
             InspectionType inspectionType,
             String nominalValueText,
@@ -283,7 +289,9 @@ public class PlanEditorViewModel {
         }
 
         bubble.setRadius(radius);
+        bubble.setUseDefaultDiameter(useDefaultDiameter);
         bubble.setColor(color == null || color.isBlank() ? "#E53935" : color.trim());
+        bubble.setUseDefaultColor(useDefaultColor);
         bubble.setCharacteristic(valueOrEmpty(characteristic));
         bubble.setInspectionType(inspectionType == null ? InspectionType.NUMERIC : inspectionType);
         bubble.setNominalValue(parseNullableDouble(nominalValueText));
@@ -305,6 +313,37 @@ public class PlanEditorViewModel {
     }
 
     public void persistBubbleLayout() {
+        persistPlanSilently();
+    }
+
+    public void deleteSelectedBubble() {
+        Bubble bubble = selectedBubble.get();
+        if (bubble == null) {
+            return;
+        }
+
+        InspectionPlan plan = requireCurrentPlan();
+        plan.removeBubble(bubble);
+        selectedBubble.set(null);
+        refreshPageBubbles();
+        persistPlanSilently();
+    }
+
+    public void applyBubbleDefaults(double diameter, String color) {
+        InspectionPlan plan = requireCurrentPlan();
+        double radius = diameter / 2.0;
+        String normalizedColor = color == null || color.isBlank() ? "#E53935" : color.trim();
+
+        for (Bubble bubble : plan.getBubbles()) {
+            if (bubble.isUseDefaultDiameter()) {
+                bubble.setRadius(radius);
+            }
+            if (bubble.isUseDefaultColor()) {
+                bubble.setColor(normalizedColor);
+            }
+        }
+
+        refreshPageBubbles();
         persistPlanSilently();
     }
 
