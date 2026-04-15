@@ -21,7 +21,7 @@
                 <Separator orientation="VERTICAL" prefHeight="28.0" />
                 <Label styleClass="field-label" text="Plan Name" />
                 <TextField fx:id="planNameField" onAction="#onPlanNameChanged" onKeyReleased="#onPlanNameChanged" prefWidth="280.0" promptText="New Inspection Plan" />
-            <Button mnemonicParsing="false" onAction="#OnOpenDataEditor" styleClass="secondary-button" text="Open in Data Editor" />
+                <Button mnemonicParsing="false" onAction="#OnOpenDataEditor" styleClass="secondary-button" text="Open in Data Editor" />
             </HBox>
         </VBox>
     </top>
@@ -45,6 +45,10 @@
                     <Label styleClass="tool-window-section-title" text="Current Plan" />
                     <Label styleClass="field-label" text="Pages" />
                     <ListView fx:id="planPagesListView" prefHeight="150.0" styleClass="saved-plans-list" />
+                    <Label styleClass="field-label" text="Bubbles" />
+                    <TextField fx:id="bubbleSearchField" promptText="Search by # or name…" />
+                    <ListView fx:id="bubbleListView" prefHeight="180.0" styleClass="saved-plans-list" />
+                    <Separator />
                     <Label styleClass="field-label" text="Drawing File" />
                     <Label fx:id="drawingFileNameLabel" styleClass="field-value" text="No drawing selected" wrapText="true" />
                     <Label styleClass="field-label" text="Drawing Path" />

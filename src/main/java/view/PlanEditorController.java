@@ -2,6 +2,7 @@ package view;
 
 import javafx.application.Platform;
 import javafx.collections.ListChangeListener;
+import javafx.collections.transformation.FilteredList;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
@@ -61,6 +62,8 @@ public class PlanEditorController {
     @FXML private ImageView drawingImageView;
     @FXML private ScrollPane drawingScrollPane;
     @FXML private Pane bubbleOverlayPane;
+    @FXML private ListView<Bubble> bubbleListView;
+    @FXML private TextField bubbleSearchField;
     @FXML private ListView<InspectionPlan> savedPlansListView;
     @FXML private ListView<PlanPage> planPagesListView;
 
@@ -96,6 +99,8 @@ public class PlanEditorController {
     private Bubble draggingBubble;
     private boolean bubbleDragged;
     private boolean drawingPannableBeforeBubbleDrag = true;
+    private boolean syncingBubbleSelection;
+    private FilteredList<Bubble> filteredBubbles;
     private boolean syncingPageSelection;
     private double defaultBubbleDiameter = 36.0;
     private String defaultBubbleColor = "#E53935";
@@ -131,6 +136,7 @@ public class PlanEditorController {
         drawingScrollPane.addEventFilter(ScrollEvent.SCROLL, this::handleScrollZoom);
         viewModel.getPageBubbles().addListener((ListChangeListener<Bubble>) change -> renderBubbles());
         viewModel.selectedBubbleProperty().addListener((observable, oldBubble, newBubble) -> {
+            syncBubbleListSelection(newBubble);
             refreshBubbleEditor(newBubble);
             renderBubbles();
         });
@@ -172,9 +178,44 @@ public class PlanEditorController {
             loadDrawingPreview(viewModel.getDrawingPath());
             resetViewport();
         });
-        viewModel.selectedPageProperty().addListener((observable, oldPage, newPage) -> syncSelectedPage(newPage));
+        viewModel.selectedPageProperty().addListener((observable, oldPage, newPage) -> {
+            bubbleSearchField.clear();
+            syncSelectedPage(newPage);
+        });
         viewModel.getSavedPlans().addListener(
                 (ListChangeListener<InspectionPlan>) change -> selectCurrentPlanIfPresent());
+
+        // Bubble list (feature #51 + #52)
+        filteredBubbles = new FilteredList<>(viewModel.getPageBubbles(), b -> true);
+        bubbleListView.setItems(filteredBubbles);
+        bubbleListView.setCellFactory(lv -> new ListCell<>() {
+            protected void updateItem(Bubble item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) { setText(null); return; }
+                String label = item.getLabel() == null || item.getLabel().isBlank()
+                        ? "#" + item.getSequenceNumber()
+                        : item.getLabel();
+                String characteristic = item.getCharacteristic();
+                setText(characteristic == null || characteristic.isBlank()
+                        ? label
+                        : label + " — " + characteristic);
+            }
+        });
+        bubbleListView.getSelectionModel().selectedItemProperty()
+                .addListener((obs, oldBubble, newBubble) -> {
+                    if (syncingBubbleSelection) return;
+                    viewModel.selectBubble(newBubble);
+                });
+        bubbleSearchField.textProperty().addListener((obs, oldText, newText) -> {
+            String query = newText == null ? "" : newText.trim().toLowerCase();
+            filteredBubbles.setPredicate(bubble -> {
+                if (query.isBlank()) return true;
+                String seqStr = String.valueOf(bubble.getSequenceNumber());
+                String lbl = bubble.getLabel() == null ? "" : bubble.getLabel().toLowerCase();
+                String ch = bubble.getCharacteristic() == null ? "" : bubble.getCharacteristic().toLowerCase();
+                return seqStr.contains(query) || lbl.contains(query) || ch.contains(query);
+            });
+        });
 
         setupResizeHandle(leftResizeHandle, leftPanel, true);
         setupResizeHandle(rightResizeHandle, rightPanel, false);
@@ -913,6 +954,26 @@ public class PlanEditorController {
         double labelLength = Math.max(1, bubble.getLabel() == null ? 1 : bubble.getLabel().length());
         double estimatedSize = (diameter * 0.95) / labelLength;
         return Math.max(10.0, Math.min(diameter * 0.7, estimatedSize));
+    }
+
+    private void syncBubbleListSelection(Bubble bubble) {
+        syncingBubbleSelection = true;
+        try {
+            if (bubble == null) {
+                bubbleListView.getSelectionModel().clearSelection();
+                return;
+            }
+            for (Bubble b : filteredBubbles) {
+                if (b.getId().equals(bubble.getId())) {
+                    bubbleListView.getSelectionModel().select(b);
+                    bubbleListView.scrollTo(b);
+                    return;
+                }
+            }
+            bubbleListView.getSelectionModel().clearSelection();
+        } finally {
+            syncingBubbleSelection = false;
+        }
     }
 
     private void syncSelectedPage(PlanPage page) {
