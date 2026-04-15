@@ -200,3 +200,7 @@
 .resize-handle-v:hover {
     -fx-background-color: #4d9de0;
 }
+.combo-box {
+    -fx-background-radius: 10px;
+    -fx-padding: 4px 6px;
+}
