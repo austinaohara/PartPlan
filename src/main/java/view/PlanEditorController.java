@@ -4,6 +4,7 @@ import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
+import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextField;
@@ -22,7 +23,9 @@ import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
+import model.Bubble;
 import model.InspectionPlan;
+import model.InspectionType;
 import model.PlanPage;
 import java.util.Optional;
 
@@ -53,6 +56,9 @@ public class PlanEditorController {
     @FXML private ScrollPane drawingScrollPane;
     @FXML private ListView<InspectionPlan> savedPlansListView;
     @FXML private ListView<PlanPage> planPagesListView;
+    @FXML private ListView<Bubble> bubbleListView;
+    @FXML private Label selectedBubbleLabel;
+    @FXML private ComboBox<InspectionType> bubbleTypeComboBox;
 
     // Panel collapse fields
     @FXML private VBox leftPanel;
@@ -103,15 +109,55 @@ public class PlanEditorController {
             }
         });
         planPagesListView.getSelectionModel().selectedItemProperty().addListener((observable, oldPage, newPage) -> {
-            viewModel.selectPage(newPage);
-            loadDrawingPreview(viewModel.getDrawingPath());
-            resetViewport();
+                    viewModel.selectPage(newPage);
+                    loadDrawingPreview(viewModel.getDrawingPath());
+                    resetViewport();
+                });
+                    bubbleListView.setItems(viewModel.getBubbles());
+                    bubbleListView.setCellFactory(listView -> new ListCell<>() {
+                        @Override
+                        protected void updateItem(Bubble item, boolean empty) {
+                            super.updateItem(item, empty);
+                            if (empty || item == null) {
+                                setText(null);
+                                return;
+                            }
+                            setText("#" + item.getSequenceNumber() + " - " + item.getInspectionType());
+                        }
+                    });
+                    bubbleListView.getSelectionModel().selectedItemProperty().addListener((observable, oldBubble, newBubble) -> {
+                        if (newBubble == null || newBubble == viewModel.getSelectedBubble()) {
+                            updateBubbleInspector();
+                            return;
+                        }
+                        viewModel.selectBubble(newBubble);
+                        updateBubbleInspector();
+                    });
+
+                    bubbleTypeComboBox.getItems().setAll(InspectionType.values());
+                    bubbleTypeComboBox.valueProperty().addListener((observable, oldType, newType) -> {
+                        Bubble selectedBubble = viewModel.getSelectedBubble();
+                        if (selectedBubble == null || newType == null || newType == selectedBubble.getInspectionType()) {
+                            return;
+                        }
+                        viewModel.updateSelectedBubbleType(newType);
+                        bubbleListView.refresh();
+                        updateBubbleInspector();
         });
         viewModel.getSavedPlans().addListener(
                 (ListChangeListener<InspectionPlan>) change -> selectCurrentPlanIfPresent());
 
+        viewModel.getBubbles().addListener((ListChangeListener<Bubble>) change -> {
+            bubbleListView.refresh();
+            updateBubbleInspector();
+        });
+        viewModel.selectedBubbleProperty().addListener((observable, oldBubble, newBubble) -> {
+            syncBubbleListSelection(newBubble);
+            updateBubbleInspector();
+        });
         setupResizeHandle(leftResizeHandle, leftPanel, true);
         setupResizeHandle(rightResizeHandle, rightPanel, false);
+        updateBubbleInspector();
     }
 
     // ── Resize ───────────────────────────────────────────────────────────────
@@ -324,6 +370,33 @@ public class PlanEditorController {
                 return;
             }
         }
+    }
+    private void syncBubbleListSelection(Bubble selectedBubble) {
+        if (selectedBubble == null) {
+            bubbleListView.getSelectionModel().clearSelection();
+            return;
+        }
+        for (Bubble bubble : viewModel.getBubbles()) {
+            if (bubble.getId().equals(selectedBubble.getId())) {
+                bubbleListView.getSelectionModel().select(bubble);
+                bubbleListView.scrollTo(bubble);
+                return;
+            }
+        }
+        bubbleListView.getSelectionModel().clearSelection();
+    }
+
+    private void updateBubbleInspector() {
+        Bubble bubble = viewModel.getSelectedBubble();
+        boolean hasSelection = bubble != null;
+        bubbleTypeComboBox.setDisable(!hasSelection);
+        if (!hasSelection) {
+            selectedBubbleLabel.setText("No bubble selected");
+            bubbleTypeComboBox.getSelectionModel().clearSelection();
+            return;
+        }
+        selectedBubbleLabel.setText("Bubble #" + bubble.getSequenceNumber() + " selected");
+        bubbleTypeComboBox.setValue(bubble.getInspectionType());
     }
 
     private void selectCurrentPageIfPresent() {
