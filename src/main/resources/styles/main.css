@@ -37,6 +37,20 @@
     -fx-font-size: 14px;
 }
 
+.combo-box,
+.text-area {
+    -fx-background-color: rgba(255, 255, 255, 0.96);
+    -fx-background-radius: 10px;
+    -fx-border-radius: 10px;
+    -fx-border-color: transparent;
+    -fx-font-size: 14px;
+}
+
+.text-area .content {
+    -fx-background-color: rgba(255, 255, 255, 0.96);
+    -fx-background-radius: 10px;
+}
+
 .button {
     -fx-background-radius: 10px;
     -fx-padding: 10px 16px;
@@ -148,6 +162,12 @@
     -fx-font-size: 12px;
     -fx-font-weight: 700;
     -fx-text-fill: #1e1e1e;
+}
+
+.bubble-selected-label {
+    -fx-text-fill: #b3261e;
+    -fx-font-size: 18px;
+    -fx-font-weight: 700;
 }
 
 .tool-window-close-btn {

@@ -4,6 +4,7 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 public class Bubble extends Annotation {
+    private String pageId;
     private double radius;
     private String label;
     private String characteristic;
@@ -19,19 +20,20 @@ public class Bubble extends Annotation {
     private int sequenceNumber;
 
     public Bubble() {
-        this(UUID.randomUUID().toString(), 0.0, 0.0, 18.0, "#E53935", "", "", InspectionType.NUMERIC,
+        this(UUID.randomUUID().toString(), "", 0.0, 0.0, 18.0, "#E53935", "", "", InspectionType.NUMERIC,
                 null, null, null, true, null, null, BubbleStatus.OPEN, "", 0,
                 LocalDateTime.now(), LocalDateTime.now());
     }
 
-    public Bubble(double x, double y, int sequenceNumber) {
-        this(UUID.randomUUID().toString(), x, y, 18.0, "#E53935", String.valueOf(sequenceNumber), "",
+    public Bubble(String pageId, double x, double y, int sequenceNumber) {
+        this(UUID.randomUUID().toString(), pageId, x, y, 18.0, "#E53935", String.valueOf(sequenceNumber), "",
                 InspectionType.NUMERIC, null, null, null, true, null, null, BubbleStatus.OPEN, "", sequenceNumber,
                 LocalDateTime.now(), LocalDateTime.now());
     }
 
     public Bubble(
             String id,
+            String pageId,
             double x,
             double y,
             double radius,
@@ -52,6 +54,7 @@ public class Bubble extends Annotation {
             LocalDateTime updatedAt
     ) {
         super(id, x, y, color, createdAt, updatedAt);
+        this.pageId = pageId;
         this.radius = radius;
         this.label = label;
         this.characteristic = characteristic;
@@ -81,6 +84,15 @@ public class Bubble extends Annotation {
         }
 
         updatePassFailStatus();
+    }
+
+    public String getPageId() {
+        return pageId;
+    }
+
+    public void setPageId(String pageId) {
+        this.pageId = pageId;
+        touch();
     }
 
     public double getRadius() {

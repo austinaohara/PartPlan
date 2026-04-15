@@ -321,6 +321,7 @@ public class PlanStorageService {
     private void appendBubbleJson(StringBuilder builder, Bubble bubble) {
         builder.append("    {\n");
         builder.append("      \"id\": \"").append(escape(bubble.getId())).append("\",\n");
+        builder.append("      \"pageId\": \"").append(escape(bubble.getPageId())).append("\",\n");
         builder.append("      \"x\": \"").append(bubble.getX()).append("\",\n");
         builder.append("      \"y\": \"").append(bubble.getY()).append("\",\n");
         builder.append("      \"radius\": \"").append(bubble.getRadius()).append("\",\n");
@@ -359,6 +360,7 @@ public class PlanStorageService {
     private Bubble readBubble(String json) {
         return new Bubble(
                 readStringValue(json, "id"),
+                readStringValue(json, "pageId"),
                 parseDouble(readStringValue(json, "x"), 0.0),
                 parseDouble(readStringValue(json, "y"), 0.0),
                 parseDouble(readStringValue(json, "radius"), 18.0),

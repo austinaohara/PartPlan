@@ -13,15 +13,24 @@ import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.input.ScrollEvent;
+import javafx.scene.layout.Pane;
 import javafx.scene.layout.VBox;
+import javafx.scene.paint.Color;
+import javafx.scene.shape.Circle;
+import javafx.scene.text.Font;
+import javafx.scene.text.FontWeight;
+import javafx.scene.text.Text;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import javafx.stage.Window;
 import model.InspectionPlan;
+import model.Bubble;
+import model.InspectionType;
 import model.PlanPage;
 import viewmodel.PlanEditorViewModel;
 
 import java.io.File;
+import javafx.geometry.Point2D;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Optional;
@@ -47,6 +56,7 @@ public class PlanEditorController {
     @FXML private Label pdfPreviewLabel;
     @FXML private ImageView drawingImageView;
     @FXML private ScrollPane drawingScrollPane;
+    @FXML private Pane bubbleOverlayPane;
     @FXML private ListView<InspectionPlan> savedPlansListView;
     @FXML private ListView<PlanPage> planPagesListView;
 
@@ -57,6 +67,15 @@ public class PlanEditorController {
     @FXML private VBox rightPanel;
     @FXML private VBox rightCollapsedTab;
     @FXML private VBox rightResizeHandle;
+    @FXML private Label selectedBubbleLabel;
+    @FXML private Label bubbleHintLabel;
+    @FXML private TextField characteristicField;
+    @FXML private ComboBox<InspectionType> inspectionTypeComboBox;
+    @FXML private TextField nominalValueField;
+    @FXML private TextField lowerToleranceField;
+    @FXML private TextField upperToleranceField;
+    @FXML private TextArea bubbleNoteArea;
+    @FXML private Button saveBubbleButton;
 
     private boolean leftExpanded = true;
     private boolean rightExpanded = true;
@@ -64,6 +83,10 @@ public class PlanEditorController {
     // Resize drag state
     private double dragStartX;
     private double dragStartWidth;
+    private Bubble draggingBubble;
+    private boolean bubbleDragged;
+    private boolean drawingPannableBeforeBubbleDrag = true;
+    private boolean syncingPageSelection;
 
     private Stage dataEditorStage;
 
@@ -80,8 +103,22 @@ public class PlanEditorController {
         pdfPreviewLabel.setManaged(false);
         drawingScrollPane.setPannable(true);
         drawingImageView.setPreserveRatio(true);
+        bubbleOverlayPane.prefWidthProperty().bind(drawingImageView.fitWidthProperty());
+        bubbleOverlayPane.prefHeightProperty().bind(drawingImageView.fitHeightProperty());
+        bubbleOverlayPane.setOnMouseClicked(this::handleDrawingClick);
+        bubbleOverlayPane.setOnMouseDragged(this::handleBubbleOverlayDrag);
+        bubbleOverlayPane.setOnMouseReleased(this::handleBubbleOverlayRelease);
         root.sceneProperty().addListener((observable, oldScene, newScene) -> registerShortcuts(newScene));
         drawingScrollPane.addEventFilter(ScrollEvent.SCROLL, this::handleScrollZoom);
+        viewModel.getPageBubbles().addListener((ListChangeListener<Bubble>) change -> renderBubbles());
+        viewModel.selectedBubbleProperty().addListener((observable, oldBubble, newBubble) -> {
+            populateBubbleEditor(newBubble);
+            renderBubbles();
+        });
+        drawingImageView.imageProperty().addListener((observable, oldImage, newImage) -> renderBubbles());
+        inspectionTypeComboBox.getItems().setAll(InspectionType.values());
+        inspectionTypeComboBox.setValue(InspectionType.NUMERIC);
+        setBubbleEditorDisabled(true);
 
         savedPlansListView.setItems(viewModel.getSavedPlans());
         savedPlansListView.setCellFactory(listView -> new ListCell<>() {
@@ -101,10 +138,20 @@ public class PlanEditorController {
             }
         });
         planPagesListView.getSelectionModel().selectedItemProperty().addListener((observable, oldPage, newPage) -> {
+            if (syncingPageSelection) {
+                return;
+            }
+            if (newPage == null) {
+                if (viewModel.getSelectedPage() != null) {
+                    Platform.runLater(this::selectCurrentPageIfPresent);
+                }
+                return;
+            }
             viewModel.selectPage(newPage);
             loadDrawingPreview(viewModel.getDrawingPath());
             resetViewport();
         });
+        viewModel.selectedPageProperty().addListener((observable, oldPage, newPage) -> syncSelectedPage(newPage));
         viewModel.getSavedPlans().addListener(
                 (ListChangeListener<InspectionPlan>) change -> selectCurrentPlanIfPresent());
 
@@ -165,6 +212,7 @@ public class PlanEditorController {
         planNameField.setText(viewModel.getPlanName());
         planPagesListView.getSelectionModel().clearSelection();
         clearDrawingPreview();
+        clearBubbleEditor();
         resetViewport();
         savedPlansListView.getSelectionModel().clearSelection();
     }
@@ -188,6 +236,7 @@ public class PlanEditorController {
         planNameField.setText(viewModel.getPlanName());
         selectCurrentPageIfPresent();
         loadDrawingPreview(viewModel.getDrawingPath());
+        clearBubbleEditor();
         resetViewport();
         selectCurrentPlanIfPresent();
     }
@@ -206,6 +255,7 @@ public class PlanEditorController {
         planNameField.setText(viewModel.getPlanName());
         selectCurrentPageIfPresent();
         loadDrawingPreview(viewModel.getDrawingPath());
+        clearBubbleEditor();
         resetViewport();
     }
 
@@ -235,6 +285,29 @@ public class PlanEditorController {
         selectCurrentPageIfPresent();
         loadDrawingPreview(viewModel.getDrawingPath());
         resetViewport();
+    }
+
+    @FXML
+    private void onSaveBubble() {
+        Bubble selectedBubble = viewModel.getSelectedBubble();
+        if (selectedBubble == null) {
+            showInformation("Select a bubble first.");
+            return;
+        }
+
+        try {
+            viewModel.saveSelectedBubble(
+                    characteristicField.getText(),
+                    inspectionTypeComboBox.getValue(),
+                    nominalValueField.getText(),
+                    lowerToleranceField.getText(),
+                    upperToleranceField.getText(),
+                    bubbleNoteArea.getText()
+            );
+            populateBubbleEditor(selectedBubble);
+        } catch (NumberFormatException exception) {
+            showInformation("Nominal value and tolerances must be valid numbers.");
+        }
     }
 
     @FXML
@@ -290,9 +363,15 @@ public class PlanEditorController {
     private void applyZoom(double newZoomLevel) {
         zoomLevel = newZoomLevel;
         Image image = drawingImageView.getImage();
-        if (image == null) { drawingImageView.setFitWidth(0); drawingImageView.setFitHeight(0); return; }
+        if (image == null) {
+            drawingImageView.setFitWidth(0);
+            drawingImageView.setFitHeight(0);
+            renderBubbles();
+            return;
+        }
         drawingImageView.setFitWidth(image.getWidth() * zoomLevel);
         drawingImageView.setFitHeight(image.getHeight() * zoomLevel);
+        renderBubbles();
     }
 
     private void resetViewport() {
@@ -312,6 +391,7 @@ public class PlanEditorController {
         }
         if (isPdf(drawingFile)) {
             drawingImageView.setImage(null);
+            bubbleOverlayPane.getChildren().clear();
             drawingScrollPane.setVisible(false);
             drawingScrollPane.setManaged(false);
             pdfPreviewLabel.setVisible(true);
@@ -323,10 +403,12 @@ public class PlanEditorController {
         drawingScrollPane.setVisible(true);
         drawingScrollPane.setManaged(true);
         drawingImageView.setImage(new Image(drawingFile.toURI().toString()));
+        renderBubbles();
     }
 
     private void clearDrawingPreview() {
         drawingImageView.setImage(null);
+        bubbleOverlayPane.getChildren().clear();
         drawingScrollPane.setVisible(false);
         drawingScrollPane.setManaged(false);
         pdfPreviewLabel.setVisible(false);
@@ -347,13 +429,13 @@ public class PlanEditorController {
     private void selectCurrentPageIfPresent() {
         PlanPage currentPage = viewModel.getSelectedPage();
         if (currentPage == null) {
-            planPagesListView.getSelectionModel().clearSelection();
+            syncSelectedPage(null);
             return;
         }
 
         for (PlanPage page : viewModel.getPlanPages()) {
             if (page.getId().equals(currentPage.getId())) {
-                planPagesListView.getSelectionModel().select(page);
+                syncSelectedPage(page);
                 return;
             }
         }
@@ -382,5 +464,209 @@ public class PlanEditorController {
 
     private boolean isPdf(File file) {
         return file.getName().toLowerCase().endsWith(".pdf");
+    }
+
+    private void handleDrawingClick(MouseEvent event) {
+        if (!event.isShiftDown() || drawingImageView.getImage() == null || viewModel.getSelectedPage() == null) {
+            return;
+        }
+
+        double scale = getDisplayScale();
+        Bubble bubble = viewModel.placeBubble(event.getX() / scale, event.getY() / scale);
+        populateBubbleEditor(bubble);
+        event.consume();
+    }
+
+    private void renderBubbles() {
+        bubbleOverlayPane.getChildren().clear();
+        Image image = drawingImageView.getImage();
+        if (image == null) {
+            return;
+        }
+
+        double scale = getDisplayScale();
+        for (Bubble bubble : viewModel.getPageBubbles()) {
+            Circle circle = new Circle(
+                    bubble.getX() * scale,
+                    bubble.getY() * scale,
+                    bubble.getRadius() * scale
+            );
+            circle.setFill(viewModel.getSelectedBubble() != null && bubble.getId().equals(viewModel.getSelectedBubble().getId())
+                    ? Color.rgb(229, 57, 53, 0.20)
+                    : Color.TRANSPARENT);
+            circle.setStroke(Color.web("#E53935"));
+            circle.setStrokeWidth(viewModel.getSelectedBubble() != null && bubble.getId().equals(viewModel.getSelectedBubble().getId()) ? 3.0 : 2.0);
+
+            Text text = new Text(circle.getCenterX(), circle.getCenterY(), bubble.getLabel());
+            text.setFill(Color.web("#E53935"));
+            text.setFont(Font.font("Segoe UI", FontWeight.BOLD, Math.max(12.0, 14.0 * scale)));
+            text.setMouseTransparent(true);
+            text.applyCss();
+            text.setX(circle.getCenterX() - text.getLayoutBounds().getWidth() / 2.0);
+            text.setY(circle.getCenterY() + text.getLayoutBounds().getHeight() / 4.0);
+
+            circle.setOnMouseClicked(mouseEvent -> {
+                if (mouseEvent.isShiftDown()) {
+                    return;
+                }
+                viewModel.selectBubble(bubble);
+                mouseEvent.consume();
+            });
+            circle.setOnMousePressed(mouseEvent -> {
+                if (mouseEvent.isShiftDown()) {
+                    return;
+                }
+                draggingBubble = bubble;
+                bubbleDragged = false;
+                drawingPannableBeforeBubbleDrag = drawingScrollPane.isPannable();
+                drawingScrollPane.setPannable(false);
+                viewModel.selectBubble(bubble);
+                circle.toFront();
+                mouseEvent.consume();
+            });
+            circle.setOnMouseDragged(mouseEvent -> {
+                if (draggingBubble == null || !draggingBubble.getId().equals(bubble.getId())) {
+                    return;
+                }
+                handleActiveBubbleDrag(mouseEvent.getSceneX(), mouseEvent.getSceneY());
+                mouseEvent.consume();
+            });
+            circle.setOnMouseReleased(mouseEvent -> {
+                if (draggingBubble == null || !draggingBubble.getId().equals(bubble.getId())) {
+                    return;
+                }
+                finishActiveBubbleDrag(mouseEvent.getSceneX(), mouseEvent.getSceneY());
+                mouseEvent.consume();
+            });
+
+            bubbleOverlayPane.getChildren().addAll(circle, text);
+        }
+    }
+
+    private double getDisplayScale() {
+        Image image = drawingImageView.getImage();
+        if (image == null || image.getWidth() == 0.0) {
+            return 1.0;
+        }
+
+        return drawingImageView.getFitWidth() / image.getWidth();
+    }
+
+    private void populateBubbleEditor(Bubble bubble) {
+        if (bubble == null) {
+            clearBubbleEditor();
+            return;
+        }
+
+        setBubbleEditorDisabled(false);
+        selectedBubbleLabel.setText("Bubble " + bubble.getLabel());
+        bubbleHintLabel.setText(String.format("Position: %.1f, %.1f", bubble.getX(), bubble.getY()));
+        characteristicField.setText(bubble.getCharacteristic());
+        inspectionTypeComboBox.setValue(bubble.getInspectionType());
+        nominalValueField.setText(formatNullableNumber(bubble.getNominalValue()));
+        lowerToleranceField.setText(formatNullableNumber(bubble.getLowerTolerance()));
+        upperToleranceField.setText(formatNullableNumber(bubble.getUpperTolerance()));
+        bubbleNoteArea.setText(bubble.getNote());
+    }
+
+    private void clearBubbleEditor() {
+        selectedBubbleLabel.setText("No bubble selected");
+        bubbleHintLabel.setText("Shift + Click on the drawing to place a bubble.");
+        characteristicField.clear();
+        inspectionTypeComboBox.setValue(InspectionType.NUMERIC);
+        nominalValueField.clear();
+        lowerToleranceField.clear();
+        upperToleranceField.clear();
+        bubbleNoteArea.clear();
+        setBubbleEditorDisabled(true);
+    }
+
+    private void setBubbleEditorDisabled(boolean disabled) {
+        characteristicField.setDisable(disabled);
+        inspectionTypeComboBox.setDisable(disabled);
+        nominalValueField.setDisable(disabled);
+        lowerToleranceField.setDisable(disabled);
+        upperToleranceField.setDisable(disabled);
+        bubbleNoteArea.setDisable(disabled);
+        saveBubbleButton.setDisable(disabled);
+    }
+
+    private String formatNullableNumber(Double value) {
+        return value == null ? "" : value.toString();
+    }
+
+    private void syncSelectedPage(PlanPage page) {
+        syncingPageSelection = true;
+        try {
+            if (page == null) {
+                planPagesListView.getSelectionModel().clearSelection();
+                clearDrawingPreview();
+                return;
+            }
+
+            if (planPagesListView.getSelectionModel().getSelectedItem() == null
+                    || !page.getId().equals(planPagesListView.getSelectionModel().getSelectedItem().getId())) {
+                planPagesListView.getSelectionModel().select(page);
+            }
+            loadDrawingPreview(viewModel.getDrawingPath());
+        } finally {
+            syncingPageSelection = false;
+        }
+    }
+
+    private void handleBubbleOverlayDrag(MouseEvent event) {
+        if (draggingBubble == null) {
+            return;
+        }
+
+        handleActiveBubbleDrag(event.getSceneX(), event.getSceneY());
+        event.consume();
+    }
+
+    private void handleBubbleOverlayRelease(MouseEvent event) {
+        if (draggingBubble == null) {
+            return;
+        }
+
+        finishActiveBubbleDrag(event.getSceneX(), event.getSceneY());
+        event.consume();
+    }
+
+    private void handleActiveBubbleDrag(double sceneX, double sceneY) {
+        if (draggingBubble == null) {
+            return;
+        }
+
+        Point2D overlayPoint = bubbleOverlayPane.sceneToLocal(sceneX, sceneY);
+        updateBubblePosition(draggingBubble, overlayPoint.getX(), overlayPoint.getY());
+        bubbleDragged = true;
+    }
+
+    private void finishActiveBubbleDrag(double sceneX, double sceneY) {
+        if (draggingBubble == null) {
+            return;
+        }
+
+        if (bubbleDragged) {
+            Point2D overlayPoint = bubbleOverlayPane.sceneToLocal(sceneX, sceneY);
+            updateBubblePosition(draggingBubble, overlayPoint.getX(), overlayPoint.getY());
+            viewModel.persistBubbleLayout();
+        }
+
+        drawingScrollPane.setPannable(drawingPannableBeforeBubbleDrag);
+        draggingBubble = null;
+        bubbleDragged = false;
+    }
+
+    private void updateBubblePosition(Bubble bubble, double overlayX, double overlayY) {
+        double scale = getDisplayScale();
+        double imageWidth = drawingImageView.getFitWidth();
+        double imageHeight = drawingImageView.getFitHeight();
+        double radius = bubble.getRadius() * scale;
+        double clampedX = Math.max(radius, Math.min(overlayX, imageWidth - radius));
+        double clampedY = Math.max(radius, Math.min(overlayY, imageHeight - radius));
+
+        viewModel.moveBubble(bubble, clampedX / scale, clampedY / scale);
+        populateBubbleEditor(bubble);
     }
 }

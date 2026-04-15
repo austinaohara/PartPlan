@@ -72,6 +72,7 @@
                 <content>
                     <Group>
                         <ImageView fx:id="drawingImageView" preserveRatio="true" smooth="true" />
+                        <Pane fx:id="bubbleOverlayPane" pickOnBounds="true" />
                     </Group>
                 </content>
             </ScrollPane>
@@ -100,7 +101,23 @@
                     <padding>
                         <Insets bottom="16.0" left="16.0" right="16.0" top="12.0" />
                     </padding>
-                    <Label styleClass="field-value" text="Bubble entry coming soon." />
+                    <Label styleClass="field-label" text="Selected Bubble" />
+                    <Label fx:id="selectedBubbleLabel" styleClass="bubble-selected-label" text="No bubble selected" wrapText="true" />
+                    <Label fx:id="bubbleHintLabel" styleClass="field-value" text="Shift + Click on the drawing to place a bubble." wrapText="true" />
+                    <Separator />
+                    <Label styleClass="field-label" text="Characteristic" />
+                    <TextField fx:id="characteristicField" promptText="Enter characteristic" />
+                    <Label styleClass="field-label" text="Inspection Type" />
+                    <ComboBox fx:id="inspectionTypeComboBox" />
+                    <Label styleClass="field-label" text="Nominal Value" />
+                    <TextField fx:id="nominalValueField" promptText="Optional numeric value" />
+                    <Label styleClass="field-label" text="Lower Tolerance" />
+                    <TextField fx:id="lowerToleranceField" promptText="Optional numeric value" />
+                    <Label styleClass="field-label" text="Upper Tolerance" />
+                    <TextField fx:id="upperToleranceField" promptText="Optional numeric value" />
+                    <Label styleClass="field-label" text="Notes" />
+                    <TextArea fx:id="bubbleNoteArea" prefRowCount="6" promptText="Enter notes for this bubble" wrapText="true" />
+                    <Button fx:id="saveBubbleButton" mnemonicParsing="false" onAction="#onSaveBubble" styleClass="primary-button" text="Save Bubble" />
                 </VBox>
             </VBox>
         </HBox>
