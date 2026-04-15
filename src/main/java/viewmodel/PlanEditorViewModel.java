@@ -8,7 +8,9 @@ import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import model.Bubble;
 import model.InspectionPlan;
+import model.InspectionType;
 import model.PlanDrawing;
 import model.PlanPage;
 import service.PdfPageRenderingService;
@@ -29,7 +31,9 @@ public class PlanEditorViewModel {
     private final ObjectProperty<PlanPage> selectedPage = new SimpleObjectProperty<>();
     private final ObservableList<InspectionPlan> savedPlans = FXCollections.observableArrayList();
     private final ObservableList<PlanPage> planPages = FXCollections.observableArrayList();
+    private final ObservableList<Bubble> bubbles = FXCollections.observableArrayList();
     private final StringProperty planName = new SimpleStringProperty();
+    private final ObjectProperty<Bubble> selectedBubble = new SimpleObjectProperty<>();
     private final StringProperty drawingFileName = new SimpleStringProperty("No drawing selected");
     private final StringProperty drawingPath = new SimpleStringProperty("");
     private final StringProperty pageName = new SimpleStringProperty("");
@@ -162,6 +166,10 @@ public class PlanEditorViewModel {
         return planPages;
     }
 
+    public ObservableList<Bubble> getBubbles() {
+        return bubbles;
+    }
+
     public PlanPage getSelectedPage() {
         return selectedPage.get();
     }
@@ -172,6 +180,14 @@ public class PlanEditorViewModel {
 
     public ObjectProperty<InspectionPlan> currentPlanProperty() {
         return currentPlan;
+    }
+
+    public Bubble getSelectedBubble() {
+        return selectedBubble.get();
+    }
+
+    public ObjectProperty<Bubble> selectedBubbleProperty() {
+        return selectedBubble;
     }
 
     public String getPlanName() {
@@ -218,6 +234,8 @@ public class PlanEditorViewModel {
         currentPlan.set(plan);
         planName.set(plan.getName());
         planPages.setAll(plan.getPages());
+        bubbles.setAll(plan.getBubblesInSequenceOrder());
+        selectedBubble.set(null);
 
         if (planPages.isEmpty()) {
             clearDrawingState();
@@ -230,6 +248,50 @@ public class PlanEditorViewModel {
         drawingFileName.set(drawing.getFileName());
         drawingPath.set(drawing.getStoredPath());
         drawingLoaded.set(true);
+    }
+
+    public void selectBubble(Bubble bubble) {
+        selectedBubble.set(bubble);
+    }
+
+    public void updateSelectedBubbleType(InspectionType inspectionType) {
+        Bubble bubble = selectedBubble.get();
+        if (bubble == null || inspectionType == null) {
+            return;
+        }
+
+        bubble.setInspectionType(inspectionType);
+        if (inspectionType == InspectionType.NUMERIC) {
+            bubble.setExpectedPassFail(null);
+        } else {
+            bubble.setNominalValue(null);
+            bubble.setLowerTolerance(null);
+            bubble.setUpperTolerance(null);
+        }
+        refreshBubbleList();
+    }
+
+    public void refreshBubbleList() {
+        InspectionPlan plan = currentPlan.get();
+        if (plan == null) {
+            bubbles.clear();
+            selectedBubble.set(null);
+            return;
+        }
+
+        bubbles.setAll(plan.getBubblesInSequenceOrder());
+        Bubble currentSelection = selectedBubble.get();
+        if (currentSelection == null) {
+            return;
+        }
+
+        for (Bubble candidate : bubbles) {
+            if (candidate.getId().equals(currentSelection.getId())) {
+                selectedBubble.set(candidate);
+                return;
+            }
+        }
+        selectedBubble.set(null);
     }
 
     private InspectionPlan requireCurrentPlan() {
