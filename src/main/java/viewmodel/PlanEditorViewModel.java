@@ -272,6 +272,7 @@ public class PlanEditorViewModel {
     }
 
     public void saveSelectedBubble(
+            int sequenceNumber,
             double radius,
             boolean useDefaultDiameter,
             String color,
@@ -288,6 +289,8 @@ public class PlanEditorViewModel {
             return;
         }
 
+        InspectionPlan plan = requireCurrentPlan();
+        plan.moveBubbleToSequence(bubble, sequenceNumber);
         bubble.setRadius(radius);
         bubble.setUseDefaultDiameter(useDefaultDiameter);
         bubble.setColor(color == null || color.isBlank() ? "#E53935" : color.trim());

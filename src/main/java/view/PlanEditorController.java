@@ -76,6 +76,7 @@ public class PlanEditorController {
     @FXML private CheckBox useDefaultDiameterCheckBox;
     @FXML private CheckBox useDefaultColorCheckBox;
     @FXML private TextField bubbleDiameterField;
+    @FXML private TextField bubbleNumberField;
     @FXML private TextField bubbleColorField;
     @FXML private TextField characteristicField;
     @FXML private ComboBox<InspectionType> inspectionTypeComboBox;
@@ -137,6 +138,7 @@ public class PlanEditorController {
         inspectionTypeComboBox.getItems().setAll(InspectionType.values());
         useDefaultDiameterCheckBox.selectedProperty().addListener((observable, oldValue, newValue) -> updateDefaultControlLocks());
         useDefaultColorCheckBox.selectedProperty().addListener((observable, oldValue, newValue) -> updateDefaultControlLocks());
+        inspectionTypeComboBox.valueProperty().addListener((observable, oldValue, newValue) -> updateInspectionTypeControls());
         refreshBubbleEditor(null);
 
         savedPlansListView.setItems(viewModel.getSavedPlans());
@@ -320,6 +322,7 @@ public class PlanEditorController {
             }
 
             viewModel.saveSelectedBubble(
+                    parseBubbleSequenceNumber(),
                     radius,
                     shouldUseDefaultDiameter(),
                     color,
@@ -721,6 +724,24 @@ public class PlanEditorController {
         return diameter / 2.0;
     }
 
+    private int parseBubbleSequenceNumber() {
+        Bubble selectedBubble = viewModel.getSelectedBubble();
+        if (selectedBubble == null) {
+            return 1;
+        }
+
+        String sequenceText = bubbleNumberField.getText();
+        if (sequenceText == null || sequenceText.isBlank()) {
+            return selectedBubble.getSequenceNumber();
+        }
+
+        int sequenceNumber = Integer.parseInt(sequenceText.trim());
+        if (sequenceNumber <= 0) {
+            throw new NumberFormatException("Bubble number must be positive.");
+        }
+        return sequenceNumber;
+    }
+
     private Double parseNullableDouble(String value) {
         if (value == null || value.isBlank()) {
             return null;
@@ -760,6 +781,8 @@ public class PlanEditorController {
             useDefaultDiameterCheckBox.setSelected(true);
             useDefaultColorCheckBox.setSelected(true);
             bubbleDiameterField.setText(formatNumber(defaultBubbleDiameter));
+            bubbleNumberField.clear();
+            bubbleNumberField.setDisable(true);
             bubbleColorField.setText(defaultBubbleColor);
             updatingBubbleDefaultsUi = false;
             characteristicField.setText(defaultCharacteristic);
@@ -769,6 +792,7 @@ public class PlanEditorController {
             upperToleranceField.setText(defaultUpperTolerance);
             bubbleNoteArea.setText(defaultNote);
             updateDefaultControlLocks();
+            updateInspectionTypeControls();
             return;
         }
 
@@ -782,6 +806,8 @@ public class PlanEditorController {
         bubbleDiameterField.setText(useDefaultDiameterCheckBox.isSelected()
                 ? formatNumber(defaultBubbleDiameter)
                 : formatNumber(selectedBubble.getRadius() * 2.0));
+        bubbleNumberField.setText(String.valueOf(selectedBubble.getSequenceNumber()));
+        bubbleNumberField.setDisable(false);
         bubbleColorField.setText(useDefaultColorCheckBox.isSelected()
                 ? defaultBubbleColor
                 : selectedBubble.getColor());
@@ -793,6 +819,7 @@ public class PlanEditorController {
         upperToleranceField.setText(formatNullableNumber(selectedBubble.getUpperTolerance()));
         bubbleNoteArea.setText(selectedBubble.getNote());
         updateDefaultControlLocks();
+        updateInspectionTypeControls();
     }
 
     private void saveDefaultBubbleSettings(String normalizedColor) {
@@ -806,6 +833,21 @@ public class PlanEditorController {
         defaultNote = valueOrEmpty(bubbleNoteArea.getText());
         viewModel.applyBubbleDefaults(defaultBubbleDiameter, defaultBubbleColor);
         refreshBubbleEditor(null);
+    }
+
+    private void updateInspectionTypeControls() {
+        InspectionType inspectionType = inspectionTypeComboBox.getValue();
+        boolean passFail = inspectionType == InspectionType.PASS_FAIL;
+
+        if (passFail) {
+            nominalValueField.clear();
+            lowerToleranceField.clear();
+            upperToleranceField.clear();
+        }
+
+        nominalValueField.setDisable(passFail);
+        lowerToleranceField.setDisable(passFail);
+        upperToleranceField.setDisable(passFail);
     }
 
     private void updateDefaultControlLocks() {

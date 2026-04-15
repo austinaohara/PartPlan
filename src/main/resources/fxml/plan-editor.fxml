@@ -104,6 +104,8 @@
                     <Label fx:id="bubbleModeLabel" styleClass="field-label" text="Default Bubble Settings" />
                     <Label fx:id="bubbleHintLabel" styleClass="field-value" text="Shift + Click to place a bubble." wrapText="true" />
                     <Separator />
+                    <Label styleClass="field-label" text="Bubble Number" />
+                    <TextField fx:id="bubbleNumberField" promptText="Bubble number" />
                     <HBox alignment="CENTER_LEFT" spacing="6.0">
                         <CheckBox fx:id="useDefaultDiameterCheckBox" mnemonicParsing="false" selected="true" styleClass="compact-checkbox">
                             <tooltip>
