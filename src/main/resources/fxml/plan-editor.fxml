@@ -101,10 +101,27 @@
                     <padding>
                         <Insets bottom="16.0" left="16.0" right="16.0" top="12.0" />
                     </padding>
-                    <Label styleClass="field-label" text="Selected Bubble" />
-                    <Label fx:id="selectedBubbleLabel" styleClass="bubble-selected-label" text="No bubble selected" wrapText="true" />
-                    <Label fx:id="bubbleHintLabel" styleClass="field-value" text="Shift + Click on the drawing to place a bubble." wrapText="true" />
+                    <Label fx:id="bubbleModeLabel" styleClass="field-label" text="Default Bubble Settings" />
+                    <Label fx:id="bubbleHintLabel" styleClass="field-value" text="Shift + Click to place a bubble." wrapText="true" />
                     <Separator />
+                    <HBox alignment="CENTER_LEFT" spacing="6.0">
+                        <Label styleClass="field-label" text="Diameter" />
+                        <CheckBox fx:id="useDefaultDiameterCheckBox" mnemonicParsing="false" selected="true" styleClass="compact-checkbox">
+                            <tooltip>
+                                <Tooltip text="Use the default diameter value" />
+                            </tooltip>
+                        </CheckBox>
+                    </HBox>
+                    <TextField fx:id="bubbleDiameterField" promptText="Bubble diameter" />
+                    <HBox alignment="CENTER_LEFT" spacing="6.0">
+                        <Label styleClass="field-label" text="Color" />
+                        <CheckBox fx:id="useDefaultColorCheckBox" mnemonicParsing="false" selected="true" styleClass="compact-checkbox">
+                            <tooltip>
+                                <Tooltip text="Use the default bubble color" />
+                            </tooltip>
+                        </CheckBox>
+                    </HBox>
+                    <TextField fx:id="bubbleColorField" promptText="#E53935" />
                     <Label styleClass="field-label" text="Characteristic" />
                     <TextField fx:id="characteristicField" promptText="Enter characteristic" />
                     <Label styleClass="field-label" text="Inspection Type" />
@@ -117,7 +134,7 @@
                     <TextField fx:id="upperToleranceField" promptText="Optional numeric value" />
                     <Label styleClass="field-label" text="Notes" />
                     <TextArea fx:id="bubbleNoteArea" prefRowCount="6" promptText="Enter notes for this bubble" wrapText="true" />
-                    <Button fx:id="saveBubbleButton" mnemonicParsing="false" onAction="#onSaveBubble" styleClass="primary-button" text="Save Bubble" />
+                    <Button fx:id="saveBubbleButton" mnemonicParsing="false" onAction="#onSaveBubble" styleClass="primary-button" text="Save Defaults" />
                 </VBox>
             </VBox>
         </HBox>

@@ -67,8 +67,12 @@ public class PlanEditorController {
     @FXML private VBox rightPanel;
     @FXML private VBox rightCollapsedTab;
     @FXML private VBox rightResizeHandle;
-    @FXML private Label selectedBubbleLabel;
+    @FXML private Label bubbleModeLabel;
     @FXML private Label bubbleHintLabel;
+    @FXML private CheckBox useDefaultDiameterCheckBox;
+    @FXML private CheckBox useDefaultColorCheckBox;
+    @FXML private TextField bubbleDiameterField;
+    @FXML private TextField bubbleColorField;
     @FXML private TextField characteristicField;
     @FXML private ComboBox<InspectionType> inspectionTypeComboBox;
     @FXML private TextField nominalValueField;
@@ -87,6 +91,15 @@ public class PlanEditorController {
     private boolean bubbleDragged;
     private boolean drawingPannableBeforeBubbleDrag = true;
     private boolean syncingPageSelection;
+    private double defaultBubbleDiameter = 36.0;
+    private String defaultBubbleColor = "#E53935";
+    private String defaultCharacteristic = "";
+    private InspectionType defaultInspectionType = InspectionType.NUMERIC;
+    private String defaultNominalValue = "";
+    private String defaultLowerTolerance = "";
+    private String defaultUpperTolerance = "";
+    private String defaultNote = "";
+    private boolean updatingBubbleDefaultsUi;
 
     private Stage dataEditorStage;
 
@@ -112,13 +125,14 @@ public class PlanEditorController {
         drawingScrollPane.addEventFilter(ScrollEvent.SCROLL, this::handleScrollZoom);
         viewModel.getPageBubbles().addListener((ListChangeListener<Bubble>) change -> renderBubbles());
         viewModel.selectedBubbleProperty().addListener((observable, oldBubble, newBubble) -> {
-            populateBubbleEditor(newBubble);
+            refreshBubbleEditor(newBubble);
             renderBubbles();
         });
         drawingImageView.imageProperty().addListener((observable, oldImage, newImage) -> renderBubbles());
         inspectionTypeComboBox.getItems().setAll(InspectionType.values());
-        inspectionTypeComboBox.setValue(InspectionType.NUMERIC);
-        setBubbleEditorDisabled(true);
+        useDefaultDiameterCheckBox.selectedProperty().addListener((observable, oldValue, newValue) -> updateDefaultControlLocks());
+        useDefaultColorCheckBox.selectedProperty().addListener((observable, oldValue, newValue) -> updateDefaultControlLocks());
+        refreshBubbleEditor(null);
 
         savedPlansListView.setItems(viewModel.getSavedPlans());
         savedPlansListView.setCellFactory(listView -> new ListCell<>() {
@@ -212,7 +226,6 @@ public class PlanEditorController {
         planNameField.setText(viewModel.getPlanName());
         planPagesListView.getSelectionModel().clearSelection();
         clearDrawingPreview();
-        clearBubbleEditor();
         resetViewport();
         savedPlansListView.getSelectionModel().clearSelection();
     }
@@ -236,7 +249,6 @@ public class PlanEditorController {
         planNameField.setText(viewModel.getPlanName());
         selectCurrentPageIfPresent();
         loadDrawingPreview(viewModel.getDrawingPath());
-        clearBubbleEditor();
         resetViewport();
         selectCurrentPlanIfPresent();
     }
@@ -255,7 +267,6 @@ public class PlanEditorController {
         planNameField.setText(viewModel.getPlanName());
         selectCurrentPageIfPresent();
         loadDrawingPreview(viewModel.getDrawingPath());
-        clearBubbleEditor();
         resetViewport();
     }
 
@@ -289,14 +300,22 @@ public class PlanEditorController {
 
     @FXML
     private void onSaveBubble() {
-        Bubble selectedBubble = viewModel.getSelectedBubble();
-        if (selectedBubble == null) {
-            showInformation("Select a bubble first.");
-            return;
-        }
-
         try {
+            double radius = parseBubbleRadius();
+            String color = normalizeBubbleColor();
+            parseNullableDouble(nominalValueField.getText());
+            parseNullableDouble(lowerToleranceField.getText());
+            parseNullableDouble(upperToleranceField.getText());
+
+            Bubble selectedBubble = viewModel.getSelectedBubble();
+            if (selectedBubble == null) {
+                saveDefaultBubbleSettings(color);
+                return;
+            }
+
             viewModel.saveSelectedBubble(
+                    radius,
+                    color,
                     characteristicField.getText(),
                     inspectionTypeComboBox.getValue(),
                     nominalValueField.getText(),
@@ -304,9 +323,8 @@ public class PlanEditorController {
                     upperToleranceField.getText(),
                     bubbleNoteArea.getText()
             );
-            populateBubbleEditor(selectedBubble);
         } catch (NumberFormatException exception) {
-            showInformation("Nominal value and tolerances must be valid numbers.");
+            showInformation("Diameter, nominal value, and tolerances must be valid numbers.");
         }
     }
 
@@ -467,13 +485,34 @@ public class PlanEditorController {
     }
 
     private void handleDrawingClick(MouseEvent event) {
-        if (!event.isShiftDown() || drawingImageView.getImage() == null || viewModel.getSelectedPage() == null) {
+        if (drawingImageView.getImage() == null || viewModel.getSelectedPage() == null) {
+            return;
+        }
+
+        if (!event.isShiftDown()) {
+            viewModel.selectBubble(null);
+            event.consume();
             return;
         }
 
         double scale = getDisplayScale();
-        Bubble bubble = viewModel.placeBubble(event.getX() / scale, event.getY() / scale);
-        populateBubbleEditor(bubble);
+        try {
+            viewModel.placeBubble(
+                    event.getX() / scale,
+                    event.getY() / scale,
+                    defaultBubbleDiameter / 2.0,
+                    defaultBubbleColor,
+                    defaultCharacteristic,
+                    defaultInspectionType,
+                    parseNullableDouble(defaultNominalValue),
+                    parseNullableDouble(defaultLowerTolerance),
+                    parseNullableDouble(defaultUpperTolerance),
+                    defaultNote
+            );
+            viewModel.persistBubbleLayout();
+        } catch (NumberFormatException exception) {
+            showInformation("Diameter, nominal value, and tolerances must be valid numbers.");
+        }
         event.consume();
     }
 
@@ -486,19 +525,20 @@ public class PlanEditorController {
 
         double scale = getDisplayScale();
         for (Bubble bubble : viewModel.getPageBubbles()) {
+            Color bubbleColor = toFxColor(bubble.getColor());
             Circle circle = new Circle(
                     bubble.getX() * scale,
                     bubble.getY() * scale,
                     bubble.getRadius() * scale
             );
             circle.setFill(viewModel.getSelectedBubble() != null && bubble.getId().equals(viewModel.getSelectedBubble().getId())
-                    ? Color.rgb(229, 57, 53, 0.20)
+                    ? Color.color(bubbleColor.getRed(), bubbleColor.getGreen(), bubbleColor.getBlue(), 0.20)
                     : Color.TRANSPARENT);
-            circle.setStroke(Color.web("#E53935"));
+            circle.setStroke(bubbleColor);
             circle.setStrokeWidth(viewModel.getSelectedBubble() != null && bubble.getId().equals(viewModel.getSelectedBubble().getId()) ? 3.0 : 2.0);
 
             Text text = new Text(circle.getCenterX(), circle.getCenterY(), bubble.getLabel());
-            text.setFill(Color.web("#E53935"));
+            text.setFill(bubbleColor);
             text.setFont(Font.font("Segoe UI", FontWeight.BOLD, Math.max(12.0, 14.0 * scale)));
             text.setMouseTransparent(true);
             text.applyCss();
@@ -552,47 +592,161 @@ public class PlanEditorController {
         return drawingImageView.getFitWidth() / image.getWidth();
     }
 
-    private void populateBubbleEditor(Bubble bubble) {
-        if (bubble == null) {
-            clearBubbleEditor();
+    private double parseBubbleRadius() {
+        if (shouldUseDefaultDiameter()) {
+            return defaultBubbleDiameter / 2.0;
+        }
+
+        String diameterText = bubbleDiameterField.getText();
+        if (diameterText == null || diameterText.isBlank()) {
+            return 18.0;
+        }
+
+        double diameter = Double.parseDouble(diameterText.trim());
+        if (diameter <= 0.0) {
+            throw new NumberFormatException("Bubble diameter must be positive.");
+        }
+        return diameter / 2.0;
+    }
+
+    private Double parseNullableDouble(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return Double.parseDouble(value.trim());
+    }
+
+    private String normalizeBubbleColor() {
+        if (shouldUseDefaultColor()) {
+            return defaultBubbleColor;
+        }
+
+        String colorText = bubbleColorField.getText();
+        if (colorText == null || colorText.isBlank()) {
+            return "#E53935";
+        }
+
+        Color.web(colorText.trim());
+        return colorText.trim();
+    }
+
+    private Color toFxColor(String colorText) {
+        try {
+            return Color.web(colorText == null || colorText.isBlank() ? "#E53935" : colorText.trim());
+        } catch (IllegalArgumentException exception) {
+            return Color.web("#E53935");
+        }
+    }
+
+    private void refreshBubbleEditor(Bubble selectedBubble) {
+        if (selectedBubble == null) {
+            bubbleModeLabel.setText("Default Bubble Settings");
+            bubbleHintLabel.setText("Shift + Click to place a bubble.");
+            saveBubbleButton.setText("Save Defaults");
+            updatingBubbleDefaultsUi = true;
+            useDefaultDiameterCheckBox.setSelected(true);
+            useDefaultColorCheckBox.setSelected(true);
+            bubbleDiameterField.setText(formatNumber(defaultBubbleDiameter));
+            bubbleColorField.setText(defaultBubbleColor);
+            updatingBubbleDefaultsUi = false;
+            characteristicField.setText(defaultCharacteristic);
+            inspectionTypeComboBox.setValue(defaultInspectionType);
+            nominalValueField.setText(defaultNominalValue);
+            lowerToleranceField.setText(defaultLowerTolerance);
+            upperToleranceField.setText(defaultUpperTolerance);
+            bubbleNoteArea.setText(defaultNote);
+            updateDefaultControlLocks();
             return;
         }
 
-        setBubbleEditorDisabled(false);
-        selectedBubbleLabel.setText("Bubble " + bubble.getLabel());
-        bubbleHintLabel.setText(String.format("Position: %.1f, %.1f", bubble.getX(), bubble.getY()));
-        characteristicField.setText(bubble.getCharacteristic());
-        inspectionTypeComboBox.setValue(bubble.getInspectionType());
-        nominalValueField.setText(formatNullableNumber(bubble.getNominalValue()));
-        lowerToleranceField.setText(formatNullableNumber(bubble.getLowerTolerance()));
-        upperToleranceField.setText(formatNullableNumber(bubble.getUpperTolerance()));
-        bubbleNoteArea.setText(bubble.getNote());
+        bubbleModeLabel.setText("Selected Bubble");
+        bubbleHintLabel.setText("Bubble " + selectedBubble.getLabel() + String.format(" at %.1f, %.1f", selectedBubble.getX(), selectedBubble.getY()));
+        saveBubbleButton.setText("Save Bubble");
+        updatingBubbleDefaultsUi = true;
+        useDefaultDiameterCheckBox.setSelected(isUsingDefaultDiameter(selectedBubble));
+        useDefaultColorCheckBox.setSelected(isUsingDefaultColor(selectedBubble));
+        bubbleDiameterField.setText(useDefaultDiameterCheckBox.isSelected()
+                ? formatNumber(defaultBubbleDiameter)
+                : formatNumber(selectedBubble.getRadius() * 2.0));
+        bubbleColorField.setText(useDefaultColorCheckBox.isSelected()
+                ? defaultBubbleColor
+                : selectedBubble.getColor());
+        updatingBubbleDefaultsUi = false;
+        characteristicField.setText(selectedBubble.getCharacteristic());
+        inspectionTypeComboBox.setValue(selectedBubble.getInspectionType());
+        nominalValueField.setText(formatNullableNumber(selectedBubble.getNominalValue()));
+        lowerToleranceField.setText(formatNullableNumber(selectedBubble.getLowerTolerance()));
+        upperToleranceField.setText(formatNullableNumber(selectedBubble.getUpperTolerance()));
+        bubbleNoteArea.setText(selectedBubble.getNote());
+        updateDefaultControlLocks();
     }
 
-    private void clearBubbleEditor() {
-        selectedBubbleLabel.setText("No bubble selected");
-        bubbleHintLabel.setText("Shift + Click on the drawing to place a bubble.");
-        characteristicField.clear();
-        inspectionTypeComboBox.setValue(InspectionType.NUMERIC);
-        nominalValueField.clear();
-        lowerToleranceField.clear();
-        upperToleranceField.clear();
-        bubbleNoteArea.clear();
-        setBubbleEditorDisabled(true);
+    private void saveDefaultBubbleSettings(String normalizedColor) {
+        defaultBubbleDiameter = Double.parseDouble(bubbleDiameterField.getText().trim());
+        defaultBubbleColor = normalizedColor;
+        defaultCharacteristic = valueOrEmpty(characteristicField.getText());
+        defaultInspectionType = inspectionTypeComboBox.getValue() == null ? InspectionType.NUMERIC : inspectionTypeComboBox.getValue();
+        defaultNominalValue = valueOrEmpty(nominalValueField.getText());
+        defaultLowerTolerance = valueOrEmpty(lowerToleranceField.getText());
+        defaultUpperTolerance = valueOrEmpty(upperToleranceField.getText());
+        defaultNote = valueOrEmpty(bubbleNoteArea.getText());
+        refreshBubbleEditor(null);
     }
 
-    private void setBubbleEditorDisabled(boolean disabled) {
-        characteristicField.setDisable(disabled);
-        inspectionTypeComboBox.setDisable(disabled);
-        nominalValueField.setDisable(disabled);
-        lowerToleranceField.setDisable(disabled);
-        upperToleranceField.setDisable(disabled);
-        bubbleNoteArea.setDisable(disabled);
-        saveBubbleButton.setDisable(disabled);
+    private void updateDefaultControlLocks() {
+        if (updatingBubbleDefaultsUi) {
+            return;
+        }
+
+        Bubble selectedBubble = viewModel.getSelectedBubble();
+
+        if (shouldUseDefaultDiameter()) {
+            bubbleDiameterField.setText(formatNumber(defaultBubbleDiameter));
+            bubbleDiameterField.setDisable(true);
+        } else {
+            bubbleDiameterField.setDisable(false);
+            if (selectedBubble != null && isUsingDefaultDiameter(selectedBubble)) {
+                bubbleDiameterField.setText(formatNumber(selectedBubble.getRadius() * 2.0));
+            }
+        }
+
+        if (shouldUseDefaultColor()) {
+            bubbleColorField.setText(defaultBubbleColor);
+            bubbleColorField.setDisable(true);
+        } else {
+            bubbleColorField.setDisable(false);
+            if (selectedBubble != null && isUsingDefaultColor(selectedBubble)) {
+                bubbleColorField.setText(selectedBubble.getColor());
+            }
+        }
+    }
+
+    private boolean shouldUseDefaultDiameter() {
+        return useDefaultDiameterCheckBox.isSelected();
+    }
+
+    private boolean shouldUseDefaultColor() {
+        return useDefaultColorCheckBox.isSelected();
+    }
+
+    private boolean isUsingDefaultDiameter(Bubble bubble) {
+        return bubble != null && Math.abs((bubble.getRadius() * 2.0) - defaultBubbleDiameter) < 0.0001;
+    }
+
+    private boolean isUsingDefaultColor(Bubble bubble) {
+        return bubble != null && defaultBubbleColor.equalsIgnoreCase(valueOrEmpty(bubble.getColor()));
     }
 
     private String formatNullableNumber(Double value) {
         return value == null ? "" : value.toString();
+    }
+
+    private String formatNumber(double value) {
+        return value == Math.rint(value) ? String.valueOf((int) value) : String.valueOf(value);
+    }
+
+    private String valueOrEmpty(String value) {
+        return value == null ? "" : value.trim();
     }
 
     private void syncSelectedPage(PlanPage page) {
@@ -667,6 +821,5 @@ public class PlanEditorController {
         double clampedY = Math.max(radius, Math.min(overlayY, imageHeight - radius));
 
         viewModel.moveBubble(bubble, clampedX / scale, clampedY / scale);
-        populateBubbleEditor(bubble);
     }
 }

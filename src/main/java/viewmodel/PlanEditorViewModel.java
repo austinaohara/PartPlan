@@ -226,6 +226,21 @@ public class PlanEditorViewModel {
     }
 
     public Bubble placeBubble(double x, double y) {
+        return placeBubble(x, y, 18.0, "#E53935", "", InspectionType.NUMERIC, null, null, null, "");
+    }
+
+    public Bubble placeBubble(
+            double x,
+            double y,
+            double radius,
+            String color,
+            String characteristic,
+            InspectionType inspectionType,
+            Double nominalValue,
+            Double lowerTolerance,
+            Double upperTolerance,
+            String note
+    ) {
         InspectionPlan plan = requireCurrentPlan();
         PlanPage page = selectedPage.get();
         if (page == null) {
@@ -234,7 +249,14 @@ public class PlanEditorViewModel {
 
         int sequenceNumber = nextBubbleSequenceNumberForPage(page.getId());
         Bubble bubble = new Bubble(page.getId(), x, y, sequenceNumber);
-        bubble.setInspectionType(InspectionType.NUMERIC);
+        bubble.setRadius(radius);
+        bubble.setColor(color == null || color.isBlank() ? "#E53935" : color.trim());
+        bubble.setCharacteristic(valueOrEmpty(characteristic));
+        bubble.setInspectionType(inspectionType == null ? InspectionType.NUMERIC : inspectionType);
+        bubble.setNominalValue(nominalValue);
+        bubble.setLowerTolerance(lowerTolerance);
+        bubble.setUpperTolerance(upperTolerance);
+        bubble.setNote(valueOrEmpty(note));
         plan.addBubble(bubble);
         refreshPageBubbles();
         selectedBubble.set(bubble);
@@ -246,6 +268,8 @@ public class PlanEditorViewModel {
     }
 
     public void saveSelectedBubble(
+            double radius,
+            String color,
             String characteristic,
             InspectionType inspectionType,
             String nominalValueText,
@@ -258,6 +282,8 @@ public class PlanEditorViewModel {
             return;
         }
 
+        bubble.setRadius(radius);
+        bubble.setColor(color == null || color.isBlank() ? "#E53935" : color.trim());
         bubble.setCharacteristic(valueOrEmpty(characteristic));
         bubble.setInspectionType(inspectionType == null ? InspectionType.NUMERIC : inspectionType);
         bubble.setNominalValue(parseNullableDouble(nominalValueText));
