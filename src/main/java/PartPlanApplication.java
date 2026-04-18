@@ -23,6 +23,7 @@ public class PartPlanApplication extends Application {
         Scene scene = new Scene(loader.load());
 
         Stage stage = new Stage();
+        stage.setAlwaysOnTop(true);
         stage.setTitle("Login");
         stage.setScene(scene);
         stage.show();
