@@ -3,6 +3,7 @@ package service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import model.auth.LoginResult;
 import okhttp3.*;
 
 import java.io.File;
@@ -22,7 +23,7 @@ public class FirebaseAuthService {
         key = root.get("apiKey").asText();
     }
 
-    public String signIn(String email, String password) throws Exception {
+    public LoginResult signIn(String email, String password) throws Exception {
         ObjectMapper mapper = new ObjectMapper();
         ObjectNode obj = mapper.createObjectNode();
 
@@ -40,9 +41,11 @@ public class FirebaseAuthService {
             JsonNode json = mapper.readTree(responseBody);
 
             if (!response.isSuccessful()){
-                return null;
+                String message = json.path("error").path("message").asText("Sign in failed");
+                return LoginResult.failure(message);
             }
-            return json.get("idToken").asText();
+
+            return LoginResult.success(json.get("idToken").asText());
         }
     }
 }
