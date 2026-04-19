@@ -5,16 +5,11 @@ import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
 import javafx.stage.Stage;
-import service.FirebaseAuthService;
 import viewmodel.LoginViewModel;
 
 import java.io.IOException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 public class LoginController {
-    private final ExecutorService executor = Executors.newSingleThreadExecutor();
-    private final FirebaseAuthService firebaseAuthService = new FirebaseAuthService();
     private final LoginViewModel viewModel = new LoginViewModel();
 
     public TextField emailTextField;
@@ -39,7 +34,6 @@ public class LoginController {
 
         viewModel.loginSuccess.addListener((obs, old, success) -> {
             if (success) {
-                // something
                 Stage stage = (Stage) emailTextField.getScene().getWindow();
                 stage.close();
             }
