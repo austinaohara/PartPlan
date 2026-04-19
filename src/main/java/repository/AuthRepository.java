@@ -3,17 +3,29 @@ package repository;
 import java.util.prefs.Preferences;
 
 public class AuthRepository {
-    private static final Preferences prefs = Preferences.userRoot().node("com/partplan/auth");
+    private static final Preferences prefs = Preferences.userRoot().node("partplan/auth");
 
-    public void saveToken(String token){
-        prefs.put("idToken", token);
+    public void saveAuthResult(String idToken, String refreshToken, String uid) {
+        prefs.put("idToken", idToken);
+        prefs.put("refreshToken", refreshToken);
+        prefs.put("uid", uid);
     }
 
     public String getToken(){
         return prefs.get("idToken", null);
     }
 
-    public void clearToken(){
+    public String getUid(){
+        return prefs.get("uid", null);
+    }
+
+    public String getRefreshToken(){
+        return prefs.get("refreshToken", null);
+    }
+
+    public void clear(){
         prefs.remove("idToken");
+        prefs.remove("refreshToken");
+        prefs.remove("uid");
     }
 }

@@ -41,7 +41,7 @@ public class FirebaseAuthService {
                 return LoginResult.failure(message);
             }
 
-            return LoginResult.success(json.get("idToken").asText());
+            return LoginResult.success(json.get("idToken").asText(), json.get("refreshToken").asText(), json.get("localId").asText());
         }
     }
 }
