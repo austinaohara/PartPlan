@@ -13,8 +13,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class LoginController {
-    ExecutorService executor = Executors.newSingleThreadExecutor();
-    FirebaseAuthService firebaseAuthService = new FirebaseAuthService();
+    private final ExecutorService executor = Executors.newSingleThreadExecutor();
+    private final FirebaseAuthService firebaseAuthService = new FirebaseAuthService();
     private final LoginViewModel viewModel = new LoginViewModel();
 
     public TextField emailTextField;
@@ -47,14 +47,14 @@ public class LoginController {
     }
 
     public void onLoginPressed(ActionEvent event) {
-    String email = emailTextField.getText();
-    String password = passwordTextField.getText();
+        String email = emailTextField.getText();
+        String password = passwordTextField.getText();
 
-    setControlsEditable(false);
-    errorLabel.setVisible(false);
+        setControlsEditable(false);
+        errorLabel.setVisible(false);
 
-    viewModel.login(email, password);
-}
+        viewModel.login(email, password);
+    }
 
     private void setControlsEditable(boolean input){
         emailTextField.setDisable(!input);
