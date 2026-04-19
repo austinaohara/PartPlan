@@ -1,6 +1,5 @@
 package view;
 
-import javafx.event.ActionEvent;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
@@ -22,17 +21,17 @@ public class LoginController {
     }
 
     public void initialize(){
-        viewModel.loading.addListener((obs, old, isLoading) -> {
+        viewModel.loading.addListener((_, _, isLoading) -> {
             setControlsEditable(!isLoading);
         });
 
-        viewModel.errorMessage.addListener((obs, old, msg) -> {
+        viewModel.errorMessage.addListener((_, _, msg) -> {
             if (msg != null){
                 showError(msg);
             }
         });
 
-        viewModel.loginSuccess.addListener((obs, old, success) -> {
+        viewModel.loginSuccess.addListener((_, _, success) -> {
             if (success) {
                 Stage stage = (Stage) emailTextField.getScene().getWindow();
                 stage.close();
@@ -40,7 +39,7 @@ public class LoginController {
         });
     }
 
-    public void onLoginPressed(ActionEvent event) {
+    public void onLoginPressed() {
         String email = emailTextField.getText();
         String password = passwordTextField.getText();
 
