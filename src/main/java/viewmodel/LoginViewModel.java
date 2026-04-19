@@ -27,7 +27,9 @@ public class LoginViewModel {
 
     public void login(String email, String password){
         loading.set(true);
-        executor.execute(() -> {
+        errorMessage.set(null); // set to null so that listener sees change
+
+        executor.execute(() -> { // using different thread for login
             try {
                 LoginResult result = firebaseAuthService.signIn(email, password);
                 Platform.runLater(() -> {
