@@ -14,18 +14,6 @@ public class PartPlanApplication extends Application {
         stage.setTitle("PartPlan");
         stage.setScene(scene);
         stage.show();
-
-        openLoginWindow();
     }
 
-    private void openLoginWindow() throws IOException {
-        FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/login-window.fxml"));
-        Scene scene = new Scene(loader.load());
-
-        Stage stage = new Stage();
-        stage.setAlwaysOnTop(true);
-        stage.setTitle("Login");
-        stage.setScene(scene);
-        stage.show();
-    }
 }

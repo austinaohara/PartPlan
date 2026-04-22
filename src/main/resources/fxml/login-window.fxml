@@ -2,11 +2,12 @@
 
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
+
 <AnchorPane focusTraversable="true" nodeOrientation="LEFT_TO_RIGHT" xmlns="http://javafx.com/javafx/17.0.12" xmlns:fx="http://javafx.com/fxml/1" fx:controller="view.LoginController">
    <children>
-      <VBox alignment="CENTER" maxHeight="200.0" maxWidth="300.0" minHeight="200.0" minWidth="300.0" prefHeight="200.0" prefWidth="300.0" spacing="10.0">
+      <VBox alignment="BOTTOM_CENTER" maxHeight="200.0" maxWidth="300.0" minHeight="200.0" minWidth="300.0" prefHeight="200.0" prefWidth="300.0" spacing="10.0">
          <children>
-            <Label fx:id="errorLabel" cacheShape="false" centerShape="false" focusTraversable="false" scaleShape="false" text="Label" visible="false" />
+            <Label cacheShape="false" centerShape="false" focusTraversable="false" layoutX="146.0" layoutY="158.0" scaleShape="false" text="Please login to continue." />
             <GridPane alignment="CENTER" focusTraversable="true" maxHeight="-Infinity" maxWidth="-Infinity" prefHeight="67.0" prefWidth="234.0">
               <columnConstraints>
                 <ColumnConstraints hgrow="ALWAYS" maxWidth="130.0" minWidth="10.0" prefWidth="81.0" />
@@ -20,10 +21,11 @@
                   <Label text="E-Mail" />
                   <Label text="Password" GridPane.rowIndex="1" />
                   <TextField fx:id="emailTextField" GridPane.columnIndex="1" />
-                  <TextField fx:id="passwordTextField" GridPane.columnIndex="1" GridPane.rowIndex="1" />
+                  <PasswordField fx:id="passswordField" GridPane.columnIndex="1" GridPane.rowIndex="1" />
                </children>
             </GridPane>
             <Button fx:id="loginButton" mnemonicParsing="false" onAction="#onLoginPressed" text="Login" />
+            <Label fx:id="errorLabel" cacheShape="false" centerShape="false" focusTraversable="false" scaleShape="false" text="Label" textFill="RED" visible="false" />
          </children>
       </VBox>
    </children>
