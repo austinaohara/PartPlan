@@ -280,3 +280,64 @@
 .resize-handle-v:hover {
     -fx-background-color: #4d9de0;
 }
+
+.welcome-shell {
+    -fx-background-color: transparent;
+}
+
+.welcome-title {
+    -fx-text-fill: #183247;
+    -fx-font-size: 34px;
+    -fx-font-weight: 800;
+}
+
+.welcome-subtitle {
+    -fx-text-fill: #d6e4ef;
+    -fx-font-size: 15px;
+}
+
+.welcome-copy {
+    -fx-text-fill: #48657d;
+    -fx-font-size: 17px;
+    -fx-text-alignment: center;
+    -fx-alignment: center;
+}
+
+.welcome-card {
+    -fx-background-color: rgba(255, 255, 255, 0.95);
+    -fx-background-radius: 24px;
+    -fx-border-color: rgba(22, 46, 67, 0.12);
+    -fx-border-radius: 24px;
+    -fx-padding: 28px;
+    -fx-min-height: 280px;
+    -fx-effect: dropshadow(gaussian, rgba(17, 34, 49, 0.10), 24, 0.20, 0, 10);
+}
+
+.welcome-card-muted {
+    -fx-background-color: rgba(241, 245, 248, 0.94);
+}
+
+.welcome-card-kicker {
+    -fx-text-fill: #6a7b88;
+    -fx-font-size: 12px;
+    -fx-font-weight: 700;
+}
+
+.welcome-card-title {
+    -fx-text-fill: #13283c;
+    -fx-font-size: 24px;
+    -fx-font-weight: 800;
+}
+
+.welcome-card-copy {
+    -fx-text-fill: #48657d;
+    -fx-font-size: 15px;
+}
+
+.welcome-card-button {
+    -fx-max-width: infinity;
+}
+
+.welcome-disabled-button {
+    -fx-opacity: 0.8;
+}
