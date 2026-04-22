@@ -644,6 +644,22 @@ public class PlanEditorController {
         pdfPreviewLabel.setManaged(false);
     }
 
+    private void restoreDrawing() {
+        if (!viewModel.isDrawingLoaded()) {
+            drawingImageView.setImage(null);
+            return;
+        }
+
+        File file = new File(viewModel.getDrawingFileName());
+
+        if (file.exists()) {
+            drawingImageView.setImage(new Image(file.toURI().toString()));
+            resetViewport();
+        } else {
+            drawingImageView.setImage(null);
+        }
+    }
+
     private void selectCurrentPlanIfPresent() {
         InspectionPlan currentPlan = viewModel.getCurrentPlan();
         if (currentPlan == null) return;
