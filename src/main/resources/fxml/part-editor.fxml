@@ -44,6 +44,21 @@
     <center>
         <TabPane fx:id="editorTabPane" styleClass="editor-tabs" tabClosingPolicy="UNAVAILABLE">
             <tabs>
+                <Tab text="Master View">
+                    <VBox spacing="14.0" styleClass="editor-card">
+                        <padding>
+                            <Insets bottom="24.0" left="24.0" right="24.0" top="24.0" />
+                        </padding>
+                        <Label styleClass="panel-title" text="Lot Overview" />
+                        <Label styleClass="editor-copy" text="Edit measurements for any part directly in the lot overview. Bubble columns scroll horizontally when the lot has many characteristics." wrapText="true" />
+                        <TableView fx:id="masterTableView" editable="true" VBox.vgrow="ALWAYS">
+                            <columnResizePolicy>
+                                <TableView fx:constant="UNCONSTRAINED_RESIZE_POLICY" />
+                            </columnResizePolicy>
+                        </TableView>
+                    </VBox>
+                </Tab>
+
                 <Tab text="Part View">
                     <BorderPane>
                         <top>
@@ -77,21 +92,6 @@
                             </VBox>
                         </center>
                     </BorderPane>
-                </Tab>
-
-                <Tab text="Master View">
-                    <VBox spacing="14.0" styleClass="editor-card">
-                        <padding>
-                            <Insets bottom="24.0" left="24.0" right="24.0" top="24.0" />
-                        </padding>
-                        <Label styleClass="panel-title" text="Lot Overview" />
-                        <Label styleClass="editor-copy" text="Review the saved inspection lot with parts down the rows and plan bubbles across the columns." wrapText="true" />
-                        <TableView fx:id="masterTableView" editable="false" VBox.vgrow="ALWAYS">
-                            <columnResizePolicy>
-                                <TableView fx:constant="CONSTRAINED_RESIZE_POLICY" />
-                            </columnResizePolicy>
-                        </TableView>
-                    </VBox>
                 </Tab>
             </tabs>
         </TabPane>

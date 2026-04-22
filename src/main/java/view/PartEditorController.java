@@ -217,9 +217,9 @@ public class PartEditorController {
 
     private void configureMasterTable() {
         masterTableView.setItems(viewModel.getParts());
-        masterTableView.setEditable(false);
-        masterTableView.setPlaceholder(new Label("Create or open an inspection lot to review the lot table."));
-        masterTableView.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+        masterTableView.setEditable(true);
+        masterTableView.setPlaceholder(new Label("Create or open an inspection lot to enter or review saved measurements."));
+        masterTableView.setColumnResizePolicy(TableView.UNCONSTRAINED_RESIZE_POLICY);
     }
 
     private void bindViewModel() {
@@ -249,15 +249,24 @@ public class PartEditorController {
         TableColumn<PartRecord, Number> partColumn = new TableColumn<>("Part");
         partColumn.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(data.getValue().getPartNumber()));
         partColumn.setEditable(false);
+        partColumn.setMinWidth(70.0);
+        partColumn.setPrefWidth(80.0);
         masterTableView.getColumns().add(partColumn);
 
         for (PartBubbleDefinition bubble : viewModel.getBubbles()) {
             TableColumn<PartRecord, String> bubbleColumn = new TableColumn<>(bubble.getName());
             bubbleColumn.setCellValueFactory(data -> new ReadOnlyStringWrapper(data.getValue().getMeasurement(bubble.getId())));
-            bubbleColumn.setEditable(false);
+            bubbleColumn.setEditable(true);
             bubbleColumn.setGraphic(buildBubbleHeader(bubble));
             bubbleColumn.setText("");
-            bubbleColumn.setPrefWidth(150.0);
+            bubbleColumn.setCellFactory(TextFieldTableCell.forTableColumn());
+            bubbleColumn.setOnEditCommit(event -> {
+                viewModel.updatePartMeasurement(event.getRowValue(), bubble.getId(), event.getNewValue());
+                partTableView.refresh();
+                masterTableView.refresh();
+            });
+            bubbleColumn.setMinWidth(120.0);
+            bubbleColumn.setPrefWidth(140.0);
             masterTableView.getColumns().add(bubbleColumn);
         }
     }
@@ -330,11 +339,11 @@ public class PartEditorController {
     }
 
     private String buildHeaderText(PartBubbleDefinition bubble) {
-        return "%s%nNom %s%n-%s / +%s".formatted(
+        return "%s%nNom %s%n+%s / -%s".formatted(
                 bubble.getName(),
                 displaySpecValue(bubble.getNominalValue()),
-                displaySpecValue(bubble.getLowerTolerance()),
-                displaySpecValue(bubble.getUpperTolerance())
+                displaySpecValue(bubble.getUpperTolerance()),
+                displaySpecValue(bubble.getLowerTolerance())
         );
     }
 

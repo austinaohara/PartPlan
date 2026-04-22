@@ -146,13 +146,23 @@ public class PartEditorViewModel {
         }
 
         PartRecord currentPart = currentLot.getPart(currentPartNumber.get() - 1);
-        if (currentPart == null) {
+        updatePartMeasurement(currentPart, bubbleId, value);
+    }
+
+    public void updatePartMeasurement(PartRecord part, String bubbleId, String value) {
+        if (currentLot == null || part == null) {
             return;
         }
 
-        currentPart.setMeasurement(bubbleId, value);
-        lotDatabaseService.saveMeasurement(currentLot.getId(), currentPart.getId(), bubbleId, value);
-        refreshCurrentPartRows();
+        PartRecord currentPart = currentLot.getPart(currentPartNumber.get() - 1);
+        boolean refreshSelectedPart = currentPart != null && currentPart.getId().equals(part.getId());
+
+        part.setMeasurement(bubbleId, value);
+        lotDatabaseService.saveMeasurement(currentLot.getId(), part.getId(), bubbleId, value);
+
+        if (refreshSelectedPart) {
+            refreshCurrentPartRows();
+        }
     }
 
     public String getCurrentLotId() {
