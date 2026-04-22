@@ -3,6 +3,7 @@ package view;
 import javafx.event.ActionEvent;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.control.PasswordField;
 import javafx.scene.control.TextField;
 import javafx.stage.Stage;
 import viewmodel.LoginViewModel;
@@ -13,7 +14,7 @@ public class LoginController {
     private final LoginViewModel viewModel = new LoginViewModel();
 
     public TextField emailTextField;
-    public TextField passwordTextField;
+    public PasswordField passwordField;
     public Button loginButton;
 
     public Label errorLabel;
@@ -42,7 +43,7 @@ public class LoginController {
 
     public void onLoginPressed(ActionEvent event) {
         String email = emailTextField.getText();
-        String password = passwordTextField.getText();
+        String password = passwordField.getText();
 
         setControlsEditable(false);
         errorLabel.setVisible(false);
@@ -52,9 +53,8 @@ public class LoginController {
 
     private void setControlsEditable(boolean input){
         emailTextField.setDisable(!input);
-        passwordTextField.setDisable(!input);
+        passwordField.setDisable(!input);
         loginButton.setDisable(!input);
-
     }
 
     private void showError(String message){
