@@ -445,6 +445,12 @@
     -fx-border-color: rgba(24, 50, 71, 0.10);
 }
 
+.part-requirement-label {
+    -fx-text-fill: #183247;
+    -fx-font-size: 13px;
+    -fx-padding: 4px 0;
+}
+
 .master-column-header {
     -fx-text-fill: #183247;
     -fx-font-size: 11px;

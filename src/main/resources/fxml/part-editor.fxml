@@ -70,11 +70,7 @@
                                     </columnResizePolicy>
                                     <columns>
                                         <TableColumn fx:id="partSequenceColumn" editable="false" prefWidth="80.0" text="#" />
-                                        <TableColumn fx:id="partBubbleNameColumn" editable="false" prefWidth="220.0" text="Bubble" />
-                                        <TableColumn fx:id="partNominalColumn" editable="false" prefWidth="90.0" text="Nom" />
-                                        <TableColumn fx:id="partLowerToleranceColumn" editable="false" prefWidth="85.0" text="-Tol" />
-                                        <TableColumn fx:id="partUpperToleranceColumn" editable="false" prefWidth="85.0" text="+Tol" />
-                                        <TableColumn fx:id="partNoteColumn" editable="false" prefWidth="190.0" text="Note" />
+                                        <TableColumn fx:id="partRequirementColumn" editable="false" prefWidth="560.0" text="Requirement" />
                                         <TableColumn fx:id="partMeasurementColumn" prefWidth="130.0" text="Measurement" />
                                     </columns>
                                 </TableView>

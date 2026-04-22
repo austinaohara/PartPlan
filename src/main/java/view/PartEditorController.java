@@ -7,9 +7,11 @@ import javafx.fxml.FXML;
 import javafx.scene.Node;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Button;
+import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.Label;
 import javafx.scene.control.Spinner;
 import javafx.scene.control.SpinnerValueFactory;
+import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TabPane;
@@ -48,15 +50,7 @@ public class PartEditorController {
     @FXML
     private TableColumn<PartBubbleRowViewModel, Integer> partSequenceColumn;
     @FXML
-    private TableColumn<PartBubbleRowViewModel, String> partBubbleNameColumn;
-    @FXML
-    private TableColumn<PartBubbleRowViewModel, String> partNominalColumn;
-    @FXML
-    private TableColumn<PartBubbleRowViewModel, String> partLowerToleranceColumn;
-    @FXML
-    private TableColumn<PartBubbleRowViewModel, String> partUpperToleranceColumn;
-    @FXML
-    private TableColumn<PartBubbleRowViewModel, String> partNoteColumn;
+    private TableColumn<PartBubbleRowViewModel, String> partRequirementColumn;
     @FXML
     private TableColumn<PartBubbleRowViewModel, String> partMeasurementColumn;
     @FXML
@@ -183,11 +177,34 @@ public class PartEditorController {
         partTableView.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
 
         partSequenceColumn.setCellValueFactory(data -> data.getValue().sequenceNumberProperty().asObject());
-        partBubbleNameColumn.setCellValueFactory(data -> data.getValue().bubbleNameProperty());
-        partNominalColumn.setCellValueFactory(data -> data.getValue().nominalValueProperty());
-        partLowerToleranceColumn.setCellValueFactory(data -> data.getValue().lowerToleranceProperty());
-        partUpperToleranceColumn.setCellValueFactory(data -> data.getValue().upperToleranceProperty());
-        partNoteColumn.setCellValueFactory(data -> data.getValue().noteProperty());
+        partRequirementColumn.setCellValueFactory(data -> data.getValue().requirementProperty());
+        partRequirementColumn.setCellFactory(column -> new TableCell<>() {
+            private final Label label = new Label();
+
+            {
+                label.getStyleClass().add("part-requirement-label");
+                label.setWrapText(true);
+                label.maxWidthProperty().bind(column.widthProperty().subtract(24.0));
+                setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
+            }
+
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+
+                if (empty || item == null || item.isBlank()) {
+                    label.setText(null);
+                    setGraphic(null);
+                    setTooltip(null);
+                    return;
+                }
+
+                PartBubbleRowViewModel row = getTableRow() == null ? null : getTableRow().getItem();
+                label.setText(item);
+                setGraphic(label);
+                setTooltip(buildRequirementTooltip(row, item));
+            }
+        });
 
         partMeasurementColumn.setCellValueFactory(data -> data.getValue().measurementValueProperty());
         partMeasurementColumn.setCellFactory(TextFieldTableCell.forTableColumn());
@@ -283,6 +300,19 @@ public class PartEditorController {
         } catch (NumberFormatException exception) {
             valueFactory.setValue(viewModel.getLotSize());
         }
+    }
+
+    private Tooltip buildRequirementTooltip(PartBubbleRowViewModel row, String visibleText) {
+        if (row == null) {
+            return null;
+        }
+
+        String note = row.getNote();
+        if (note == null || note.isBlank() || note.equals(visibleText)) {
+            return null;
+        }
+
+        return new Tooltip(note);
     }
 
     private Label buildBubbleHeader(PartBubbleDefinition bubble) {
