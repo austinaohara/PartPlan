@@ -18,29 +18,22 @@
 
 <BorderPane prefHeight="700.0" prefWidth="1100.0" stylesheets="@../styles/main.css" xmlns="http://javafx.com/javafx/20.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="view.PartEditorController">
     <top>
-        <VBox spacing="14.0" styleClass="top-bar">
+        <VBox spacing="12.0" styleClass="top-bar">
             <padding>
                 <Insets bottom="18.0" left="24.0" right="24.0" top="24.0" />
             </padding>
-            <Label styleClass="screen-title" text="Part Editor" />
             <HBox alignment="CENTER_LEFT" spacing="12.0">
-                <Label styleClass="field-label" text="Plan" />
-                <ComboBox fx:id="planSelectorComboBox" prefWidth="260.0" promptText="Select saved plan" />
+                <Label styleClass="screen-title" text="Part Editor" />
+                <Region HBox.hgrow="ALWAYS" />
+                <Button mnemonicParsing="false" onAction="#onReturnToLotBrowser" styleClass="secondary-button" text="Inspection Lots" />
+                <Button mnemonicParsing="false" onAction="#onReturnToHub" styleClass="secondary-button" text="Return to Hub" />
+            </HBox>
+            <HBox alignment="CENTER_LEFT" spacing="12.0">
                 <Label styleClass="field-label" text="Lot Name" />
                 <TextField fx:id="lotNameField" onAction="#onLotNameCommitted" prefWidth="220.0" promptText="Inspection lot name" />
                 <Label styleClass="field-label" text="Lot Size" />
                 <Spinner fx:id="lotSizeSpinner" prefWidth="110.0" />
-                <Button fx:id="createLotButton" mnemonicParsing="false" onAction="#onCreateLot" styleClass="primary-button" text="New Lot" />
-                <Region HBox.hgrow="ALWAYS" />
-                <Label styleClass="field-label" text="Inspection Lots" />
-                <ComboBox fx:id="savedLotsComboBox" prefWidth="280.0" promptText="Open saved inspection lot" />
-                <Button fx:id="openLotButton" mnemonicParsing="false" onAction="#onOpenLot" styleClass="secondary-button" text="Open Lot" />
-                <Button mnemonicParsing="false" onAction="#onRefreshData" styleClass="secondary-button" text="Refresh" />
-            </HBox>
-            <HBox alignment="CENTER_LEFT" spacing="12.0">
-                <Label styleClass="field-label" text="Loaded Lot" />
-                <Label fx:id="loadedLotLabel" styleClass="toolbar-pill" text="" />
-                <Label styleClass="field-label" text="Loaded Plan" />
+                <Label styleClass="field-label" text="Plan" />
                 <Label fx:id="loadedPlanLabel" styleClass="toolbar-pill" text="No plan selected" />
                 <Label styleClass="field-label" text="Summary" />
                 <Label fx:id="lotSummaryLabel" styleClass="toolbar-pill" text="No inspection lot selected" />

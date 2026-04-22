@@ -2,9 +2,11 @@ package view;
 
 import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.beans.property.ReadOnlyStringWrapper;
+import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
-import javafx.scene.control.Button;
+import javafx.scene.Node;
 import javafx.scene.control.ComboBox;
+import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.Spinner;
 import javafx.scene.control.SpinnerValueFactory;
@@ -16,12 +18,12 @@ import javafx.scene.control.Tooltip;
 import javafx.scene.control.cell.TextFieldTableCell;
 import javafx.scene.text.TextAlignment;
 import javafx.util.StringConverter;
-import model.InspectionLotSummary;
-import model.InspectionPlan;
 import model.PartBubbleDefinition;
 import model.PartRecord;
 import viewmodel.PartBubbleRowViewModel;
 import viewmodel.PartEditorViewModel;
+
+import java.io.IOException;
 
 public class PartEditorController {
     private static final int MAX_LOT_SIZE = 1000;
@@ -29,10 +31,6 @@ public class PartEditorController {
     private final PartEditorViewModel viewModel = new PartEditorViewModel();
     private boolean syncingLotSize;
 
-    @FXML
-    private ComboBox<InspectionPlan> planSelectorComboBox;
-    @FXML
-    private ComboBox<InspectionLotSummary> savedLotsComboBox;
     @FXML
     private TextField lotNameField;
     @FXML
@@ -42,17 +40,7 @@ public class PartEditorController {
     @FXML
     private Label loadedPlanLabel;
     @FXML
-    private Label loadedLotLabel;
-    @FXML
     private ComboBox<PartRecord> partSelectorComboBox;
-    @FXML
-    private Button createLotButton;
-    @FXML
-    private Button openLotButton;
-    @FXML
-    private Button previousPartButton;
-    @FXML
-    private Button nextPartButton;
     @FXML
     private Label currentPartTitleLabel;
     @FXML
@@ -75,11 +63,13 @@ public class PartEditorController {
     private TableView<PartRecord> masterTableView;
     @FXML
     private TabPane editorTabPane;
+    @FXML
+    private Button previousPartButton;
+    @FXML
+    private Button nextPartButton;
 
     @FXML
     private void initialize() {
-        configurePlanSelector();
-        configureSavedLotsSelector();
         configureLotNameField();
         configureLotSizeSpinner();
         configurePartSelector();
@@ -91,36 +81,24 @@ public class PartEditorController {
         syncPartSelection();
     }
 
-    @FXML
-    private void onCreateLot() {
-        InspectionPlan selectedPlan = planSelectorComboBox.getSelectionModel().getSelectedItem();
-        Integer spinnerValue = lotSizeSpinner.getValue();
-        int requestedLotSize = spinnerValue == null ? Math.max(1, viewModel.getLotSize()) : spinnerValue;
-
-        viewModel.createLot(selectedPlan, lotNameField.getText(), requestedLotSize);
+    public void loadLot(String lotId) {
+        viewModel.loadLot(lotId);
         rebuildMasterColumns();
         syncLoadedLotState();
         syncPartSelection();
     }
 
     @FXML
-    private void onOpenLot() {
-        InspectionLotSummary selectedLot = savedLotsComboBox.getSelectionModel().getSelectedItem();
-        if (selectedLot == null) {
-            return;
-        }
-
-        viewModel.openLot(selectedLot);
-        rebuildMasterColumns();
-        syncLoadedLotState();
-        syncPartSelection();
+    private void onReturnToLotBrowser(ActionEvent event) throws IOException {
+        AppNavigator.swapRoot((Node) event.getSource(), "/fxml/inspection-lot-browser.fxml", "PartPlan - Inspection Lots", loader -> {
+            InspectionLotBrowserController controller = loader.getController();
+            controller.selectLot(viewModel.getCurrentLotId());
+        });
     }
 
     @FXML
-    private void onRefreshData() {
-        viewModel.refreshSavedPlans();
-        viewModel.refreshSavedLots();
-        syncLoadedLotState();
+    private void onReturnToHub(ActionEvent event) throws IOException {
+        AppNavigator.swapRoot((Node) event.getSource(), "/fxml/welcome.fxml", "PartPlan");
     }
 
     @FXML
@@ -143,42 +121,6 @@ public class PartEditorController {
     private void onNextPart() {
         viewModel.selectNextPart();
         syncPartSelection();
-    }
-
-    private void configurePlanSelector() {
-        planSelectorComboBox.setItems(viewModel.getSavedPlans());
-        planSelectorComboBox.setConverter(new StringConverter<>() {
-            @Override
-            public String toString(InspectionPlan plan) {
-                return plan == null ? "" : displayPlanName(plan);
-            }
-
-            @Override
-            public InspectionPlan fromString(String string) {
-                return null;
-            }
-        });
-        if (!viewModel.getSavedPlans().isEmpty()) {
-            planSelectorComboBox.getSelectionModel().selectFirst();
-        }
-    }
-
-    private void configureSavedLotsSelector() {
-        savedLotsComboBox.setItems(viewModel.getSavedLots());
-        savedLotsComboBox.setConverter(new StringConverter<>() {
-            @Override
-            public String toString(InspectionLotSummary lot) {
-                if (lot == null) {
-                    return "";
-                }
-                return lot.getName() + " | " + lot.getPlanName();
-            }
-
-            @Override
-            public InspectionLotSummary fromString(String string) {
-                return null;
-            }
-        });
     }
 
     private void configureLotNameField() {
@@ -266,11 +208,10 @@ public class PartEditorController {
     private void bindViewModel() {
         lotSummaryLabel.textProperty().bind(viewModel.lotSummaryProperty());
         loadedPlanLabel.textProperty().bind(viewModel.currentPlanNameProperty());
-        loadedLotLabel.textProperty().bind(viewModel.currentLotNameProperty());
         currentPartTitleLabel.textProperty().bind(viewModel.currentPartTitleProperty());
 
-        createLotButton.disableProperty().bind(planSelectorComboBox.getSelectionModel().selectedItemProperty().isNull());
-        openLotButton.disableProperty().bind(savedLotsComboBox.getSelectionModel().selectedItemProperty().isNull());
+        lotNameField.disableProperty().bind(viewModel.lotLoadedProperty().not());
+        lotSizeSpinner.disableProperty().bind(viewModel.lotLoadedProperty().not());
         partSelectorComboBox.disableProperty().bind(viewModel.lotLoadedProperty().not());
         previousPartButton.disableProperty().bind(viewModel.lotLoadedProperty().not()
                 .or(viewModel.currentPartNumberProperty().lessThanOrEqualTo(1)));
@@ -307,24 +248,8 @@ public class PartEditorController {
     private void syncLoadedLotState() {
         if (viewModel.lotLoadedProperty().get()) {
             lotNameField.setText(viewModel.currentLotNameProperty().get());
-
-            String currentPlanId = viewModel.getCurrentPlanId();
-            viewModel.getSavedPlans().stream()
-                    .filter(plan -> plan.getId().equals(currentPlanId))
-                    .findFirst()
-                    .ifPresent(plan -> planSelectorComboBox.getSelectionModel().select(plan));
-
-            viewModel.getSavedLots().stream()
-                    .filter(lot -> viewModel.isCurrentLot(lot.getId()))
-                    .findFirst()
-                    .ifPresent(lot -> savedLotsComboBox.getSelectionModel().select(lot));
         } else {
-            if (savedLotsComboBox.getSelectionModel().getSelectedItem() == null && !viewModel.getSavedLots().isEmpty()) {
-                savedLotsComboBox.getSelectionModel().selectFirst();
-            }
-            if (planSelectorComboBox.getSelectionModel().getSelectedItem() == null && !viewModel.getSavedPlans().isEmpty()) {
-                planSelectorComboBox.getSelectionModel().selectFirst();
-            }
+            lotNameField.clear();
         }
     }
 
@@ -385,9 +310,5 @@ public class PartEditorController {
 
     private String displaySpecValue(String value) {
         return value == null || value.isBlank() ? "-" : value;
-    }
-
-    private String displayPlanName(InspectionPlan plan) {
-        return plan.getName() == null || plan.getName().isBlank() ? "Untitled Plan" : plan.getName().trim();
     }
 }

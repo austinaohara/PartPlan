@@ -9,12 +9,9 @@ import javafx.beans.property.StringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import model.InspectionLot;
-import model.InspectionLotSummary;
-import model.InspectionPlan;
 import model.PartBubbleDefinition;
 import model.PartRecord;
 import service.InspectionLotDatabaseService;
-import service.PlanStorageService;
 
 import java.util.List;
 
@@ -22,10 +19,7 @@ public class PartEditorViewModel {
     private static final String NO_LOT_SELECTED = "No inspection lot selected";
     private static final String NO_PLAN_SELECTED = "No plan selected";
 
-    private final PlanStorageService planStorageService = new PlanStorageService();
     private final InspectionLotDatabaseService lotDatabaseService = new InspectionLotDatabaseService();
-    private final ObservableList<InspectionPlan> savedPlans = FXCollections.observableArrayList();
-    private final ObservableList<InspectionLotSummary> savedLots = FXCollections.observableArrayList();
     private final ObservableList<PartRecord> parts = FXCollections.observableArrayList();
     private final ObservableList<PartBubbleDefinition> bubbles = FXCollections.observableArrayList();
     private final ObservableList<PartBubbleRowViewModel> currentPartRows = FXCollections.observableArrayList();
@@ -40,17 +34,7 @@ public class PartEditorViewModel {
     private InspectionLot currentLot;
 
     public PartEditorViewModel() {
-        refreshSavedPlans();
-        refreshSavedLots();
         refreshAll();
-    }
-
-    public ObservableList<InspectionPlan> getSavedPlans() {
-        return savedPlans;
-    }
-
-    public ObservableList<InspectionLotSummary> getSavedLots() {
-        return savedLots;
     }
 
     public ObservableList<PartRecord> getParts() {
@@ -101,38 +85,14 @@ public class PartEditorViewModel {
         return lotLoaded;
     }
 
-    public void refreshSavedPlans() {
-        savedPlans.setAll(planStorageService.loadPlans());
-    }
-
-    public void refreshSavedLots() {
-        savedLots.setAll(lotDatabaseService.loadLotSummaries());
-    }
-
-    public InspectionLot createLot(InspectionPlan selectedPlan, String proposedLotName, int proposedLotSize) {
-        if (selectedPlan == null) {
-            return null;
-        }
-
-        InspectionPlan plan = planStorageService.loadPlan(selectedPlan.getId());
-        InspectionLot lot = lotDatabaseService.createLot(proposedLotName, plan, proposedLotSize);
-        currentLot = lot;
-        currentPartNumber.set(1);
-        lotLoaded.set(true);
-        refreshSavedLots();
-        refreshAll();
-        return currentLot;
-    }
-
-    public void openLot(InspectionLotSummary selectedLot) {
-        if (selectedLot == null) {
+    public void loadLot(String lotId) {
+        if (lotId == null || lotId.isBlank()) {
             return;
         }
 
-        currentLot = lotDatabaseService.loadLot(selectedLot.getId());
+        currentLot = lotDatabaseService.loadLot(lotId);
         currentPartNumber.set(1);
         lotLoaded.set(true);
-        refreshSavedLots();
         refreshAll();
     }
 
@@ -144,7 +104,6 @@ public class PartEditorViewModel {
         String normalizedName = normalizeLotName(proposedName, currentLot.getName());
         currentLot.setName(normalizedName);
         lotDatabaseService.saveLotName(currentLot.getId(), normalizedName);
-        refreshSavedLots();
         refreshAll();
     }
 
@@ -159,7 +118,6 @@ public class PartEditorViewModel {
             currentPartNumber.set(currentLot.getLotSize());
         }
         lotDatabaseService.saveLotStructure(currentLot);
-        refreshSavedLots();
         refreshAll();
     }
 
@@ -197,19 +155,12 @@ public class PartEditorViewModel {
         refreshCurrentPartRows();
     }
 
-    public boolean isCurrentLot(String lotId) {
-        return currentLot != null && currentLot.getId().equals(lotId);
-    }
-
     public String getCurrentLotId() {
         return currentLot == null ? "" : currentLot.getId();
     }
 
-    public String getCurrentPlanId() {
-        return currentLot == null ? "" : currentLot.getPlanId();
-    }
-
     private void refreshAll() {
+        lotLoaded.set(currentLot != null);
         lotSize.set(currentLot == null ? Math.max(1, lotSize.get()) : currentLot.getLotSize());
         parts.setAll(currentLot == null ? List.of() : currentLot.getParts());
         bubbles.setAll(currentLot == null ? List.of() : currentLot.getBubbles());

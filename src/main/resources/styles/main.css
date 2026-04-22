@@ -343,6 +343,51 @@
     -fx-border-color: transparent;
 }
 
+.browser-shell {
+    -fx-alignment: center-left;
+}
+
+.browser-copy {
+    -fx-text-fill: #d7e4ee;
+    -fx-font-size: 15px;
+}
+
+.browser-stat {
+    -fx-background-color: rgba(255, 255, 255, 0.16);
+    -fx-background-radius: 999px;
+    -fx-text-fill: #f8fbff;
+    -fx-padding: 8px 14px;
+    -fx-font-size: 12px;
+    -fx-font-weight: 700;
+}
+
+.browser-table {
+    -fx-background-color: rgba(255, 255, 255, 0.98);
+    -fx-background-radius: 14px;
+    -fx-border-color: rgba(22, 46, 67, 0.10);
+    -fx-border-radius: 14px;
+}
+
+.browser-table .column-header-background {
+    -fx-background-color: #eef3f7;
+    -fx-background-radius: 14px 14px 0 0;
+}
+
+.browser-table .column-header,
+.browser-table .filler {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent transparent rgba(22, 46, 67, 0.08) transparent;
+}
+
+.browser-table .table-cell {
+    -fx-text-fill: #183247;
+    -fx-font-size: 13px;
+}
+
+.browser-table .table-row-cell:selected {
+    -fx-background-color: rgba(36, 79, 115, 0.12);
+}
+
 .toolbar-pill {
     -fx-background-color: rgba(255, 255, 255, 0.16);
     -fx-background-radius: 999px;
