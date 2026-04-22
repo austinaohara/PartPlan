@@ -9,6 +9,7 @@ import javafx.scene.control.ComboBox;
 import javafx.scene.control.Button;
 import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.Label;
+import javafx.scene.control.OverrunStyle;
 import javafx.scene.control.Spinner;
 import javafx.scene.control.SpinnerValueFactory;
 import javafx.scene.control.TableCell;
@@ -325,13 +326,19 @@ public class PartEditorController {
     }
 
     private Label buildBubbleHeader(PartBubbleDefinition bubble) {
-        Label label = new Label(buildHeaderText(bubble));
+        boolean noteOnly = isNoteOnlyBubble(bubble);
+        Label label = new Label(noteOnly ? bubble.getNote() : buildHeaderText(bubble));
         label.getStyleClass().add("master-column-header");
-        label.setWrapText(true);
-        label.setTextAlignment(TextAlignment.CENTER);
-        label.setMaxWidth(140.0);
+        label.setWrapText(!noteOnly);
+        label.setTextAlignment(noteOnly ? TextAlignment.LEFT : TextAlignment.CENTER);
+        label.setMaxWidth(noteOnly ? 132.0 : 140.0);
 
-        if (!bubble.getNote().isBlank()) {
+        if (noteOnly) {
+            label.setMinWidth(0.0);
+            label.setPrefWidth(132.0);
+            label.setTextOverrun(OverrunStyle.ELLIPSIS);
+            label.setTooltip(new Tooltip(bubble.getNote()));
+        } else if (!bubble.getNote().isBlank()) {
             label.setTooltip(new Tooltip("Note: " + bubble.getNote()));
         }
 
@@ -349,5 +356,13 @@ public class PartEditorController {
 
     private String displaySpecValue(String value) {
         return value == null || value.isBlank() ? "-" : value;
+    }
+
+    private boolean isNoteOnlyBubble(PartBubbleDefinition bubble) {
+        return bubble != null
+                && !bubble.getNote().isBlank()
+                && bubble.getNominalValue().isBlank()
+                && bubble.getLowerTolerance().isBlank()
+                && bubble.getUpperTolerance().isBlank();
     }
 }
