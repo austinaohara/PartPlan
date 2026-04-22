@@ -41,4 +41,13 @@ public class InspectionLotBrowserViewModel {
         refresh();
         return createdLot;
     }
+
+    public void deleteLot(InspectionLotSummary selectedLot) {
+        if (selectedLot == null) {
+            return;
+        }
+
+        lotDatabaseService.deleteLot(selectedLot.getId());
+        refresh();
+    }
 }

@@ -199,6 +199,21 @@ public class InspectionLotDatabaseService {
         }
     }
 
+    public void deleteLot(String lotId) {
+        String sql = """
+                DELETE FROM inspection_lot
+                WHERE id = ?
+                """;
+
+        try (Connection connection = openConnection();
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, lotId);
+            statement.executeUpdate();
+        } catch (SQLException exception) {
+            throw new IllegalStateException("Unable to delete inspection lot.", exception);
+        }
+    }
+
     private void persistNewLot(InspectionLot lot) {
         String insertLotSql = """
                 INSERT INTO inspection_lot (id, name, plan_id, plan_name, lot_size, created_at, updated_at)

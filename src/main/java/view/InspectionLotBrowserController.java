@@ -13,6 +13,10 @@ import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
+import javafx.scene.control.Alert;
+import javafx.scene.control.ButtonType;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 import javafx.util.StringConverter;
 import model.InspectionLot;
 import model.InspectionLotSummary;
@@ -22,6 +26,7 @@ import viewmodel.InspectionLotBrowserViewModel;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Optional;
 
 public class InspectionLotBrowserController {
     private static final int MAX_LOT_SIZE = 1000;
@@ -47,6 +52,8 @@ public class InspectionLotBrowserController {
     private Spinner<Integer> lotSizeSpinner;
     @FXML
     private Button openLotButton;
+    @FXML
+    private Button deleteLotButton;
     @FXML
     private Button createLotButton;
     @FXML
@@ -96,6 +103,11 @@ public class InspectionLotBrowserController {
     }
 
     @FXML
+    private void onDeleteLot() {
+        deleteSelectedLot();
+    }
+
+    @FXML
     private void onCreateLot() throws IOException {
         commitLotSizeEditor();
         InspectionPlan selectedPlan = planSelectorComboBox.getSelectionModel().getSelectedItem();
@@ -123,6 +135,7 @@ public class InspectionLotBrowserController {
         savedLotsTableView.setItems(viewModel.getSavedLots());
         savedLotsTableView.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
         savedLotsTableView.setPlaceholder(new Label("No inspection lots have been created yet."));
+        savedLotsTableView.setOnKeyPressed(this::handleSavedLotsTableKeyPressed);
 
         lotNameColumn.setCellValueFactory(data -> new ReadOnlyStringWrapper(data.getValue().getName()));
         lotPlanColumn.setCellValueFactory(data -> new ReadOnlyStringWrapper(data.getValue().getPlanName()));
@@ -142,6 +155,19 @@ public class InspectionLotBrowserController {
             });
             return row;
         });
+    }
+
+    private void handleSavedLotsTableKeyPressed(KeyEvent event) {
+        if (event.getCode() != KeyCode.DELETE || event.isControlDown() || event.isAltDown() || event.isMetaDown()) {
+            return;
+        }
+
+        if (savedLotsTableView.getSelectionModel().getSelectedItem() == null) {
+            return;
+        }
+
+        deleteSelectedLot();
+        event.consume();
     }
 
     private void configurePlanSelector() {
@@ -172,6 +198,7 @@ public class InspectionLotBrowserController {
 
     private void bindViewModel() {
         openLotButton.disableProperty().bind(savedLotsTableView.getSelectionModel().selectedItemProperty().isNull());
+        deleteLotButton.disableProperty().bind(savedLotsTableView.getSelectionModel().selectedItemProperty().isNull());
         createLotButton.disableProperty().bind(planSelectorComboBox.getSelectionModel().selectedItemProperty().isNull());
         viewModel.getSavedLots().addListener((javafx.collections.ListChangeListener<InspectionLotSummary>) change -> updateSavedLotCount());
     }
@@ -222,5 +249,23 @@ public class InspectionLotBrowserController {
             return "Untitled Plan";
         }
         return plan.getName().trim();
+    }
+
+    private void deleteSelectedLot() {
+        InspectionLotSummary selectedLot = savedLotsTableView.getSelectionModel().getSelectedItem();
+        if (selectedLot == null) {
+            return;
+        }
+
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+        alert.setTitle("Delete Inspection Lot");
+        alert.setHeaderText("Delete selected inspection lot?");
+        alert.setContentText(selectedLot.getName());
+        Optional<ButtonType> result = alert.showAndWait();
+        if (result.isEmpty() || result.get() != ButtonType.OK) {
+            return;
+        }
+
+        viewModel.deleteLot(selectedLot);
     }
 }
