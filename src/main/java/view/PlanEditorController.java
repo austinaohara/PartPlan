@@ -3,6 +3,7 @@ package view;
 import javafx.application.Platform;
 import javafx.collections.ListChangeListener;
 import javafx.collections.transformation.FilteredList;
+import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
@@ -29,10 +30,15 @@ import model.InspectionPlan;
 import model.Bubble;
 import model.InspectionType;
 import model.PlanPage;
+import service.export.ExportFormat;
+import service.export.InspectionExportService;
 import viewmodel.PlanEditorViewModel;
 
 import java.io.File;
+import java.io.IOException;
+
 import javafx.geometry.Point2D;
+
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Comparator;
@@ -51,44 +57,79 @@ public class PlanEditorController {
 
     private final PlanEditorViewModel viewModel = new PlanEditorViewModel();
     private double zoomLevel = DEFAULT_ZOOM;
+    private final InspectionExportService exportService = new InspectionExportService();
 
     // Existing fields
-    @FXML private Parent root;
-    @FXML private TextField planNameField;
-    @FXML private Label drawingFileNameLabel;
-    @FXML private Label drawingPathLabel;
-    @FXML private Label emptyStateLabel;
-    @FXML private Label pdfPreviewLabel;
-    @FXML private ImageView drawingImageView;
-    @FXML private ScrollPane drawingScrollPane;
-    @FXML private Pane bubbleOverlayPane;
-    @FXML private ListView<Bubble> bubbleListView;
-    @FXML private TextField bubbleSearchField;
-    @FXML private ListView<InspectionPlan> savedPlansListView;
-    @FXML private ListView<PlanPage> planPagesListView;
+    @FXML
+    private Parent root;
+    @FXML
+    private TextField planNameField;
+    @FXML
+    private Label drawingFileNameLabel;
+    @FXML
+    private Label drawingPathLabel;
+    @FXML
+    private Label emptyStateLabel;
+    @FXML
+    private Label pdfPreviewLabel;
+    @FXML
+    private ImageView drawingImageView;
+    @FXML
+    private ScrollPane drawingScrollPane;
+    @FXML
+    private Pane bubbleOverlayPane;
+    @FXML
+    private ListView<Bubble> bubbleListView;
+    @FXML
+    private TextField bubbleSearchField;
+    @FXML
+    private ListView<InspectionPlan> savedPlansListView;
+    @FXML
+    private ListView<PlanPage> planPagesListView;
 
     // Panel collapse fields
-    @FXML private VBox leftPanel;
-    @FXML private VBox leftCollapsedTab;
-    @FXML private VBox leftResizeHandle;
-    @FXML private VBox rightPanel;
-    @FXML private VBox rightCollapsedTab;
-    @FXML private VBox rightResizeHandle;
-    @FXML private Label bubbleModeLabel;
-    @FXML private Label bubbleHintLabel;
-    @FXML private CheckBox useDefaultDiameterCheckBox;
-    @FXML private CheckBox useDefaultColorCheckBox;
-    @FXML private TextField bubbleDiameterField;
-    @FXML private TextField bubbleNumberField;
-    @FXML private TextField bubbleColorField;
-    @FXML private TextField characteristicField;
-    @FXML private ComboBox<InspectionType> inspectionTypeComboBox;
-    @FXML private TextField nominalValueField;
-    @FXML private TextField lowerToleranceField;
-    @FXML private TextField upperToleranceField;
-    @FXML private TextArea bubbleNoteArea;
-    @FXML private Button saveBubbleButton;
-    @FXML private Button deleteBubbleButton;
+    @FXML
+    private VBox leftPanel;
+    @FXML
+    private VBox leftCollapsedTab;
+    @FXML
+    private VBox leftResizeHandle;
+    @FXML
+    private VBox rightPanel;
+    @FXML
+    private VBox rightCollapsedTab;
+    @FXML
+    private VBox rightResizeHandle;
+    @FXML
+    private Label bubbleModeLabel;
+    @FXML
+    private Label bubbleHintLabel;
+    @FXML
+    private CheckBox useDefaultDiameterCheckBox;
+    @FXML
+    private CheckBox useDefaultColorCheckBox;
+    @FXML
+    private TextField bubbleDiameterField;
+    @FXML
+    private TextField bubbleNumberField;
+    @FXML
+    private TextField bubbleColorField;
+    @FXML
+    private TextField characteristicField;
+    @FXML
+    private ComboBox<InspectionType> inspectionTypeComboBox;
+    @FXML
+    private TextField nominalValueField;
+    @FXML
+    private TextField lowerToleranceField;
+    @FXML
+    private TextField upperToleranceField;
+    @FXML
+    private TextArea bubbleNoteArea;
+    @FXML
+    private Button saveBubbleButton;
+    @FXML
+    private Button deleteBubbleButton;
 
     private boolean leftExpanded = true;
     private boolean rightExpanded = true;
@@ -151,7 +192,10 @@ public class PlanEditorController {
         savedPlansListView.setCellFactory(listView -> new ListCell<>() {
             protected void updateItem(InspectionPlan item, boolean empty) {
                 super.updateItem(item, empty);
-                if (empty || item == null) { setText(null); return; }
+                if (empty || item == null) {
+                    setText(null);
+                    return;
+                }
                 setText(item.getName());
             }
         });
@@ -159,7 +203,10 @@ public class PlanEditorController {
         planPagesListView.setCellFactory(listView -> new ListCell<>() {
             protected void updateItem(PlanPage item, boolean empty) {
                 super.updateItem(item, empty);
-                if (empty || item == null) { setText(null); return; }
+                if (empty || item == null) {
+                    setText(null);
+                    return;
+                }
                 String fileName = item.getDrawing() == null ? "No file" : item.getDrawing().getFileName();
                 setText(item.getName() + " - " + fileName);
             }
@@ -191,7 +238,10 @@ public class PlanEditorController {
         bubbleListView.setCellFactory(lv -> new ListCell<>() {
             protected void updateItem(Bubble item, boolean empty) {
                 super.updateItem(item, empty);
-                if (empty || item == null) { setText(null); return; }
+                if (empty || item == null) {
+                    setText(null);
+                    return;
+                }
                 String label = item.getLabel() == null || item.getLabel().isBlank()
                         ? "#" + item.getSequenceNumber()
                         : item.getLabel();
@@ -292,7 +342,10 @@ public class PlanEditorController {
     @FXML
     private void onOpenPlan() {
         InspectionPlan selectedPlan = savedPlansListView.getSelectionModel().getSelectedItem();
-        if (selectedPlan == null) { showInformation("Select a saved plan first."); return; }
+        if (selectedPlan == null) {
+            showInformation("Select a saved plan first.");
+            return;
+        }
         viewModel.openPlan(selectedPlan);
         planNameField.setText(displayPlanName(viewModel.getPlanName()));
         selectCurrentPageIfPresent();
@@ -304,7 +357,10 @@ public class PlanEditorController {
     @FXML
     private void onDeletePlan() {
         InspectionPlan selectedPlan = savedPlansListView.getSelectionModel().getSelectedItem();
-        if (selectedPlan == null) { showInformation("Select a saved plan first."); return; }
+        if (selectedPlan == null) {
+            showInformation("Select a saved plan first.");
+            return;
+        }
         Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
         alert.setTitle("Delete Plan");
         alert.setHeaderText("Delete selected plan?");
@@ -316,6 +372,11 @@ public class PlanEditorController {
         selectCurrentPageIfPresent();
         loadDrawingPreview(viewModel.getDrawingPath());
         resetViewport();
+    }
+
+    @FXML
+    private void onReturnToHub(ActionEvent event) throws IOException {
+        AppNavigator.swapRoot((Node) event.getSource(), "/fxml/welcome.fxml", "PartPlan");
     }
 
     @FXML
@@ -409,6 +470,56 @@ public class PlanEditorController {
         }
     }
 
+    @FXML
+    private void onExportCsv() throws Exception {
+        InspectionPlan currentPlan = viewModel.getCurrentPlan();
+        if (isExportablePlan(currentPlan)) {
+            File file = showSaveDialog("CSV Files", "*.csv");
+            if (file == null) return;
+            exportService.export(currentPlan, ExportFormat.CSV, file.toPath());
+            showInformation("CSV exported successfully.");
+        } else {
+            showExportAlert();
+        }
+    }
+
+    @FXML
+    private void onExportPdf() throws Exception {
+        InspectionPlan currentPlan = viewModel.getCurrentPlan();
+        if (isExportablePlan(currentPlan)) {
+            File file = showSaveDialog("PDF Files", "*.pdf");
+            if (file == null) return;
+            exportService.export(currentPlan, ExportFormat.PDF, file.toPath());
+            showInformation("PDF exported successfully.");
+        } else {
+            showExportAlert();
+        }
+    }
+
+    private boolean isExportablePlan(InspectionPlan currentPlan) {
+        return currentPlan != null
+                && currentPlan.getName() != null
+                && !currentPlan.getPages().isEmpty();
+    }
+
+    private File showSaveDialog(String desc, String extension) {
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle("Export Inspection Report");
+        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter(desc, extension));
+        File downloadsDir = new File(System.getProperty("user.home"), "Downloads");
+        if (downloadsDir.exists() && downloadsDir.isDirectory()) {
+            fileChooser.setInitialDirectory(downloadsDir);
+        }
+        return fileChooser.showSaveDialog(root.getScene().getWindow());
+    }
+
+    private void showExportAlert() {
+        Alert alert = new Alert(Alert.AlertType.WARNING);
+        alert.setTitle("Nothing to Export");
+        alert.setContentText("Add a page or open an inspection plan before exporting.");
+        alert.showAndWait();
+    }
+
     private void configureInitialDirectory(FileChooser fileChooser) {
         Path imageDirectory = DEFAULT_IMAGE_DIRECTORY.toAbsolutePath().normalize();
         if (Files.isDirectory(imageDirectory)) fileChooser.setInitialDirectory(imageDirectory.toFile());
@@ -432,23 +543,48 @@ public class PlanEditorController {
         }
 
         if (!event.isControlDown()) return;
-        if (event.getCode() == KeyCode.S) { onSavePlan(); event.consume(); return; }
+        if (event.getCode() == KeyCode.S) {
+            onSavePlan();
+            event.consume();
+            return;
+        }
         if (!viewModel.hasDrawing()) return;
-        if (event.getCode() == KeyCode.EQUALS || event.getCode() == KeyCode.PLUS) { zoomIn(); event.consume(); return; }
-        if (event.getCode() == KeyCode.MINUS) { zoomOut(); event.consume(); return; }
-        if (event.getCode() == KeyCode.DIGIT0 || event.getCode() == KeyCode.NUMPAD0) { resetViewport(); event.consume(); return; }
-        if (event.getCode() == KeyCode.F) { fitImageToViewport(); event.consume(); }
+        if (event.getCode() == KeyCode.EQUALS || event.getCode() == KeyCode.PLUS) {
+            zoomIn();
+            event.consume();
+            return;
+        }
+        if (event.getCode() == KeyCode.MINUS) {
+            zoomOut();
+            event.consume();
+            return;
+        }
+        if (event.getCode() == KeyCode.DIGIT0 || event.getCode() == KeyCode.NUMPAD0) {
+            resetViewport();
+            event.consume();
+            return;
+        }
+        if (event.getCode() == KeyCode.F) {
+            fitImageToViewport();
+            event.consume();
+        }
     }
 
     private void handleScrollZoom(ScrollEvent event) {
         if (!event.isControlDown() || !viewModel.hasDrawing()) return;
         double previousZoom = zoomLevel;
-        if (event.getDeltaY() > 0) zoomIn(); else if (event.getDeltaY() < 0) zoomOut();
+        if (event.getDeltaY() > 0) zoomIn();
+        else if (event.getDeltaY() < 0) zoomOut();
         if (zoomLevel != previousZoom) event.consume();
     }
 
-    private void zoomIn() { applyZoom(Math.min(zoomLevel * ZOOM_STEP, MAX_ZOOM)); }
-    private void zoomOut() { applyZoom(Math.max(zoomLevel / ZOOM_STEP, MIN_ZOOM)); }
+    private void zoomIn() {
+        applyZoom(Math.min(zoomLevel * ZOOM_STEP, MAX_ZOOM));
+    }
+
+    private void zoomOut() {
+        applyZoom(Math.max(zoomLevel / ZOOM_STEP, MIN_ZOOM));
+    }
 
     private void applyZoom(double newZoomLevel) {
         zoomLevel = newZoomLevel;
@@ -466,7 +602,10 @@ public class PlanEditorController {
 
     private void resetViewport() {
         applyZoom(DEFAULT_ZOOM);
-        Platform.runLater(() -> { drawingScrollPane.setHvalue(0.0); drawingScrollPane.setVvalue(0.0); });
+        Platform.runLater(() -> {
+            drawingScrollPane.setHvalue(0.0);
+            drawingScrollPane.setVvalue(0.0);
+        });
     }
 
     private void loadDrawingPreview(String drawingPath) {

@@ -11,19 +11,19 @@ public class AuthRepository {
         prefs.put("uid", uid);
     }
 
-    public String getToken(){
+    public static String getToken(){
         return prefs.get("idToken", null);
     }
 
-    public String getUid(){
+    public static String getUid(){
         return prefs.get("uid", null);
     }
 
-    public String getRefreshToken(){
+    public static String getRefreshToken(){
         return prefs.get("refreshToken", null);
     }
 
-    public void clear(){
+    public static void clear(){
         prefs.remove("idToken");
         prefs.remove("refreshToken");
         prefs.remove("uid");
