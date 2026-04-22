@@ -3,6 +3,7 @@ package view;
 import javafx.application.Platform;
 import javafx.collections.ListChangeListener;
 import javafx.collections.transformation.FilteredList;
+import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
@@ -34,6 +35,7 @@ import service.export.InspectionExportService;
 import viewmodel.PlanEditorViewModel;
 
 import java.io.File;
+import java.io.IOException;
 
 import javafx.geometry.Point2D;
 
@@ -370,6 +372,11 @@ public class PlanEditorController {
         selectCurrentPageIfPresent();
         loadDrawingPreview(viewModel.getDrawingPath());
         resetViewport();
+    }
+
+    @FXML
+    private void onReturnToHub(ActionEvent event) throws IOException {
+        AppNavigator.swapRoot((Node) event.getSource(), "/fxml/welcome.fxml", "PartPlan");
     }
 
     @FXML

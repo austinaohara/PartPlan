@@ -29,6 +29,7 @@
             </padding>
             <Label styleClass="screen-title" text="Plan Editor" />
             <HBox alignment="CENTER_LEFT" spacing="12.0">
+                <Button mnemonicParsing="false" onAction="#onReturnToHub" styleClass="secondary-button" text="Return to Hub" />
                 <Button mnemonicParsing="false" onAction="#onNewPlan" styleClass="secondary-button" text="New Plan" />
                 <Button mnemonicParsing="false" onAction="#onSavePlan" styleClass="primary-button" text="Save Plan" />
                 <Button mnemonicParsing="false" onAction="#onOpenPlan" styleClass="secondary-button" text="Open Plan" />

@@ -280,3 +280,181 @@
 .resize-handle-v:hover {
     -fx-background-color: #4d9de0;
 }
+
+.welcome-shell {
+    -fx-background-color: transparent;
+}
+
+.welcome-title {
+    -fx-text-fill: #183247;
+    -fx-font-size: 34px;
+    -fx-font-weight: 800;
+}
+
+.welcome-subtitle {
+    -fx-text-fill: #d6e4ef;
+    -fx-font-size: 15px;
+}
+
+.welcome-copy {
+    -fx-text-fill: #48657d;
+    -fx-font-size: 17px;
+    -fx-text-alignment: center;
+    -fx-alignment: center;
+}
+
+.welcome-card {
+    -fx-background-color: rgba(255, 255, 255, 0.95);
+    -fx-background-radius: 24px;
+    -fx-border-color: rgba(22, 46, 67, 0.12);
+    -fx-border-radius: 24px;
+    -fx-padding: 28px;
+    -fx-min-height: 280px;
+    -fx-effect: dropshadow(gaussian, rgba(17, 34, 49, 0.10), 24, 0.20, 0, 10);
+}
+
+.welcome-card-kicker {
+    -fx-text-fill: #6a7b88;
+    -fx-font-size: 12px;
+    -fx-font-weight: 700;
+}
+
+.welcome-card-title {
+    -fx-text-fill: #13283c;
+    -fx-font-size: 24px;
+    -fx-font-weight: 800;
+    -fx-max-width: infinity;
+    -fx-alignment: center;
+    -fx-text-alignment: center;
+}
+
+.welcome-card-copy {
+    -fx-text-fill: #48657d;
+    -fx-font-size: 15px;
+}
+
+.welcome-card-button {
+    -fx-max-width: infinity;
+}
+
+.welcome-card .secondary-button {
+    -fx-background-color: #17324d;
+    -fx-text-fill: #f8fbff;
+    -fx-border-color: transparent;
+}
+
+.browser-shell {
+    -fx-alignment: center-left;
+}
+
+.browser-copy {
+    -fx-text-fill: #d7e4ee;
+    -fx-font-size: 15px;
+}
+
+.browser-stat {
+    -fx-background-color: rgba(255, 255, 255, 0.16);
+    -fx-background-radius: 999px;
+    -fx-text-fill: #f8fbff;
+    -fx-padding: 8px 14px;
+    -fx-font-size: 12px;
+    -fx-font-weight: 700;
+}
+
+.browser-table {
+    -fx-background-color: rgba(255, 255, 255, 0.98);
+    -fx-background-radius: 14px;
+    -fx-border-color: rgba(22, 46, 67, 0.10);
+    -fx-border-radius: 14px;
+}
+
+.browser-table .column-header-background {
+    -fx-background-color: #eef3f7;
+    -fx-background-radius: 14px 14px 0 0;
+}
+
+.browser-table .column-header,
+.browser-table .filler {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent transparent rgba(22, 46, 67, 0.08) transparent;
+}
+
+.browser-table .table-cell {
+    -fx-text-fill: #183247;
+    -fx-font-size: 13px;
+}
+
+.browser-table .table-row-cell:selected {
+    -fx-background-color: rgba(36, 79, 115, 0.12);
+}
+
+.toolbar-pill {
+    -fx-background-color: rgba(255, 255, 255, 0.16);
+    -fx-background-radius: 999px;
+    -fx-text-fill: #f8fbff;
+    -fx-padding: 8px 14px;
+    -fx-font-size: 13px;
+    -fx-font-weight: 700;
+}
+
+.editor-tabs {
+    -fx-background-color: transparent;
+    -fx-padding: 20px 24px 24px 24px;
+}
+
+.editor-tabs > .tab-header-area > .headers-region > .tab {
+    -fx-background-color: rgba(255, 255, 255, 0.74);
+    -fx-background-radius: 12px 12px 0 0;
+    -fx-padding: 8px 18px;
+}
+
+.editor-tabs > .tab-header-area > .headers-region > .tab:selected {
+    -fx-background-color: rgba(255, 255, 255, 0.96);
+}
+
+.editor-tabs > .tab-header-area > .headers-region > .tab .tab-label {
+    -fx-text-fill: #183247;
+    -fx-font-weight: 700;
+}
+
+.editor-tabs > .tab-content-area {
+    -fx-background-color: transparent;
+    -fx-padding: 0;
+}
+
+.editor-toolbar,
+.editor-card {
+    -fx-background-color: rgba(255, 255, 255, 0.94);
+    -fx-background-radius: 20px;
+    -fx-border-color: rgba(22, 46, 67, 0.10);
+    -fx-border-radius: 20px;
+}
+
+.editor-card {
+    -fx-effect: dropshadow(gaussian, rgba(17, 34, 49, 0.08), 20, 0.16, 0, 8);
+}
+
+.editor-copy {
+    -fx-text-fill: #587088;
+    -fx-font-size: 14px;
+}
+
+.editor-toolbar .secondary-button {
+    -fx-background-color: #ecf2f6;
+    -fx-text-fill: #183247;
+    -fx-border-color: rgba(24, 50, 71, 0.10);
+}
+
+.part-requirement-label {
+    -fx-text-fill: #183247;
+    -fx-font-size: 13px;
+    -fx-padding: 4px 0;
+}
+
+.master-column-header {
+    -fx-text-fill: #183247;
+    -fx-font-size: 11px;
+    -fx-font-weight: 700;
+    -fx-alignment: center;
+    -fx-text-alignment: center;
+}
