@@ -313,10 +313,6 @@
     -fx-effect: dropshadow(gaussian, rgba(17, 34, 49, 0.10), 24, 0.20, 0, 10);
 }
 
-.welcome-card-muted {
-    -fx-background-color: rgba(241, 245, 248, 0.94);
-}
-
 .welcome-card-kicker {
     -fx-text-fill: #6a7b88;
     -fx-font-size: 12px;
@@ -327,6 +323,9 @@
     -fx-text-fill: #13283c;
     -fx-font-size: 24px;
     -fx-font-weight: 800;
+    -fx-max-width: infinity;
+    -fx-alignment: center;
+    -fx-text-alignment: center;
 }
 
 .welcome-card-copy {
@@ -336,8 +335,4 @@
 
 .welcome-card-button {
     -fx-max-width: infinity;
-}
-
-.welcome-disabled-button {
-    -fx-opacity: 0.8;
 }

@@ -14,7 +14,7 @@
             <padding>
                 <Insets bottom="20.0" left="28.0" right="28.0" top="28.0" />
             </padding>
-            <Label styleClass="screen-title" text="Welcome, Username" />
+            <Label styleClass="screen-title" text="Welcome, USERNAME" />
         </VBox>
     </top>
 
@@ -37,11 +37,11 @@
                     <Button maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#onOpenPlanEditor" styleClass="primary-button welcome-card-button" text="Open Plan Editor" />
                 </VBox>
 
-                <VBox maxWidth="360.0" prefWidth="360.0" spacing="18.0" styleClass="welcome-card welcome-card-muted">
+                <VBox maxWidth="360.0" prefWidth="360.0" spacing="18.0" styleClass="welcome-card">
                     <Label styleClass="welcome-card-title" text="Part Editor" />
                     <Label styleClass="welcome-card-copy" text="This slot is reserved for part-level editing tools. The view is not implemented yet." wrapText="true" />
                     <Region VBox.vgrow="ALWAYS" />
-                    <Button disable="true" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#onOpenPartEditor" styleClass="secondary-button welcome-card-button welcome-disabled-button" text="Part Editor Coming Soon" />
+                    <Button maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#onOpenPartEditor" styleClass="secondary-button welcome-card-button" text="Open Part Editor" />
                 </VBox>
             </HBox>
         </VBox>
