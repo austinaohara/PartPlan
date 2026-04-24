@@ -29,7 +29,7 @@ public class LoginViewModel {
         loading.set(true);
         errorMessage.set(null); // set to null so that listener in LoginController sees change
 
-        executor.execute(() -> { // using different thread for login
+        executor.execute(() -> { // using different thread for login so that the ui doesnt hang
             try {
                 LoginResult result = firebaseAuthService.signIn(email, password);
                 Platform.runLater(() -> {
