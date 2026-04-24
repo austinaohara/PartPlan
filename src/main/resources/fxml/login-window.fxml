@@ -2,7 +2,6 @@
 
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
-
 <AnchorPane focusTraversable="true" nodeOrientation="LEFT_TO_RIGHT" xmlns="http://javafx.com/javafx/17.0.12" xmlns:fx="http://javafx.com/fxml/1" fx:controller="view.LoginController">
    <children>
       <VBox alignment="BOTTOM_CENTER" maxHeight="200.0" maxWidth="300.0" minHeight="200.0" minWidth="300.0" prefHeight="200.0" prefWidth="300.0" spacing="10.0">
@@ -21,7 +20,7 @@
                   <Label text="E-Mail" />
                   <Label text="Password" GridPane.rowIndex="1" />
                   <TextField fx:id="emailTextField" GridPane.columnIndex="1" />
-                  <PasswordField fx:id="passswordField" GridPane.columnIndex="1" GridPane.rowIndex="1" />
+                  <PasswordField fx:id="passwordField" GridPane.columnIndex="1" GridPane.rowIndex="1" />
                </children>
             </GridPane>
             <Button fx:id="loginButton" mnemonicParsing="false" onAction="#onLoginPressed" text="Login" />
