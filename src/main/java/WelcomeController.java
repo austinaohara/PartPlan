@@ -1,4 +1,3 @@
-import com.google.rpc.context.AttributeContext;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
@@ -16,7 +15,6 @@ public class WelcomeController {
 
     @FXML
     private void onOpenPlanEditor(ActionEvent event) throws IOException {
-        AuthRepository.clear();
         if (AuthRepository.getToken() == null) {
             openLoginWindow();
         } else {
