@@ -2,7 +2,6 @@ package repository;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import model.auth.LoginResult;
 import service.FirebaseAuthService;
 
 import java.util.Base64;
@@ -40,21 +39,6 @@ public class AuthRepository {
 
     public String getRefreshToken(){
         return prefs.get("refreshToken", null);
-    }
-
-    public String getValidToken(FirebaseAuthService authService) throws Exception {
-        if (!isTokenExpired()) {
-            return getToken();
-        }
-
-        String storedRefreshToken = getRefreshToken();
-        if (storedRefreshToken == null) throw new IllegalStateException("Not logged in");
-
-        LoginResult result = authService.refreshToken(storedRefreshToken);
-        if (!result.isSuccess()) throw new IllegalStateException("Session expired, please log in again");
-
-        saveAuthResult(result.getIdToken(), result.getRefreshToken(), result.getUid());
-        return result.getIdToken();
     }
 
     public static boolean isTokenExpired() {
