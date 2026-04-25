@@ -1,12 +1,10 @@
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import repository.AuthRepository;
-import service.FirebaseAuthService;
 
 import java.io.IOException;
 
 public class WelcomeViewModel {
-    private final FirebaseAuthService firebaseAuthService = new FirebaseAuthService();
     private final AuthRepository authRepository = new AuthRepository();
 
     public BooleanProperty isSignedIn = new SimpleBooleanProperty(false);
