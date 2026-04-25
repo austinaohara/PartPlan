@@ -13,6 +13,29 @@ public class WelcomeController {
 
     private Stage loginStage;
 
+    private final WelcomeViewModel viewModel = new WelcomeViewModel();
+
+    public WelcomeController() throws IOException {
+    }
+
+    @FXML
+    private void initialize() throws IOException {
+        viewModel.refreshSignInStatus();
+
+        openPlanEditorButton.disableProperty().bind(viewModel.isSignedIn.not());
+        openPartEditorButton.disableProperty().bind(viewModel.isSignedIn.not());
+
+        viewModel.isSignedIn.addListener((obs, wasSignedIn, isNowSignedIn) -> {
+            if (isNowSignedIn) {
+                welcomeLabel.setText("Welcome, " + viewModel.getUid());
+            }
+        });
+
+        if (!viewModel.isSessionValid()){
+            openLoginWindow();
+        }
+    }
+
     @FXML
     private void onOpenPlanEditor(ActionEvent event) throws IOException {
         if (AuthRepository.getToken() == null) {
