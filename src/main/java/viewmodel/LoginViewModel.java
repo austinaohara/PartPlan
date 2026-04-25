@@ -34,7 +34,7 @@ public class LoginViewModel {
                 LoginResult result = firebaseAuthService.signIn(email, password);
                 Platform.runLater(() -> {
                     if (result.isSuccess()) {
-                        auth.saveAuthResult(result.getIdToken(), result.getRefreshToken(), result.getUid());
+                        auth.saveAuthResult(result.getIdToken(), result.getRefreshToken(), result.getUid(), email);
                         loginSuccess.set(true);
                     } else {
                         errorMessage.set(result.getErrorMessage());
