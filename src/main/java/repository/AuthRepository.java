@@ -69,7 +69,7 @@ public class AuthRepository {
         return authService.isTokenValid(token);
     }
 
-    public static void clear(){
+    public void clear(){
         prefs.remove("idToken");
         prefs.remove("refreshToken");
         prefs.remove("uid");
