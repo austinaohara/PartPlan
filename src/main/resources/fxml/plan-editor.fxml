@@ -35,12 +35,12 @@
                 <Button mnemonicParsing="false" onAction="#onOpenPlan" styleClass="secondary-button" text="Open Plan" />
                 <Button mnemonicParsing="false" onAction="#onDeletePlan" styleClass="secondary-button" text="Delete Plan" />
                 <Button mnemonicParsing="false" onAction="#onImportDrawing" styleClass="primary-button" text="Add Page" />
-            <MenuButton mnemonicParsing="false" text="Export" styleClass="secondary-button">
-              <items>
-                <MenuItem mnemonicParsing="false" text="Export as CSV" onAction="#onExportCsv"/>
-                <MenuItem mnemonicParsing="false" text="Export as PDF" onAction="#onExportPdf"/>
-              </items>
-            </MenuButton>
+                <MenuButton mnemonicParsing="false" text="Export" styleClass="secondary-button">
+                    <items>
+                        <MenuItem mnemonicParsing="false" text="Export as CSV" onAction="#onExportCsv"/>
+                        <MenuItem mnemonicParsing="false" text="Export as PDF" onAction="#onExportPdf"/>
+                    </items>
+                </MenuButton>
                 <Separator orientation="VERTICAL" prefHeight="28.0" />
                 <Label styleClass="field-label" text="Plan Name" />
                 <TextField fx:id="planNameField" onAction="#onPlanNameChanged" onKeyReleased="#onPlanNameChanged" prefWidth="280.0" promptText="New Inspection Plan" />
@@ -70,6 +70,10 @@
                     <ListView fx:id="planPagesListView" prefHeight="150.0" styleClass="saved-plans-list" />
                     <Label styleClass="field-label" text="Bubbles" />
                     <TextField fx:id="bubbleSearchField" promptText="Search by # or name…" />
+                    <HBox alignment="CENTER_LEFT" spacing="6.0">
+                        <Label styleClass="field-label" text="Sort:" />
+                        <ComboBox fx:id="bubbleSortComboBox" maxWidth="Infinity" HBox.hgrow="ALWAYS" />
+                    </HBox>
                     <ListView fx:id="bubbleListView" prefHeight="180.0" styleClass="saved-plans-list" />
                     <Separator />
                     <Label styleClass="field-label" text="Drawing File" />
