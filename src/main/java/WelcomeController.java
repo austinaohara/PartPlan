@@ -9,7 +9,6 @@ import javafx.stage.Stage;
 import view.AppNavigator;
 
 import java.io.IOException;
-import java.util.prefs.Preferences;
 
 public class WelcomeController {
     public Label welcomeLabel;
@@ -93,11 +92,4 @@ public class WelcomeController {
             welcomeLabel.setText("Please sign in to continue.");
         }
     }
-
-    //test function
-    private void changeExpireTime(){
-        Preferences prefs = Preferences.userRoot().node("partplan/auth");
-        prefs.putLong("tokenExpiry", System.currentTimeMillis() - 1000); // set to 1 second ago
-    }
-
 }
