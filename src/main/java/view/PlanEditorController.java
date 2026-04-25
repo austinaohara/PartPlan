@@ -3,6 +3,7 @@ package view;
 import javafx.application.Platform;
 import javafx.collections.ListChangeListener;
 import javafx.collections.transformation.FilteredList;
+import javafx.collections.transformation.SortedList;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
@@ -83,6 +84,8 @@ public class PlanEditorController {
     @FXML
     private TextField bubbleSearchField;
     @FXML
+    private ComboBox<String> bubbleSortComboBox;
+    @FXML
     private ListView<InspectionPlan> savedPlansListView;
     @FXML
     private ListView<PlanPage> planPagesListView;
@@ -142,6 +145,7 @@ public class PlanEditorController {
     private boolean drawingPannableBeforeBubbleDrag = true;
     private boolean syncingBubbleSelection;
     private FilteredList<Bubble> filteredBubbles;
+    private SortedList<Bubble> sortedBubbles;
     private boolean syncingPageSelection;
     private double defaultBubbleDiameter = 36.0;
     private String defaultBubbleColor = "#E53935";
@@ -232,9 +236,16 @@ public class PlanEditorController {
         viewModel.getSavedPlans().addListener(
                 (ListChangeListener<InspectionPlan>) change -> selectCurrentPlanIfPresent());
 
-        // Bubble list (feature #51 + #52)
+        // Bubble list (feature #51 + #52 + #61 sort)
         filteredBubbles = new FilteredList<>(viewModel.getPageBubbles(), b -> true);
-        bubbleListView.setItems(filteredBubbles);
+        sortedBubbles = new SortedList<>(filteredBubbles);
+
+        bubbleSortComboBox.getItems().setAll("By Number", "By Type");
+        bubbleSortComboBox.setValue("By Number");
+        bubbleSortComboBox.valueProperty().addListener((obs, oldVal, newVal) -> applyBubbleSort(newVal));
+        applyBubbleSort("By Number");
+
+        bubbleListView.setItems(sortedBubbles);
         bubbleListView.setCellFactory(lv -> new ListCell<>() {
             protected void updateItem(Bubble item, boolean empty) {
                 super.updateItem(item, empty);
@@ -421,6 +432,24 @@ public class PlanEditorController {
             if (selectedBubble == null) {
                 saveDefaultBubbleSettings(color);
                 return;
+            }
+
+            // #62 — Validate required fields before saving a bubble
+            String bubbleNumText = bubbleNumberField.getText();
+            if (bubbleNumText == null || bubbleNumText.isBlank()) {
+                showValidationError("Bubble Number is required. Please enter a number before saving.");
+                bubbleNumberField.requestFocus();
+                return;
+            }
+
+            InspectionType selectedType = inspectionTypeComboBox.getValue();
+            if (selectedType == InspectionType.NUMERIC) {
+                String nomText = nominalValueField.getText();
+                if (nomText == null || nomText.isBlank()) {
+                    showValidationError("Nominal Value is required for Numeric inspection type.");
+                    nominalValueField.requestFocus();
+                    return;
+                }
             }
 
             viewModel.saveSelectedBubble(
@@ -1002,6 +1031,26 @@ public class PlanEditorController {
         updateInspectionTypeControls();
     }
 
+    private void applyBubbleSort(String sortOption) {
+        if ("By Type".equals(sortOption)) {
+            sortedBubbles.setComparator(
+                    Comparator.comparing((Bubble b) -> b.getInspectionType() == null ? "" : b.getInspectionType().name())
+                            .thenComparingInt(Bubble::getSequenceNumber)
+            );
+        } else {
+            // Default: By Number
+            sortedBubbles.setComparator(Comparator.comparingInt(Bubble::getSequenceNumber));
+        }
+    }
+
+    private void showValidationError(String message) {
+        Alert alert = new Alert(Alert.AlertType.WARNING);
+        alert.setTitle("Incomplete Bubble");
+        alert.setHeaderText("Required field missing");
+        alert.setContentText(message);
+        alert.showAndWait();
+    }
+
     private void saveDefaultBubbleSettings(String normalizedColor) {
         defaultBubbleDiameter = Double.parseDouble(bubbleDiameterField.getText().trim());
         defaultBubbleColor = normalizedColor;
@@ -1102,7 +1151,7 @@ public class PlanEditorController {
                 bubbleListView.getSelectionModel().clearSelection();
                 return;
             }
-            for (Bubble b : filteredBubbles) {
+            for (Bubble b : sortedBubbles) {
                 if (b.getId().equals(bubble.getId())) {
                     bubbleListView.getSelectionModel().select(b);
                     bubbleListView.scrollTo(b);
