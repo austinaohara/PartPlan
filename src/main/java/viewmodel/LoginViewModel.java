@@ -25,7 +25,7 @@ public class LoginViewModel {
     public LoginViewModel() throws IOException {
     }
 
-    public void login(String email, String password){
+    public void signInWithEmail(String email, String password){
         loading.set(true);
         errorMessage.set(null); // set to null so that listener in LoginController sees change
 

@@ -47,7 +47,7 @@ public class LoginController {
         setControlsEditable(false);
         errorLabel.setVisible(false);
 
-        viewModel.login(email, password);
+        viewModel.signInWithEmail(email, password);
     }
 
     private void setControlsEditable(boolean input){
