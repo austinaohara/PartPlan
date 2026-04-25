@@ -40,10 +40,28 @@ public class FirebaseAuthService {
                     .post(RequestBody.create(obj.toString(), JSON_MEDIA))
                     .build();
 
-            return executeAuthRequest(request, "idToken", "refreshToken", "localId");
+            return executeAuthRequest(request, json -> parseSignInResponse(json));
         } catch (Exception e) {
             return LoginResult.failure("Network error: " + e.getMessage());
         }
+    }
+
+    private LoginResult parseSignInResponse(JsonNode json) {
+        return new LoginResult.Builder()
+                .success(true)
+                .idToken(json.get("idToken").asText())
+                .refreshToken(json.get("refreshToken").asText())
+                .uid(json.get("localId").asText())
+                .build();
+    }
+
+    private LoginResult parseRefreshResponse(JsonNode json) {
+        return new LoginResult.Builder()
+                .success(true)
+                .idToken(json.get("id_token").asText())
+                .refreshToken(json.get("refresh_token").asText())
+                .uid(json.get("user_id").asText())
+                .build();
     }
 
     public LoginResult refreshToken(String refreshToken) {
@@ -58,27 +76,26 @@ public class FirebaseAuthService {
                     .post(body)
                     .build();
 
-            return executeAuthRequest(request, "id_token", "refresh_token", "user_id");
+            return executeAuthRequest(request, json -> parseRefreshResponse(json));
         } catch (Exception e) {
             return LoginResult.failure("Refresh error: " + e.getMessage());
         }
     }
 
-    private LoginResult executeAuthRequest(Request request, String idKey, String refreshKey, String userKey) throws IOException {
+    @FunctionalInterface
+    private interface ResponseParser {
+        LoginResult parse(JsonNode json);
+    }
+
+    private LoginResult executeAuthRequest(Request request, ResponseParser parser) throws IOException {
         try (Response response = client.newCall(request).execute()) {
             String responseBody = response.body() != null ? response.body().string() : "";
             JsonNode json = mapper.readTree(responseBody);
-
             if (!response.isSuccessful()) {
                 String message = json.path("error").path("message").asText("Authentication failed");
-                return LoginResult.failure(message);
+                return new LoginResult.Builder().success(false).errorMessage(message).build();
             }
-
-            return LoginResult.success(
-                    json.get(idKey).asText(),
-                    json.get(refreshKey).asText(),
-                    json.get(userKey).asText()
-            );
+            return parser.parse(json);
         }
     }
 
