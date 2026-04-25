@@ -1,5 +1,7 @@
 package repository;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import model.auth.LoginResult;
 import service.FirebaseAuthService;
 
@@ -9,6 +11,8 @@ import java.util.prefs.Preferences;
 public class AuthRepository {
     private static final Preferences prefs = Preferences.userRoot().node("partplan/auth");
 
+    private final ObjectMapper mapper = new ObjectMapper();
+
     public void saveAuthResult(String idToken, String refreshToken, String uid) {
         prefs.put("idToken", idToken);
         prefs.put("refreshToken", refreshToken);
@@ -16,28 +20,25 @@ public class AuthRepository {
         prefs.putLong("tokenExpiry", extractExpiry(idToken));
     }
 
-    private long extractExpiry(String idToken){
+    private long extractExpiry(String idToken) {
         try {
-            String[] parts = idToken.split("\\.");
-            String payload = new String(Base64.getUrlDecoder().decode(parts[1]));
-
-            String expValue = payload.split("\"exp\":")[1].split("[,}]")[0].trim();
-            return Long.parseLong(expValue) * 1000L;
-        } catch (Exception e){
+            String payload = new String(Base64.getUrlDecoder().decode(idToken.split("\\.")[1]));
+            JsonNode node = mapper.readTree(payload);
+            return node.get("exp").asLong() * 1000L;
+        } catch (Exception e) {
             return 0L;
         }
-
     }
 
-    public static String getToken(){
+    public String getToken(){
         return prefs.get("idToken", null);
     }
 
-    public static String getUid(){
+    public String getUid(){
         return prefs.get("uid", null);
     }
 
-    public static String getRefreshToken(){
+    public String getRefreshToken(){
         return prefs.get("refreshToken", null);
     }
 
@@ -59,6 +60,13 @@ public class AuthRepository {
     public static boolean isTokenExpired() {
         long expiry = prefs.getLong("tokenExpiry", 0L);
         return System.currentTimeMillis() > expiry - 60_000L; // 60s buffer
+    }
+
+    public boolean isSessionValid(FirebaseAuthService authService) {
+        String token = getToken();
+        if (token == null) return false;
+        if (isTokenExpired()) return false;
+        return authService.isTokenValid(token);
     }
 
     public static void clear(){
