@@ -88,7 +88,7 @@ public class WelcomeController {
         signOutButton.setVisible(isSignedIn);
 
         if(isSignedIn){
-            welcomeLabel.setText("Welcome, " + viewModel.getUid());
+            welcomeLabel.setText("Welcome, " + viewModel.getUsername());
         } else {
             welcomeLabel.setText("Please sign in to continue.");
         }

@@ -20,14 +20,14 @@ public class WelcomeViewModel {
     }
 
     public boolean isSessionValid(){
-        return authRepository.isSessionValid(firebaseAuthService);
+        return authRepository.isSessionValid();
     }
 
     public void refreshSignInStatus(){
-        isSignedIn.set(authRepository.isSessionValid(firebaseAuthService));
+        isSignedIn.set(authRepository.isSessionValid());
     }
 
-    public String getUid(){
-        return authRepository.getUid();
+    public String getUsername(){
+        return authRepository.getUsername();
     }
 }
