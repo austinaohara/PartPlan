@@ -4,18 +4,25 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import service.FirebaseAuthService;
 
+import java.io.IOException;
 import java.util.Base64;
 import java.util.prefs.Preferences;
 
 public class AuthRepository {
     private static final Preferences prefs = Preferences.userRoot().node("partplan/auth");
+    private final FirebaseAuthService authService;
 
     private final ObjectMapper mapper = new ObjectMapper();
 
-    public void saveAuthResult(String idToken, String refreshToken, String uid) {
+    public AuthRepository() throws IOException {
+        this.authService = new FirebaseAuthService();
+    }
+
+    public void saveAuthResult(String idToken, String refreshToken, String uid, String email) {
         prefs.put("idToken", idToken);
         prefs.put("refreshToken", refreshToken);
         prefs.put("uid", uid);
+        prefs.put("email", email);
         prefs.putLong("tokenExpiry", extractExpiry(idToken));
     }
 
@@ -29,24 +36,12 @@ public class AuthRepository {
         }
     }
 
-    public String getToken(){
-        return prefs.get("idToken", null);
-    }
-
-    public String getUid(){
-        return prefs.get("uid", null);
-    }
-
-    public String getRefreshToken(){
-        return prefs.get("refreshToken", null);
-    }
-
     public static boolean isTokenExpired() {
         long expiry = prefs.getLong("tokenExpiry", 0L);
         return System.currentTimeMillis() > expiry - 60_000L; // 60s buffer
     }
 
-    public boolean isSessionValid(FirebaseAuthService authService) {
+    public boolean isSessionValid() {
         String token = getToken();
         if (token == null) return false;
         if (isTokenExpired()) return false;
@@ -58,4 +53,28 @@ public class AuthRepository {
         prefs.remove("refreshToken");
         prefs.remove("uid");
     }
+
+    public String getToken(){
+        return prefs.get("idToken", null);
+    }
+
+    public String getRefreshToken(){
+        return prefs.get("refreshToken", null);
+    }
+
+    public String getUid(){
+        return prefs.get("uid", null);
+    }
+
+    public String getEmail() {
+        return prefs.get("email", null);
+    }
+
+    public String getUsername() {
+        String email = getEmail();
+        if (email == null) return null;
+        return email.substring(0, email.indexOf("@"));
+    }
+
+
 }
