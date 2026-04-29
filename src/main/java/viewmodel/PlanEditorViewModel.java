@@ -319,6 +319,48 @@ public class PlanEditorViewModel {
         persistPlanSilently();
     }
 
+    public Bubble copySelectedBubble() {
+        Bubble source = selectedBubble.get();
+        if (source == null) {
+            return null;
+        }
+        InspectionPlan plan = requireCurrentPlan();
+        PlanPage page = selectedPage.get();
+        if (page == null) {
+            return null;
+        }
+        int sequenceNumber = nextBubbleSequenceNumberForPage(page.getId());
+        Bubble copy = new Bubble(
+                java.util.UUID.randomUUID().toString(),
+                source.getPageId(),
+                source.getX() + 20.0,
+                source.getY() + 20.0,
+                source.getRadius(),
+                source.isUseDefaultDiameter(),
+                source.getColor(),
+                source.isUseDefaultColor(),
+                String.valueOf(sequenceNumber),
+                source.getCharacteristic(),
+                source.getInspectionType(),
+                source.getNominalValue(),
+                source.getLowerTolerance(),
+                source.getUpperTolerance(),
+                source.getExpectedPassFail(),
+                null,
+                null,
+                model.BubbleStatus.OPEN,
+                source.getNote(),
+                sequenceNumber,
+                java.time.LocalDateTime.now(),
+                java.time.LocalDateTime.now()
+        );
+        plan.addBubble(copy);
+        refreshPageBubbles();
+        selectedBubble.set(copy);
+        persistPlanSilently();
+        return copy;
+    }
+
     public void deleteSelectedBubble() {
         Bubble bubble = selectedBubble.get();
         if (bubble == null) {

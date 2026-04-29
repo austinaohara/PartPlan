@@ -133,6 +133,8 @@ public class PlanEditorController {
     private Button saveBubbleButton;
     @FXML
     private Button deleteBubbleButton;
+    @FXML
+    private Button copyBubbleButton;
 
     private boolean leftExpanded = true;
     private boolean rightExpanded = true;
@@ -471,6 +473,15 @@ public class PlanEditorController {
     }
 
     @FXML
+    private void onCopyBubble() {
+        if (viewModel.getSelectedBubble() == null) {
+            showInformation("Select a bubble first to copy it.");
+            return;
+        }
+        viewModel.copySelectedBubble();
+    }
+
+    @FXML
     private void onDeleteBubble() {
         if (viewModel.getSelectedBubble() == null) {
             return;
@@ -574,6 +585,11 @@ public class PlanEditorController {
         if (!event.isControlDown()) return;
         if (event.getCode() == KeyCode.S) {
             onSavePlan();
+            event.consume();
+            return;
+        }
+        if (event.getCode() == KeyCode.C && viewModel.getSelectedBubble() != null) {
+            onCopyBubble();
             event.consume();
             return;
         }
@@ -983,9 +999,10 @@ public class PlanEditorController {
     private void refreshBubbleEditor(Bubble selectedBubble) {
         if (selectedBubble == null) {
             bubbleModeLabel.setText("Default Bubble Settings");
-            bubbleHintLabel.setText("Shift + Click to place a bubble.");
+            bubbleHintLabel.setText("Shift + Click to place a bubble. Ctrl + C to copy.");
             saveBubbleButton.setText("Save Defaults");
             deleteBubbleButton.setDisable(true);
+            copyBubbleButton.setDisable(true); // when no bubble selected
             updatingBubbleDefaultsUi = true;
             useDefaultDiameterCheckBox.setSelected(true);
             useDefaultColorCheckBox.setSelected(true);
@@ -1009,6 +1026,7 @@ public class PlanEditorController {
         bubbleHintLabel.setText("Bubble " + selectedBubble.getLabel() + String.format(" at %.1f, %.1f", selectedBubble.getX(), selectedBubble.getY()));
         saveBubbleButton.setText("Save Bubble");
         deleteBubbleButton.setDisable(false);
+        copyBubbleButton.setDisable(false); // when a bubble is selected
         updatingBubbleDefaultsUi = true;
         useDefaultDiameterCheckBox.setSelected(selectedBubble.isUseDefaultDiameter());
         useDefaultColorCheckBox.setSelected(selectedBubble.isUseDefaultColor());

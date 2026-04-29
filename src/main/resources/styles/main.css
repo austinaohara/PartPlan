@@ -125,6 +125,17 @@
     -fx-border-radius: 10px;
 }
 
+.copy-button {
+    -fx-background-color: #e8f0fe;
+    -fx-text-fill: #1a3c5e;
+    -fx-border-color: rgba(24, 50, 71, 0.20);
+    -fx-border-radius: 10px;
+}
+
+.copy-button:hover {
+    -fx-background-color: #d0e3fc;
+}
+
 .info-panel {
     -fx-background-color: rgba(255, 255, 255, 0.84);
     -fx-border-color: rgba(20, 46, 68, 0.08);
