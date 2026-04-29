@@ -1,20 +1,22 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <?import javafx.geometry.Insets?>
-<?import javafx.scene.control.Button?>
-<?import javafx.scene.control.Label?>
-<?import javafx.scene.layout.BorderPane?>
-<?import javafx.scene.layout.HBox?>
-<?import javafx.scene.layout.Region?>
-<?import javafx.scene.layout.VBox?>
-
-<BorderPane prefHeight="700.0" prefWidth="1100.0" stylesheets="@../styles/main.css" xmlns="http://javafx.com/javafx/20.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="WelcomeController">
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<BorderPane prefHeight="700.0" prefWidth="1100.0" stylesheets="@../styles/main.css" xmlns="http://javafx.com/javafx/17.0.12" xmlns:fx="http://javafx.com/fxml/1" fx:controller="WelcomeController">
     <top>
         <VBox spacing="10.0" styleClass="top-bar">
             <padding>
                 <Insets bottom="20.0" left="28.0" right="28.0" top="28.0" />
             </padding>
-            <Label styleClass="screen-title" text="Welcome, USERNAME" />
+         <HBox>
+            <children>
+                  <Label fx:id="welcomeLabel" styleClass="screen-title" text="Please sign in to continue." />
+               <Region HBox.hgrow="ALWAYS" />
+               <Button fx:id="signInButton" mnemonicParsing="false" onAction="#onSignInPressed" styleClass="primary-button" text="Sign In" />
+               <Button fx:id="signOutButton" layoutX="976.0" layoutY="10.0" mnemonicParsing="false" onAction="#onSignOutPressed" styleClass="primary-button" text="Sign Out" visible="false" />
+            </children>
+         </HBox>
         </VBox>
     </top>
 
@@ -34,14 +36,14 @@
                     <Label styleClass="welcome-card-title" text="Plan Editor" />
                     <Label styleClass="welcome-card-copy" text="Create inspection plans, import drawing pages, place bubbles, and export inspection data." wrapText="true" />
                     <Region VBox.vgrow="ALWAYS" />
-                    <Button maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#onOpenPlanEditor" styleClass="primary-button welcome-card-button" text="Open Plan Editor" />
+                    <Button fx:id="openPlanEditorButton" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#onOpenPlanEditor" styleClass="primary-button welcome-card-button" text="Open Plan Editor" />
                 </VBox>
 
                 <VBox maxWidth="360.0" prefWidth="360.0" spacing="18.0" styleClass="welcome-card">
                     <Label styleClass="welcome-card-title" text="Part Editor" />
                     <Label styleClass="welcome-card-copy" text="Capture bubble measurements for each part in a lot and review the entire lot in a master table." wrapText="true" />
                     <Region VBox.vgrow="ALWAYS" />
-                    <Button maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#onOpenPartEditor" styleClass="secondary-button welcome-card-button" text="Open Part Editor" />
+                    <Button fx:id="openPartEditorButton" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#onOpenPartEditor" styleClass="secondary-button welcome-card-button" text="Open Part Editor" />
                 </VBox>
             </HBox>
         </VBox>
