@@ -28,4 +28,8 @@ public class WelcomeViewModel {
     public String getUsername(){
         return authRepository.getUsername();
     }
+
+    public String getCompanyName() {
+        return authRepository.getCompanyName();
+    }
 }

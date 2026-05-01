@@ -11,6 +11,7 @@ import java.io.IOException;
 
 public class FirebaseAuthService {
     private static final String AUTH_URL = "https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=";
+    private static final String SIGN_UP_URL = "https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=";
     private static final String REFRESH_URL = "https://securetoken.googleapis.com/v1/token?key=";
     private static final MediaType JSON_MEDIA = MediaType.get("application/json; charset=utf-8");
 
@@ -30,20 +31,36 @@ public class FirebaseAuthService {
 
     public LoginResult signIn(String email, String password) {
         try {
-            ObjectNode obj = mapper.createObjectNode();
-            obj.put("email", email);
-            obj.put("password", password);
-            obj.put("returnSecureToken", true);
-
             Request request = new Request.Builder()
                     .url(AUTH_URL + apiKey)
-                    .post(RequestBody.create(obj.toString(), JSON_MEDIA))
+                    .post(RequestBody.create(buildEmailPasswordPayload(email, password), JSON_MEDIA))
                     .build();
 
             return executeAuthRequest(request, json -> parseSignInResponse(json));
         } catch (Exception e) {
             return LoginResult.failure("Network error: " + e.getMessage());
         }
+    }
+
+    public LoginResult register(String email, String password) {
+        try {
+            Request request = new Request.Builder()
+                    .url(SIGN_UP_URL + apiKey)
+                    .post(RequestBody.create(buildEmailPasswordPayload(email, password), JSON_MEDIA))
+                    .build();
+
+            return executeAuthRequest(request, json -> parseSignInResponse(json));
+        } catch (Exception e) {
+            return LoginResult.failure("Registration error: " + e.getMessage());
+        }
+    }
+
+    private String buildEmailPasswordPayload(String email, String password) {
+        ObjectNode obj = mapper.createObjectNode();
+        obj.put("email", email);
+        obj.put("password", password);
+        obj.put("returnSecureToken", true);
+        return obj.toString();
     }
 
     private LoginResult parseSignInResponse(JsonNode json) {
