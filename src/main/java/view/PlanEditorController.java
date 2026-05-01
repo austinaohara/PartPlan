@@ -6,9 +6,10 @@ import javafx.collections.transformation.FilteredList;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
+import javafx.geometry.Point2D;
+import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
-import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
@@ -26,8 +27,8 @@ import javafx.scene.text.Text;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import javafx.stage.Window;
-import model.InspectionPlan;
 import model.Bubble;
+import model.InspectionPlan;
 import model.InspectionType;
 import model.PlanPage;
 import service.export.ExportFormat;
@@ -36,9 +37,6 @@ import viewmodel.PlanEditorViewModel;
 
 import java.io.File;
 import java.io.IOException;
-
-import javafx.geometry.Point2D;
-
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Comparator;
@@ -1170,7 +1168,6 @@ public class PlanEditorController {
         if (bubbleDragged) {
             Point2D overlayPoint = bubbleOverlayPane.sceneToLocal(sceneX, sceneY);
             updateBubblePosition(draggingBubble, overlayPoint.getX(), overlayPoint.getY());
-            viewModel.persistBubbleLayout();
         }
 
         drawingScrollPane.setPannable(drawingPannableBeforeBubbleDrag);
