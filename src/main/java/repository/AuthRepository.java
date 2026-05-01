@@ -26,6 +26,12 @@ public class AuthRepository {
         prefs.putLong("tokenExpiry", extractExpiry(idToken));
     }
 
+    public void saveCompany(String companyId, String companyName, String role) {
+        prefs.put("companyId", companyId);
+        prefs.put("companyName", companyName);
+        prefs.put("companyRole", role);
+    }
+
     private long extractExpiry(String idToken) {
         try {
             String payload = new String(Base64.getUrlDecoder().decode(idToken.split("\\.")[1]));
@@ -44,6 +50,7 @@ public class AuthRepository {
     public boolean isSessionValid() {
         String token = getToken();
         if (token == null) return false;
+        if (getCompanyId() == null) return false;
         if (isTokenExpired()) return false;
         return authService.isTokenValid(token);
     }
@@ -52,6 +59,11 @@ public class AuthRepository {
         prefs.remove("idToken");
         prefs.remove("refreshToken");
         prefs.remove("uid");
+        prefs.remove("email");
+        prefs.remove("companyId");
+        prefs.remove("companyName");
+        prefs.remove("companyRole");
+        prefs.remove("tokenExpiry");
     }
 
     public String getToken(){
@@ -68,6 +80,18 @@ public class AuthRepository {
 
     public String getEmail() {
         return prefs.get("email", null);
+    }
+
+    public String getCompanyId() {
+        return prefs.get("companyId", null);
+    }
+
+    public String getCompanyName() {
+        return prefs.get("companyName", null);
+    }
+
+    public String getCompanyRole() {
+        return prefs.get("companyRole", null);
     }
 
     public String getUsername() {
