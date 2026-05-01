@@ -4,26 +4,47 @@
 <?import javafx.scene.layout.*?>
 <AnchorPane focusTraversable="true" nodeOrientation="LEFT_TO_RIGHT" xmlns="http://javafx.com/javafx/17.0.12" xmlns:fx="http://javafx.com/fxml/1" fx:controller="view.LoginController">
    <children>
-      <VBox alignment="BOTTOM_CENTER" maxHeight="200.0" maxWidth="300.0" minHeight="200.0" minWidth="300.0" prefHeight="200.0" prefWidth="300.0" spacing="10.0">
+      <VBox alignment="CENTER" maxHeight="430.0" maxWidth="420.0" minHeight="430.0" minWidth="420.0" prefHeight="430.0" prefWidth="420.0" spacing="12.0">
          <children>
             <Label cacheShape="false" centerShape="false" focusTraversable="false" layoutX="146.0" layoutY="158.0" scaleShape="false" text="Please login to continue." />
-            <GridPane alignment="CENTER" focusTraversable="true" maxHeight="-Infinity" maxWidth="-Infinity" prefHeight="67.0" prefWidth="234.0">
+            <GridPane alignment="CENTER" focusTraversable="true" hgap="8.0" maxHeight="-Infinity" maxWidth="-Infinity" prefHeight="190.0" prefWidth="360.0" vgap="8.0">
               <columnConstraints>
-                <ColumnConstraints hgrow="ALWAYS" maxWidth="130.0" minWidth="10.0" prefWidth="81.0" />
-                <ColumnConstraints hgrow="SOMETIMES" maxWidth="189.0" minWidth="10.0" prefWidth="189.0" />
+                <ColumnConstraints hgrow="ALWAYS" maxWidth="130.0" minWidth="10.0" prefWidth="96.0" />
+                <ColumnConstraints hgrow="SOMETIMES" maxWidth="260.0" minWidth="10.0" prefWidth="248.0" />
               </columnConstraints>
               <rowConstraints>
+                <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
+                <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
+                <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
                 <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
                 <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
               </rowConstraints>
                <children>
                   <Label text="E-Mail" />
                   <Label text="Password" GridPane.rowIndex="1" />
+                  <Label text="Company" GridPane.rowIndex="2" />
+                  <Label text="Invite Code" GridPane.rowIndex="3" />
+                  <Label text="Invite E-Mail" GridPane.rowIndex="4" />
                   <TextField fx:id="emailTextField" GridPane.columnIndex="1" />
                   <PasswordField fx:id="passwordField" GridPane.columnIndex="1" GridPane.rowIndex="1" />
+                  <TextField fx:id="companyTextField" promptText="Company name" GridPane.columnIndex="1" GridPane.rowIndex="2" />
+                  <TextField fx:id="inviteCodeTextField" promptText="Code for joining" GridPane.columnIndex="1" GridPane.rowIndex="3" />
+                  <TextField fx:id="inviteEmailTextField" promptText="Email to invite" GridPane.columnIndex="1" GridPane.rowIndex="4" />
                </children>
             </GridPane>
-            <Button fx:id="loginButton" mnemonicParsing="false" onAction="#onLoginPressed" text="Login" />
+            <HBox alignment="CENTER" spacing="8.0">
+               <children>
+                  <Button fx:id="loginButton" mnemonicParsing="false" onAction="#onLoginPressed" text="Login" />
+                  <Button fx:id="createCompanyButton" mnemonicParsing="false" onAction="#onCreateCompanyPressed" text="Create Company" />
+               </children>
+            </HBox>
+            <HBox alignment="CENTER" spacing="8.0">
+               <children>
+                  <Button fx:id="acceptInviteButton" mnemonicParsing="false" onAction="#onAcceptInvitePressed" text="Accept Invite" />
+                  <Button fx:id="createInviteButton" mnemonicParsing="false" onAction="#onCreateInvitePressed" text="Create Invite" />
+               </children>
+            </HBox>
+            <Label fx:id="infoLabel" cacheShape="false" centerShape="false" focusTraversable="false" scaleShape="false" text="Label" textFill="GREEN" visible="false" wrapText="true" />
             <Label fx:id="errorLabel" cacheShape="false" centerShape="false" focusTraversable="false" scaleShape="false" text="Label" textFill="RED" visible="false" />
          </children>
       </VBox>
