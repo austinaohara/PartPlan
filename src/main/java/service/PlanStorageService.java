@@ -1,28 +1,49 @@
 package service;
 
-import model.Bubble;
-import model.BubbleStatus;
-import model.InspectionPlan;
-import model.InspectionType;
-import model.PlanDrawing;
-import model.PlanPage;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import model.*;
+import okhttp3.*;
+import repository.AuthRepository;
 
 import java.io.IOException;
+import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.function.Function;
 
 public class PlanStorageService {
     private static final String APP_DIRECTORY_NAME = ".partplan";
-    private static final String PLANS_DIRECTORY_NAME = "plans";
+    private static final String CACHE_DIRECTORY_NAME = "firebase-cache";
     private static final String PLAN_FILE_NAME = "plan.json";
     private static final String DRAWING_DIRECTORY_NAME = "drawing";
     private static final String PAGES_DIRECTORY_NAME = "pages";
+    private static final MediaType JSON_MEDIA = MediaType.get("application/json; charset=utf-8");
+    private static final MediaType BINARY_MEDIA = MediaType.get("application/octet-stream");
+
+    private final OkHttpClient client = new OkHttpClient();
+    private final ObjectMapper mapper = new ObjectMapper();
+    private final AuthRepository authRepository;
+    private final FirebaseAuthService authService;
+    private final String databaseUrl;
+    private final String storageBucket;
+
+    public PlanStorageService() {
+        try {
+            FirebaseAppService.FirebaseConfig config = FirebaseAppService.loadConfig();
+            this.databaseUrl = config.databaseUrl();
+            this.storageBucket = config.storageBucket();
+            this.authRepository = new AuthRepository();
+            this.authService = new FirebaseAuthService();
+        } catch (IOException exception) {
+            throw new IllegalStateException("Unable to read Firebase configuration.", exception);
+        }
+    }
 
     public void savePlan(InspectionPlan plan) {
         if (plan == null) {
@@ -30,22 +51,15 @@ public class PlanStorageService {
         }
 
         try {
-            Path planDirectory = getPlanDirectory(plan.getId());
-            Files.createDirectories(planDirectory);
-
-            List<PlanPage> savedPages = copyPagesIfNeeded(plan, planDirectory);
-            if (!savedPages.isEmpty()) {
-                plan.setPages(savedPages);
-            } else {
-                PlanDrawing savedDrawing = copyDrawingIfNeeded(plan, planDirectory);
-                if (savedDrawing != null) {
-                    plan.setDrawing(savedDrawing);
-                }
-            }
-
+            String idToken = requireValidIdToken();
+            String companyId = requireCompanyId();
+            String ownerUid = requireUid();
             plan.setUpdatedAt(LocalDateTime.now());
-            String json = buildJson(plan);
-            Files.writeString(planDirectory.resolve(PLAN_FILE_NAME), json, StandardCharsets.UTF_8);
+
+            InspectionPlan storagePlan = preparePlanForStorage(plan, ownerUid);
+            String planObjectName = planObjectName(ownerUid, plan.getId());
+            uploadStorageObject(planObjectName, buildJson(storagePlan), JSON_MEDIA, idToken);
+            savePlanIndex(storagePlan, companyId, ownerUid, planObjectName, idToken);
         } catch (IOException exception) {
             throw new IllegalStateException("Unable to save inspection plan.", exception);
         }
@@ -53,21 +67,24 @@ public class PlanStorageService {
 
     public List<InspectionPlan> loadPlans() {
         List<InspectionPlan> plans = new ArrayList<>();
-        Path plansDirectory = getPlansDirectory();
-
-        if (!Files.isDirectory(plansDirectory)) {
+        String idToken = getValidIdTokenOrNull();
+        String companyId = getCompanyIdOrNull();
+        String ownerUid = getUidOrNull();
+        if (idToken == null || companyId == null || ownerUid == null) {
             return plans;
         }
 
         try {
-            List<Path> planFiles = Files.list(plansDirectory)
-                    .filter(Files::isDirectory)
-                    .map(path -> path.resolve(PLAN_FILE_NAME))
-                    .filter(Files::isRegularFile)
-                    .toList();
+            JsonNode indexRoot = readDatabaseNodeWithRefresh("planIndexes/" + companyId);
+            if (indexRoot == null || indexRoot.isMissingNode() || indexRoot.isNull()) {
+                return plans;
+            }
 
-            for (Path planFile : planFiles) {
-                plans.add(readPlan(planFile));
+            for (JsonNode indexNode : indexRoot) {
+                String planId = indexNode.path("id").asText("");
+                if (!planId.isBlank() && isOwnedByCurrentUser(indexNode, ownerUid)) {
+                    plans.add(loadPlan(planId));
+                }
             }
         } catch (IOException exception) {
             throw new IllegalStateException("Unable to load saved plans.", exception);
@@ -79,11 +96,12 @@ public class PlanStorageService {
 
     public InspectionPlan loadPlan(String planId) {
         try {
-            Path planFile = getPlanDirectory(planId).resolve(PLAN_FILE_NAME);
-            if (!Files.isRegularFile(planFile)) {
-                throw new IllegalStateException("Saved plan file was not found.");
-            }
-            return readPlan(planFile);
+            String idToken = requireValidIdToken();
+            String ownerUid = requireUid();
+            String json = downloadStorageObject(planObjectName(ownerUid, planId), idToken);
+            InspectionPlan plan = readPlan(json);
+            hydrateRemoteDrawings(plan, ownerUid, idToken);
+            return plan;
         } catch (IOException exception) {
             throw new IllegalStateException("Unable to open inspection plan.", exception);
         }
@@ -91,25 +109,17 @@ public class PlanStorageService {
 
     public void deletePlan(String planId) {
         try {
-            Path planDirectory = getPlanDirectory(planId);
-            if (!Files.exists(planDirectory)) {
-                return;
-            }
-
-            List<Path> paths = Files.walk(planDirectory)
-                    .sorted(Comparator.reverseOrder())
-                    .toList();
-
-            for (Path path : paths) {
-                Files.deleteIfExists(path);
-            }
+            String idToken = requireValidIdToken();
+            String companyId = requireCompanyId();
+            String ownerUid = requireUid();
+            deleteStorageObjectsWithPrefix("users/" + ownerUid + "/plans/" + planId + "/", idToken);
+            deleteDatabaseNode("planIndexes/" + companyId + "/" + planId, idToken);
         } catch (IOException exception) {
             throw new IllegalStateException("Unable to delete inspection plan.", exception);
         }
     }
 
-    private InspectionPlan readPlan(Path planFile) throws IOException {
-        String json = Files.readString(planFile, StandardCharsets.UTF_8);
+    private InspectionPlan readPlan(String json) {
         String id = readStringValue(json, "id");
         String name = readStringValue(json, "name");
         String partNumber = readStringValue(json, "partNumber");
@@ -144,73 +154,394 @@ public class PlanStorageService {
         );
     }
 
-    private PlanDrawing copyDrawingIfNeeded(InspectionPlan plan, Path planDirectory) throws IOException {
-        PlanDrawing drawing = plan.getDrawing();
+    private boolean isOwnedByCurrentUser(JsonNode indexNode, String ownerUid) {
+        String indexedOwnerUid = indexNode.path("ownerUid").asText("");
+        if (!indexedOwnerUid.isBlank()) {
+            return ownerUid.equals(indexedOwnerUid);
+        }
+
+        String storagePath = indexNode.path("storagePath").asText("");
+        return storagePath.contains("/users/" + ownerUid + "/plans/");
+    }
+
+    private InspectionPlan preparePlanForStorage(InspectionPlan plan, String ownerUid) throws IOException {
+        List<PlanPage> storagePages = new ArrayList<>();
+        for (PlanPage page : plan.getPages()) {
+            PlanDrawing drawing = uploadDrawingIfNeeded(
+                    page.getDrawing(),
+                    pageDrawingObjectName(ownerUid, plan.getId(), page),
+                    requireValidIdToken()
+            );
+            storagePages.add(new PlanPage(page.getId(), page.getName(), page.getPageNumber(), drawing));
+        }
+
+        PlanDrawing storageDrawing = plan.getDrawing();
+        if (storagePages.isEmpty() && storageDrawing != null) {
+            storageDrawing = uploadDrawingIfNeeded(
+                    storageDrawing,
+                    drawingObjectName(ownerUid, plan.getId(), storageDrawing.getFileName()),
+                    requireValidIdToken()
+            );
+        } else if (!storagePages.isEmpty()) {
+            storageDrawing = storagePages.getFirst().getDrawing();
+        }
+
+        return new InspectionPlan(
+                plan.getId(),
+                plan.getName(),
+                plan.getPartNumber(),
+                plan.getRevision(),
+                plan.getDescription(),
+                storageDrawing,
+                storagePages,
+                plan.getBubbles(),
+                plan.getCreatedAt(),
+                plan.getUpdatedAt()
+        );
+    }
+
+    private PlanDrawing uploadDrawingIfNeeded(PlanDrawing drawing, String objectName, String idToken) throws IOException {
         if (drawing == null || drawing.getStoredPath() == null || drawing.getStoredPath().isBlank()) {
+            return drawing;
+        }
+
+        if (drawing.getStoredPath().startsWith("gs://")) {
+            return drawing;
+        }
+
+        Path sourcePath = Path.of(drawing.getStoredPath());
+        if (!Files.isRegularFile(sourcePath)) {
+            return drawing;
+        }
+
+        byte[] bytes = Files.readAllBytes(sourcePath);
+        uploadStorageObject(objectName, bytes, BINARY_MEDIA, idToken);
+        return new PlanDrawing(drawing.getFileName(), toGsUri(objectName), drawing.getFileType());
+    }
+
+    private void hydrateRemoteDrawings(InspectionPlan plan, String ownerUid, String idToken) throws IOException {
+        for (PlanPage page : plan.getPages()) {
+            PlanDrawing drawing = page.getDrawing();
+            if (drawing != null && drawing.getStoredPath() != null && drawing.getStoredPath().startsWith("gs://")) {
+                page.setDrawing(downloadDrawingToCache(drawing, ownerUid, plan.getId(), page.getPageNumber(), idToken));
+            }
+        }
+
+        if (!plan.getPages().isEmpty()) {
+            plan.setPages(plan.getPages());
+        } else if (plan.getDrawing() != null && plan.getDrawing().getStoredPath() != null && plan.getDrawing().getStoredPath().startsWith("gs://")) {
+            PlanDrawing cachedDrawing = downloadDrawingToCache(plan.getDrawing(), ownerUid, plan.getId(), 1, idToken);
+            plan.setDrawing(cachedDrawing);
+        }
+    }
+
+    private PlanDrawing downloadDrawingToCache(
+            PlanDrawing drawing,
+            String ownerUid,
+            String planId,
+            int pageNumber,
+            String idToken
+    ) throws IOException {
+        String objectName = objectNameFromGsUri(drawing.getStoredPath());
+        byte[] bytes = downloadStorageObjectBytes(objectName, idToken);
+        Path cacheDirectory = getCacheDirectory(ownerUid, planId).resolve("page-" + pageNumber);
+        Files.createDirectories(cacheDirectory);
+        Path cachedPath = cacheDirectory.resolve(drawing.getFileName());
+        Files.write(cachedPath, bytes);
+        return new PlanDrawing(drawing.getFileName(), cachedPath.toString(), drawing.getFileType());
+    }
+
+    private void savePlanIndex(InspectionPlan plan, String companyId, String ownerUid, String planObjectName, String idToken) throws IOException {
+        String json = """
+                {
+                  "id": "%s",
+                  "ownerUid": "%s",
+                  "name": "%s",
+                  "partNumber": "%s",
+                  "revision": "%s",
+                  "description": "%s",
+                  "updatedAt": "%s",
+                  "storagePath": "%s"
+                }
+                """.formatted(
+                escape(plan.getId()),
+                escape(ownerUid),
+                escape(plan.getName()),
+                escape(plan.getPartNumber()),
+                escape(plan.getRevision()),
+                escape(plan.getDescription()),
+                plan.getUpdatedAt(),
+                escape(toGsUri(planObjectName))
+        );
+
+        putDatabaseNode("planIndexes/" + companyId + "/" + plan.getId(), json, idToken);
+    }
+
+    private Path getCacheDirectory(String ownerUid, String planId) {
+        return Path.of(System.getProperty("user.home"), APP_DIRECTORY_NAME, CACHE_DIRECTORY_NAME, ownerUid, planId);
+    }
+
+    private String requireValidIdToken() {
+        String token = getValidIdTokenOrNull();
+        if (token == null || token.isBlank()) {
+            throw new IllegalStateException("Sign in before saving or loading Firebase plans.");
+        }
+        return token;
+    }
+
+    private String getValidIdTokenOrNull() {
+        try {
+            String token = authRepository.getToken();
+            String refreshToken = authRepository.getRefreshToken();
+            if (token == null || token.isBlank()) {
+                return null;
+            }
+
+            if (AuthRepository.isTokenExpired()) {
+                if (refreshToken == null || refreshToken.isBlank()) {
+                    return null;
+                }
+                var refreshResult = authService.refreshToken(refreshToken);
+                if (!refreshResult.isSuccess()) {
+                    return null;
+                }
+                authRepository.saveAuthResult(
+                        refreshResult.getIdToken(),
+                        refreshResult.getRefreshToken(),
+                        refreshResult.getUid(),
+                        authRepository.getEmail()
+                );
+                return refreshResult.getIdToken();
+            }
+
+            return token;
+        } catch (Exception exception) {
             return null;
         }
-
-        Path sourcePath = Path.of(drawing.getStoredPath());
-        if (!Files.isRegularFile(sourcePath)) {
-            return drawing;
-        }
-
-        Path drawingDirectory = planDirectory.resolve(DRAWING_DIRECTORY_NAME);
-        Files.createDirectories(drawingDirectory);
-
-        Path targetPath = drawingDirectory.resolve(drawing.getFileName());
-        if (!sourcePath.toAbsolutePath().normalize().equals(targetPath.toAbsolutePath().normalize())) {
-            Files.copy(sourcePath, targetPath, StandardCopyOption.REPLACE_EXISTING);
-        }
-
-        return new PlanDrawing(drawing.getFileName(), targetPath.toString(), drawing.getFileType());
     }
 
-    private List<PlanPage> copyPagesIfNeeded(InspectionPlan plan, Path planDirectory) throws IOException {
-        List<PlanPage> savedPages = new ArrayList<>();
-        if (plan.getPages().isEmpty()) {
-            return savedPages;
+    private String refreshIdTokenOrNull() {
+        try {
+            String refreshToken = authRepository.getRefreshToken();
+            if (refreshToken == null || refreshToken.isBlank()) {
+                return null;
+            }
+
+            var refreshResult = authService.refreshToken(refreshToken);
+            if (!refreshResult.isSuccess()) {
+                return null;
+            }
+
+            authRepository.saveAuthResult(
+                    refreshResult.getIdToken(),
+                    refreshResult.getRefreshToken(),
+                    refreshResult.getUid(),
+                    authRepository.getEmail()
+            );
+            return refreshResult.getIdToken();
+        } catch (Exception exception) {
+            return null;
         }
-
-        Path pagesDirectory = planDirectory.resolve(PAGES_DIRECTORY_NAME);
-        Files.createDirectories(pagesDirectory);
-
-        for (PlanPage page : plan.getPages()) {
-            PlanDrawing savedDrawing = copyPageDrawingIfNeeded(page, pagesDirectory);
-            savedPages.add(new PlanPage(page.getId(), page.getName(), page.getPageNumber(), savedDrawing));
-        }
-
-        return savedPages;
     }
 
-    private PlanDrawing copyPageDrawingIfNeeded(PlanPage page, Path pagesDirectory) throws IOException {
-        PlanDrawing drawing = page.getDrawing();
-        if (drawing == null || drawing.getStoredPath() == null || drawing.getStoredPath().isBlank()) {
-            return drawing;
+    private String requireCompanyId() {
+        String companyId = getCompanyIdOrNull();
+        if (companyId == null || companyId.isBlank()) {
+            throw new IllegalStateException("Sign in to a company before saving or loading Firebase plans.");
         }
-
-        Path sourcePath = Path.of(drawing.getStoredPath());
-        if (!Files.isRegularFile(sourcePath)) {
-            return drawing;
-        }
-
-        Path pageDirectory = pagesDirectory.resolve("page-" + page.getPageNumber());
-        Files.createDirectories(pageDirectory);
-
-        Path targetPath = pageDirectory.resolve(drawing.getFileName());
-        if (!sourcePath.toAbsolutePath().normalize().equals(targetPath.toAbsolutePath().normalize())) {
-            Files.copy(sourcePath, targetPath, StandardCopyOption.REPLACE_EXISTING);
-        }
-
-        return new PlanDrawing(drawing.getFileName(), targetPath.toString(), drawing.getFileType());
+        return companyId;
     }
 
-    private Path getPlansDirectory() {
-        return Path.of(System.getProperty("user.home"), APP_DIRECTORY_NAME, PLANS_DIRECTORY_NAME);
+    private String getCompanyIdOrNull() {
+        return authRepository.getCompanyId();
     }
 
-    private Path getPlanDirectory(String planId) {
-        return getPlansDirectory().resolve(planId);
+    private String requireUid() {
+        String uid = getUidOrNull();
+        if (uid == null || uid.isBlank()) {
+            throw new IllegalStateException("Sign in before saving or loading Firebase plans.");
+        }
+        return uid;
+    }
+
+    private String getUidOrNull() {
+        return authRepository.getUid();
+    }
+
+    private void uploadStorageObject(String objectName, String content, MediaType mediaType, String idToken) throws IOException {
+        uploadStorageObject(objectName, content.getBytes(StandardCharsets.UTF_8), mediaType, idToken);
+    }
+
+    private void uploadStorageObject(String objectName, byte[] content, MediaType mediaType, String idToken) throws IOException {
+        String url = storageBaseUrl() + "?uploadType=media&name=" + encode(objectName);
+        executeWithRefresh(idToken, token -> new Request.Builder()
+                .url(url)
+                .header("Authorization", "Firebase " + token)
+                .post(RequestBody.create(content, mediaType))
+                .build());
+    }
+
+    private String downloadStorageObject(String objectName, String idToken) throws IOException {
+        return new String(downloadStorageObjectBytes(objectName, idToken), StandardCharsets.UTF_8);
+    }
+
+    private byte[] downloadStorageObjectBytes(String objectName, String idToken) throws IOException {
+        String url = storageBaseUrl() + "/" + encode(objectName) + "?alt=media";
+        try (Response response = executeForResponseWithRefresh(idToken, token -> new Request.Builder()
+                .url(url)
+                .header("Authorization", "Firebase " + token)
+                .get()
+                .build())) {
+            if (response.body() == null) {
+                return new byte[0];
+            }
+            return response.body().bytes();
+        }
+    }
+
+    private void deleteStorageObjectsWithPrefix(String prefix, String idToken) throws IOException {
+        String url = storageBaseUrl() + "?prefix=" + encode(prefix);
+        try (Response response = executeForResponseWithRefresh(idToken, token -> new Request.Builder()
+                .url(url)
+                .header("Authorization", "Firebase " + token)
+                .get()
+                .build())) {
+            if (response.body() == null) {
+                return;
+            }
+            JsonNode root = mapper.readTree(response.body().string());
+            JsonNode items = root.path("items");
+            if (!items.isArray()) {
+                return;
+            }
+            for (JsonNode item : items) {
+                String name = item.path("name").asText("");
+                if (!name.isBlank()) {
+                    deleteStorageObject(name, idToken);
+                }
+            }
+        }
+    }
+
+    private void deleteStorageObject(String objectName, String idToken) throws IOException {
+        String url = storageBaseUrl() + "/" + encode(objectName);
+        try (Response response = executeForResponseWithRefresh(idToken, token -> new Request.Builder()
+                .url(url)
+                .header("Authorization", "Firebase " + token)
+                .delete()
+                .build())) {
+        }
+    }
+
+    private JsonNode readDatabaseNodeWithRefresh(String path) throws IOException {
+        String idToken = requireValidIdToken();
+        return readDatabaseNode(path, idToken);
+    }
+
+    private JsonNode readDatabaseNode(String path, String idToken) throws IOException {
+        String url = databaseUrl + "/" + path + ".json?auth=" + encode(idToken);
+        try (Response response = executeForResponseWithRefresh(idToken, token ->
+                new Request.Builder()
+                        .url(databaseUrl + "/" + path + ".json?auth=" + encode(token))
+                        .get()
+                        .build())) {
+            if (response.body() == null) {
+                return null;
+            }
+            return mapper.readTree(response.body().string());
+        }
+    }
+
+    private void putDatabaseNode(String path, String json, String idToken) throws IOException {
+        executeWithRefresh(idToken, token -> new Request.Builder()
+                .url(databaseUrl + "/" + path + ".json?auth=" + encode(token))
+                .put(RequestBody.create(json, JSON_MEDIA))
+                .build());
+    }
+
+    private void deleteDatabaseNode(String path, String idToken) throws IOException {
+        executeWithRefresh(idToken, token -> new Request.Builder()
+                .url(databaseUrl + "/" + path + ".json?auth=" + encode(token))
+                .delete()
+                .build());
+    }
+
+    private void executeWithRefresh(String idToken, Function<String, Request> requestFactory) throws IOException {
+        try (Response response = executeForResponseWithRefresh(idToken, requestFactory)) {
+        }
+    }
+
+    private Response executeForResponseWithRefresh(String idToken, Function<String, Request> requestFactory) throws IOException {
+        Response response = client.newCall(requestFactory.apply(idToken)).execute();
+        if (response.code() == 401) {
+            String refreshedToken = refreshIdTokenOrNull();
+            if (refreshedToken != null && !refreshedToken.equals(idToken)) {
+                response.close();
+                response = client.newCall(requestFactory.apply(refreshedToken)).execute();
+            }
+        }
+
+        if (!response.isSuccessful()) {
+            String responseBody = response.body() == null ? "" : response.body().string();
+            int code = response.code();
+            String message = response.message();
+            String url = response.request().url().toString();
+            response.close();
+            throw new IOException("Firebase request failed: " + code + " " + message + " at " + url + " " + responseBody);
+        }
+
+        return response;
+    }
+
+    private void execute(Request request) throws IOException {
+        try (Response response = client.newCall(request).execute()) {
+            if (!response.isSuccessful()) {
+                String responseBody = response.body() == null ? "" : response.body().string();
+                throw new IOException("Firebase request failed: " + response.code() + " " + response.message()
+                        + " at " + response.request().url() + " " + responseBody);
+            }
+        }
+    }
+
+    private String storageBaseUrl() {
+        return "https://firebasestorage.googleapis.com/v0/b/" + storageBucket + "/o";
+    }
+
+    private String planObjectName(String ownerUid, String planId) {
+        return "users/" + ownerUid + "/plans/" + planId + "/" + PLAN_FILE_NAME;
+    }
+
+    private String drawingObjectName(String ownerUid, String planId, String fileName) {
+        return "users/" + ownerUid + "/plans/" + planId + "/" + DRAWING_DIRECTORY_NAME + "/" + sanitizeStorageName(fileName);
+    }
+
+    private String pageDrawingObjectName(String ownerUid, String planId, PlanPage page) {
+        String fileName = page.getDrawing() == null ? "drawing" : page.getDrawing().getFileName();
+        return "users/" + ownerUid + "/plans/" + planId + "/" + PAGES_DIRECTORY_NAME
+                + "/page-" + page.getPageNumber() + "/" + sanitizeStorageName(fileName);
+    }
+
+    private String toGsUri(String objectName) {
+        return "gs://" + storageBucket + "/" + objectName;
+    }
+
+    private String objectNameFromGsUri(String gsUri) {
+        String prefix = "gs://" + storageBucket + "/";
+        if (!gsUri.startsWith(prefix)) {
+            throw new IllegalArgumentException("Unexpected Firebase Storage path: " + gsUri);
+        }
+        return gsUri.substring(prefix.length());
+    }
+
+    private String sanitizeStorageName(String fileName) {
+        if (fileName == null || fileName.isBlank()) {
+            return "file";
+        }
+        return fileName.replaceAll("[\\\\/]", "_");
+    }
+
+    private String encode(String value) {
+        return URLEncoder.encode(value, StandardCharsets.UTF_8).replace("+", "%20");
     }
 
     private String buildJson(InspectionPlan plan) {
