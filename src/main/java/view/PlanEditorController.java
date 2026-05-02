@@ -11,6 +11,7 @@ import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.Node;
 import javafx.scene.control.*;
+import javafx.scene.control.ButtonBar;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.KeyCode;
@@ -179,7 +180,20 @@ public class PlanEditorController {
         bubbleOverlayPane.setOnMouseClicked(this::handleDrawingClick);
         bubbleOverlayPane.setOnMouseDragged(this::handleBubbleOverlayDrag);
         bubbleOverlayPane.setOnMouseReleased(this::handleBubbleOverlayRelease);
-        root.sceneProperty().addListener((observable, oldScene, newScene) -> registerShortcuts(newScene));
+        root.sceneProperty().addListener((observable, oldScene, newScene) -> {
+            registerShortcuts(newScene);
+            if (newScene != null) {
+                newScene.windowProperty().addListener((obs2, oldWin, newWin) -> {
+                    if (newWin instanceof Stage stage) {
+                        stage.setOnCloseRequest(event -> {
+                            if (!confirmDiscardChanges()) {
+                                event.consume();
+                            }
+                        });
+                    }
+                });
+            }
+        });
         drawingScrollPane.addEventFilter(ScrollEvent.SCROLL, this::handleScrollZoom);
         viewModel.getPageBubbles().addListener((ListChangeListener<Bubble>) change -> renderBubbles());
         viewModel.selectedBubbleProperty().addListener((observable, oldBubble, newBubble) -> {
@@ -333,6 +347,7 @@ public class PlanEditorController {
 
     @FXML
     private void onNewPlan() {
+        if (!confirmDiscardChanges()) return;
         viewModel.createNewPlan();
         planNameField.setText(displayPlanName(viewModel.getPlanName()));
         planPagesListView.getSelectionModel().clearSelection();
@@ -359,6 +374,7 @@ public class PlanEditorController {
             showInformation("Select a saved plan first.");
             return;
         }
+        if (!confirmDiscardChanges()) return;
         viewModel.openPlan(selectedPlan);
         planNameField.setText(displayPlanName(viewModel.getPlanName()));
         selectCurrentPageIfPresent();
@@ -389,6 +405,7 @@ public class PlanEditorController {
 
     @FXML
     private void onReturnToHub(ActionEvent event) throws IOException {
+        if (!confirmDiscardChanges()) return;
         AppNavigator.swapRoot((Node) event.getSource(), "/fxml/welcome.fxml", "PartPlan");
     }
 
@@ -713,6 +730,31 @@ public class PlanEditorController {
                 return;
             }
         }
+    }
+
+    // Returns true if it's safe to proceed (no unsaved changes, or the user chose to discard).
+    // Shows a confirmation dialog only when there are unsaved changes.
+    private boolean confirmDiscardChanges() {
+        if (!viewModel.hasUnsavedChanges()) return true;
+
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+        alert.setTitle("Unsaved Changes");
+        alert.setHeaderText("You have unsaved changes.");
+        alert.setContentText("Save your plan before continuing, or discard your changes?");
+
+        ButtonType saveButton = new ButtonType("Save");
+        ButtonType discardButton = new ButtonType("Discard");
+        ButtonType cancelButton = new ButtonType("Cancel", ButtonBar.ButtonData.CANCEL_CLOSE);
+        alert.getButtonTypes().setAll(saveButton, discardButton, cancelButton);
+
+        Optional<ButtonType> result = alert.showAndWait();
+        if (result.isEmpty() || result.get() == cancelButton) {
+            return false;
+        }
+        if (result.get() == saveButton) {
+            onSavePlan();
+        }
+        return true;
     }
 
     private void showInformation(String message) {

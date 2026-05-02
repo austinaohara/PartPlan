@@ -38,6 +38,7 @@ public class PlanEditorViewModel {
     private final StringProperty drawingPath = new SimpleStringProperty("");
     private final StringProperty pageName = new SimpleStringProperty("");
     private final BooleanProperty drawingLoaded = new SimpleBooleanProperty(false);
+    private final BooleanProperty unsavedChanges = new SimpleBooleanProperty(false);
 
     public PlanEditorViewModel() {
         createNewPlan();
@@ -54,12 +55,14 @@ public class PlanEditorViewModel {
         String sanitizedName = sanitizePlanName(newName);
         plan.rename(sanitizedName);
         planName.set(plan.getName());
+        unsavedChanges.set(true);
     }
 
     public void importDrawing(File drawingFile) {
         Objects.requireNonNull(drawingFile, "drawingFile must not be null");
 
         InspectionPlan plan = requireCurrentPlan();
+        unsavedChanges.set(true);
         if (isPdf(drawingFile)) {
             importPdfPages(plan, drawingFile);
             return;
@@ -120,6 +123,7 @@ public class PlanEditorViewModel {
     public void saveCurrentPlan() {
         persistCurrentPlanState();
         refreshSavedPlans();
+        unsavedChanges.set(false);
     }
     public void openPlan(InspectionPlan selectedPlan) {
         if (selectedPlan == null) {
@@ -129,6 +133,7 @@ public class PlanEditorViewModel {
         InspectionPlan loadedPlan = storageService.loadPlan(selectedPlan.getId());
         loadPlan(loadedPlan);
         refreshSavedPlans();
+        unsavedChanges.set(false);
     }
 
     public void deletePlan(InspectionPlan selectedPlan) {
@@ -225,6 +230,14 @@ public class PlanEditorViewModel {
         return drawingLoaded;
     }
 
+    public boolean hasUnsavedChanges() {
+        return unsavedChanges.get();
+    }
+
+    public BooleanProperty unsavedChangesProperty() {
+        return unsavedChanges;
+    }
+
     public Bubble placeBubble(double x, double y) {
         return placeBubble(x, y, 18.0, true, "#E53935", true, "", InspectionType.NUMERIC, null, null, null, "");
     }
@@ -302,6 +315,7 @@ public class PlanEditorViewModel {
         bubble.setUpperTolerance(parseNullableDouble(upperToleranceText));
         bubble.setNote(valueOrEmpty(note));
         refreshPageBubbles();
+        unsavedChanges.set(true);
         persistPlanSilently();
     }
 
@@ -316,6 +330,7 @@ public class PlanEditorViewModel {
     }
 
     public void persistBubbleLayout() {
+        unsavedChanges.set(true);
         persistPlanSilently();
     }
 
@@ -357,6 +372,7 @@ public class PlanEditorViewModel {
         plan.addBubble(copy);
         refreshPageBubbles();
         selectedBubble.set(copy);
+        unsavedChanges.set(true);
         persistPlanSilently();
         return copy;
     }
@@ -371,6 +387,7 @@ public class PlanEditorViewModel {
         plan.removeBubble(bubble);
         selectedBubble.set(null);
         refreshPageBubbles();
+        unsavedChanges.set(true);
         persistPlanSilently();
     }
 
@@ -389,6 +406,7 @@ public class PlanEditorViewModel {
         }
 
         refreshPageBubbles();
+        unsavedChanges.set(true);
         persistPlanSilently();
     }
 
@@ -476,9 +494,9 @@ public class PlanEditorViewModel {
         PlanPage matchingPage = currentPage == null
                 ? planPages.getFirst()
                 : planPages.stream()
-                .filter(page -> page.getId().equals(currentPage.getId()))
-                .findFirst()
-                .orElse(planPages.getFirst());
+                  .filter(page -> page.getId().equals(currentPage.getId()))
+                  .findFirst()
+                  .orElse(planPages.getFirst());
         selectedPage.set(matchingPage);
         pageName.set(matchingPage.getName());
         updateDrawingState(matchingPage.getDrawing());
@@ -487,9 +505,9 @@ public class PlanEditorViewModel {
         Bubble matchingBubble = currentBubble == null
                 ? null
                 : plan.getBubbles().stream()
-                .filter(bubble -> bubble.getId().equals(currentBubble.getId()))
-                .findFirst()
-                .orElse(null);
+                  .filter(bubble -> bubble.getId().equals(currentBubble.getId()))
+                  .findFirst()
+                  .orElse(null);
         selectedBubble.set(matchingBubble);
         refreshSavedPlans();
     }
