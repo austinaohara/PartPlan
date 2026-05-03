@@ -115,6 +115,9 @@ public class PlanStorageService {
         String partNumber = readStringValue(json, "partNumber");
         String revision = readStringValue(json, "revision");
         String description = readStringValue(json, "description");
+        int version = parseInteger(readStringValue(json, "version"), 1);
+        boolean locked = parseBoolean(readStringValue(json, "locked"), false);
+        int measurementDataVersion = parseInteger(readStringValue(json, "measurementDataVersion"), 1);
         String createdAtText = readStringValue(json, "createdAt");
         String updatedAtText = readStringValue(json, "updatedAt");
         List<PlanPage> pages = readPages(json);
@@ -136,6 +139,9 @@ public class PlanStorageService {
                 partNumber,
                 revision,
                 description,
+                version,
+                locked,
+                measurementDataVersion,
                 drawing,
                 pages,
                 bubbles,
@@ -221,6 +227,9 @@ public class PlanStorageService {
         builder.append("  \"partNumber\": \"").append(escape(plan.getPartNumber())).append("\",\n");
         builder.append("  \"revision\": \"").append(escape(plan.getRevision())).append("\",\n");
         builder.append("  \"description\": \"").append(escape(plan.getDescription())).append("\",\n");
+        builder.append("  \"version\": \"").append(plan.getVersion()).append("\",\n");
+        builder.append("  \"locked\": \"").append(plan.isLocked()).append("\",\n");
+        builder.append("  \"measurementDataVersion\": \"").append(plan.getMeasurementDataVersion()).append("\",\n");
         builder.append("  \"createdAt\": \"").append(plan.getCreatedAt()).append("\",\n");
         builder.append("  \"updatedAt\": \"").append(plan.getUpdatedAt()).append("\"");
 
@@ -361,7 +370,7 @@ public class PlanStorageService {
 
     private Bubble readBubble(String json) {
         return new Bubble(
-                readStringValue(json, "id"),
+                readStringOrDefault(json, "id", java.util.UUID.randomUUID().toString()),
                 readStringValue(json, "pageId"),
                 parseDouble(readStringValue(json, "x"), 0.0),
                 parseDouble(readStringValue(json, "y"), 0.0),
