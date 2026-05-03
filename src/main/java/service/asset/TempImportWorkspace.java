@@ -4,10 +4,10 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-public class TempFileAssetStore implements AssetStore {
+public class TempImportWorkspace implements ImportWorkspace {
     private final Path rootDirectory;
 
-    public TempFileAssetStore() {
+    public TempImportWorkspace() {
         try {
             rootDirectory = Files.createTempDirectory("partplan-assets-");
         } catch (IOException exception) {

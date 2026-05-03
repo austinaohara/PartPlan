@@ -1,8 +1,8 @@
 package app;
 
 import service.PdfPageRenderingService;
-import service.asset.AssetStore;
-import service.asset.TempFileAssetStore;
+import service.asset.ImportWorkspace;
+import service.asset.TempImportWorkspace;
 import service.auth.AuthService;
 import service.auth.FirebaseAuthService;
 import service.config.FileBackedFirebaseProjectConfigStore;
@@ -23,7 +23,7 @@ public class AppContext {
     private final AuthService authService;
     private final PlanRepository planRepository;
     private final LotRepository lotRepository;
-    private final AssetStore assetStore;
+    private final ImportWorkspace assetStore;
     private final PdfPageRenderingService pdfPageRenderingService;
 
     public AppContext(
@@ -32,7 +32,7 @@ public class AppContext {
             AuthService authService,
             PlanRepository planRepository,
             LotRepository lotRepository,
-            AssetStore assetStore,
+            ImportWorkspace assetStore,
             PdfPageRenderingService pdfPageRenderingService
     ) {
         this.projectConfigStore = projectConfigStore;
@@ -48,7 +48,7 @@ public class AppContext {
         FirebaseProjectConfigStore projectConfigStore = new FileBackedFirebaseProjectConfigStore();
         SessionManager sessionManager = new FileBackedSessionManager();
 
-        AssetStore assetStore = new TempFileAssetStore();
+        ImportWorkspace assetStore = new TempImportWorkspace();
         PdfPageRenderingService pdfPageRenderingService = new PdfPageRenderingService();
         AuthService authService = new FirebaseAuthService(sessionManager, projectConfigStore);
         FirestoreRestClient firestoreRestClient = new FirestoreRestClient(sessionManager, authService, projectConfigStore);
@@ -102,7 +102,7 @@ public class AppContext {
         return lotRepository;
     }
 
-    public AssetStore getAssetStore() {
+    public ImportWorkspace getAssetStore() {
         return assetStore;
     }
 

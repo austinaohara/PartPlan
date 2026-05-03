@@ -15,7 +15,7 @@ import model.InspectionType;
 import model.PlanDrawing;
 import model.PlanPage;
 import service.PdfPageRenderingService;
-import service.asset.AssetStore;
+import service.asset.ImportWorkspace;
 import service.repository.LotRepository;
 import service.repository.PlanRepository;
 import service.util.ModelCopies;
@@ -31,7 +31,7 @@ public class PlanEditorViewModel {
 
     private final PlanRepository storageService;
     private final LotRepository lotRepository;
-    private final AssetStore assetStore;
+    private final ImportWorkspace assetStore;
     private final PdfPageRenderingService pdfPageRenderingService;
     private final ObjectProperty<InspectionPlan> currentPlan = new SimpleObjectProperty<>();
     private final ObjectProperty<PlanPage> selectedPage = new SimpleObjectProperty<>();
@@ -55,7 +55,7 @@ public class PlanEditorViewModel {
     public PlanEditorViewModel(
             PlanRepository storageService,
             LotRepository lotRepository,
-            AssetStore assetStore,
+            ImportWorkspace assetStore,
             PdfPageRenderingService pdfPageRenderingService
     ) {
         this.storageService = Objects.requireNonNull(storageService, "storageService must not be null");
