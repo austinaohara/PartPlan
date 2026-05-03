@@ -29,10 +29,6 @@ public class InspectionLotBrowserViewModel {
         return savedLots;
     }
 
-    public void refresh() {
-        applyBrowserData(loadBrowserData());
-    }
-
     public InspectionPlan findLatestUpversionTarget(InspectionLotSummary selectedLot) {
         if (selectedLot == null) {
             return null;
@@ -45,12 +41,6 @@ public class InspectionLotBrowserViewModel {
                 .orElse(null);
     }
 
-    public InspectionLot createLot(InspectionPlan selectedPlan, String proposedLotName, int proposedLotSize) {
-        InspectionLot createdLot = createLotInRepository(selectedPlan, proposedLotName, proposedLotSize);
-        applyBrowserData(loadBrowserData());
-        return createdLot;
-    }
-
     public InspectionLot createLotInRepository(InspectionPlan selectedPlan, String proposedLotName, int proposedLotSize) {
         if (selectedPlan == null) {
             return null;
@@ -58,12 +48,6 @@ public class InspectionLotBrowserViewModel {
 
         InspectionPlan fullPlan = planRepository.loadPlan(selectedPlan.getId());
         return lotRepository.createLot(proposedLotName, fullPlan, proposedLotSize);
-    }
-
-    public InspectionLot upversionLot(InspectionLotSummary selectedLot) {
-        InspectionLot updatedLot = upversionLotInRepository(selectedLot);
-        applyBrowserData(loadBrowserData());
-        return updatedLot;
     }
 
     public InspectionLot upversionLotInRepository(InspectionLotSummary selectedLot) {
@@ -78,11 +62,6 @@ public class InspectionLotBrowserViewModel {
 
         InspectionPlan fullTargetPlan = planRepository.loadPlan(targetPlan.getId());
         return lotRepository.upversionLot(selectedLot.getId(), fullTargetPlan);
-    }
-
-    public void deleteLot(InspectionLotSummary selectedLot) {
-        deleteLotInRepository(selectedLot);
-        applyBrowserData(loadBrowserData());
     }
 
     public void deleteLotInRepository(InspectionLotSummary selectedLot) {

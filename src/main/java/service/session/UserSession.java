@@ -17,10 +17,6 @@ public class UserSession {
         this.expiresAt = expiresAt;
     }
 
-    public static UserSession localSession(String uid) {
-        return new UserSession(uid, "", null, null, null);
-    }
-
     public String getUid() {
         return uid;
     }

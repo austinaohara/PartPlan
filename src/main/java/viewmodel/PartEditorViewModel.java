@@ -119,10 +119,6 @@ public class PartEditorViewModel {
         return upversionTargetLabel;
     }
 
-    public void loadLot(String lotId) {
-        applyLoadedLot(loadLotData(lotId));
-    }
-
     public void saveCurrentLotName(String proposedName) {
         if (currentLot == null) {
             return;
@@ -194,16 +190,6 @@ public class PartEditorViewModel {
         }
     }
 
-    public void saveCurrentLot() {
-        if (currentLot == null) {
-            return;
-        }
-
-        lotRepository.saveLotStructure(currentLot);
-        refreshAll();
-        unsavedChanges.set(false);
-    }
-
     public InspectionLot beginSaveSnapshot() {
         if (currentLot == null) {
             throw new IllegalStateException("No inspection lot is loaded.");
@@ -240,12 +226,6 @@ public class PartEditorViewModel {
             unsavedChanges.set(true);
             saveState.set("Unsaved changes");
         }
-    }
-
-    public InspectionLot upversionCurrentLot() {
-        InspectionLot updatedLot = upversionCurrentLotInRepository();
-        applyUpversionedLot(updatedLot);
-        return currentLot;
     }
 
     public LoadedLotData loadLotData(String lotId) {

@@ -136,51 +136,6 @@ public class PlanEditorViewModel {
         refreshPageBubbles();
     }
 
-    public void saveCurrentPlan() {
-        persistCurrentPlanState();
-    }
-
-    public void completeCurrentPlan() {
-        InspectionPlan completedPlan = completeCurrentPlanInRepository();
-        applyLoadedPlan(completedPlan);
-        addOrUpdateSavedPlan(completedPlan);
-    }
-
-    public void createRevisionFromCurrentPlan() {
-        InspectionPlan revision = createRevisionFromCurrentPlanInRepository();
-        applyLoadedPlan(revision);
-        addOrUpdateSavedPlan(revision);
-    }
-
-    public void openPlan(InspectionPlan selectedPlan) {
-        if (selectedPlan == null) {
-            return;
-        }
-
-        InspectionPlan loadedPlan = loadPlanFromRepository(selectedPlan.getId());
-        applyLoadedPlan(loadedPlan);
-        addOrUpdateSavedPlan(loadedPlan);
-    }
-
-    public void deletePlan(InspectionPlan selectedPlan) {
-        if (selectedPlan == null) {
-            return;
-        }
-        deletePlanInRepository(selectedPlan.getId());
-        applyDeletedPlan(selectedPlan.getId());
-    }
-
-    public List<InspectionLotSummary> getAffectedLotsForPlan(InspectionPlan selectedPlan) {
-        if (selectedPlan == null) {
-            return List.of();
-        }
-        return loadAffectedLotsForPlan(selectedPlan.getId());
-    }
-
-    public void refreshSavedPlans() {
-        applySavedPlans(loadSavedPlansFromRepository());
-    }
-
     public List<InspectionPlan> loadSavedPlansFromRepository() {
         return storageService.loadPlans();
     }
@@ -644,51 +599,6 @@ public class PlanEditorViewModel {
         drawingFileName.set("No drawing selected");
         drawingPath.set("");
         drawingLoaded.set(false);
-    }
-
-    private void persistCurrentPlanState() {
-        ensureCurrentPlanEditable();
-        persistPlanSilently();
-    }
-
-    private void persistPlanSilently() {
-        InspectionPlan plan = requireCurrentPlan();
-        if (!plan.isPending()) {
-            refreshCurrentPlanMetadata(plan);
-            return;
-        }
-        PlanPage currentPage = selectedPage.get();
-        Bubble currentBubble = selectedBubble.get();
-
-        storageService.savePlan(plan);
-        unsavedChanges.set(false);
-        refreshCurrentPlanMetadata(plan);
-        addOrUpdateSavedPlan(plan);
-        planPages.setAll(plan.getPages());
-
-        if (planPages.isEmpty()) {
-            clearDrawingState();
-            return;
-        }
-
-        PlanPage matchingPage = currentPage == null
-                ? planPages.getFirst()
-                : planPages.stream()
-                .filter(page -> page.getId().equals(currentPage.getId()))
-                .findFirst()
-                .orElse(planPages.getFirst());
-        selectedPage.set(matchingPage);
-        pageName.set(matchingPage.getName());
-        updateDrawingState(matchingPage.getDrawing());
-        refreshPageBubbles();
-
-        Bubble matchingBubble = currentBubble == null
-                ? null
-                : plan.getBubbles().stream()
-                .filter(bubble -> bubble.getId().equals(currentBubble.getId()))
-                .findFirst()
-                .orElse(null);
-        selectedBubble.set(matchingBubble);
     }
 
     private void markDirty() {
