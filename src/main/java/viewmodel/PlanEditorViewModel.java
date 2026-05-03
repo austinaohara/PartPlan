@@ -14,7 +14,8 @@ import model.InspectionType;
 import model.PlanDrawing;
 import model.PlanPage;
 import service.PdfPageRenderingService;
-import service.PlanStorageService;
+import service.asset.AssetStore;
+import service.repository.PlanRepository;
 
 import java.io.File;
 import java.nio.file.Path;
@@ -25,8 +26,9 @@ import java.util.Objects;
 public class PlanEditorViewModel {
     private static final String DEFAULT_PLAN_NAME = "New Inspection Plan";
 
-    private final PlanStorageService storageService = new PlanStorageService();
-    private final PdfPageRenderingService pdfPageRenderingService = new PdfPageRenderingService();
+    private final PlanRepository storageService;
+    private final AssetStore assetStore;
+    private final PdfPageRenderingService pdfPageRenderingService;
     private final ObjectProperty<InspectionPlan> currentPlan = new SimpleObjectProperty<>();
     private final ObjectProperty<PlanPage> selectedPage = new SimpleObjectProperty<>();
     private final ObjectProperty<Bubble> selectedBubble = new SimpleObjectProperty<>();
@@ -39,7 +41,14 @@ public class PlanEditorViewModel {
     private final StringProperty pageName = new SimpleStringProperty("");
     private final BooleanProperty drawingLoaded = new SimpleBooleanProperty(false);
 
-    public PlanEditorViewModel() {
+    public PlanEditorViewModel(
+            PlanRepository storageService,
+            AssetStore assetStore,
+            PdfPageRenderingService pdfPageRenderingService
+    ) {
+        this.storageService = Objects.requireNonNull(storageService, "storageService must not be null");
+        this.assetStore = Objects.requireNonNull(assetStore, "assetStore must not be null");
+        this.pdfPageRenderingService = Objects.requireNonNull(pdfPageRenderingService, "pdfPageRenderingService must not be null");
         createNewPlan();
         refreshSavedPlans();
     }
@@ -69,13 +78,7 @@ public class PlanEditorViewModel {
     }
 
     private void importPdfPages(InspectionPlan plan, File pdfFile) {
-        Path outputDirectory = Path.of(
-                System.getProperty("user.home"),
-                ".partplan",
-                "imports",
-                plan.getId(),
-                stripExtension(pdfFile.getName()) + "-" + System.nanoTime()
-        );
+        Path outputDirectory = assetStore.createImportDirectory(plan.getId(), stripExtension(pdfFile.getName()));
         List<File> renderedPages = pdfPageRenderingService.renderPdfPages(pdfFile, outputDirectory);
         PlanPage firstImportedPage = null;
         for (File renderedPage : renderedPages) {

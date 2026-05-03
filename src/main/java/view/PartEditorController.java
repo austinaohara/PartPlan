@@ -1,5 +1,6 @@
 package view;
 
+import app.AppContext;
 import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.event.ActionEvent;
@@ -31,8 +32,12 @@ import java.io.IOException;
 public class PartEditorController {
     private static final int MAX_LOT_SIZE = 1000;
 
-    private final PartEditorViewModel viewModel = new PartEditorViewModel();
+    private final PartEditorViewModel viewModel;
     private boolean syncingLotSize;
+
+    public PartEditorController(AppContext appContext) {
+        this.viewModel = new PartEditorViewModel(appContext.getLotRepository());
+    }
 
     @FXML
     private TextField lotNameField;

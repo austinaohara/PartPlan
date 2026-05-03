@@ -1,5 +1,6 @@
 package view;
 
+import app.AppContext;
 import javafx.application.Platform;
 import javafx.collections.ListChangeListener;
 import javafx.collections.transformation.FilteredList;
@@ -56,9 +57,17 @@ public class PlanEditorController {
     private static final double PANEL_MIN_WIDTH = 150.0;
     private static final double PANEL_MAX_WIDTH = 600.0;
 
-    private final PlanEditorViewModel viewModel = new PlanEditorViewModel();
+    private final PlanEditorViewModel viewModel;
     private double zoomLevel = DEFAULT_ZOOM;
     private final InspectionExportService exportService = new InspectionExportService();
+
+    public PlanEditorController(AppContext appContext) {
+        this.viewModel = new PlanEditorViewModel(
+                appContext.getPlanRepository(),
+                appContext.getAssetStore(),
+                appContext.getPdfPageRenderingService()
+        );
+    }
 
     // Existing fields
     @FXML
@@ -349,7 +358,7 @@ public class PlanEditorController {
         loadDrawingPreview(viewModel.getDrawingPath());
         selectCurrentPageIfPresent();
         selectCurrentPlanIfPresent();
-        showInformation("Plan saved locally as JSON.");
+        showInformation("Plan saved in the current session.");
     }
 
     @FXML

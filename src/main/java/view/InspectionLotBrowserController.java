@@ -1,5 +1,6 @@
 package view;
 
+import app.AppContext;
 import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.fxml.FXML;
@@ -32,7 +33,14 @@ public class InspectionLotBrowserController {
     private static final int MAX_LOT_SIZE = 1000;
     private static final DateTimeFormatter UPDATED_AT_FORMAT = DateTimeFormatter.ofPattern("MMM d, yyyy h:mm a");
 
-    private final InspectionLotBrowserViewModel viewModel = new InspectionLotBrowserViewModel();
+    private final InspectionLotBrowserViewModel viewModel;
+
+    public InspectionLotBrowserController(AppContext appContext) {
+        this.viewModel = new InspectionLotBrowserViewModel(
+                appContext.getPlanRepository(),
+                appContext.getLotRepository()
+        );
+    }
 
     @FXML
     private TableView<InspectionLotSummary> savedLotsTableView;

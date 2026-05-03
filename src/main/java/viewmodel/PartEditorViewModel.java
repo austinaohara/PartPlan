@@ -11,7 +11,7 @@ import javafx.collections.ObservableList;
 import model.InspectionLot;
 import model.PartBubbleDefinition;
 import model.PartRecord;
-import service.InspectionLotDatabaseService;
+import service.repository.LotRepository;
 
 import java.util.List;
 
@@ -19,7 +19,7 @@ public class PartEditorViewModel {
     private static final String NO_LOT_SELECTED = "No inspection lot selected";
     private static final String NO_PLAN_SELECTED = "No plan selected";
 
-    private final InspectionLotDatabaseService lotDatabaseService = new InspectionLotDatabaseService();
+    private final LotRepository lotRepository;
     private final ObservableList<PartRecord> parts = FXCollections.observableArrayList();
     private final ObservableList<PartBubbleDefinition> bubbles = FXCollections.observableArrayList();
     private final ObservableList<PartBubbleRowViewModel> currentPartRows = FXCollections.observableArrayList();
@@ -33,7 +33,8 @@ public class PartEditorViewModel {
 
     private InspectionLot currentLot;
 
-    public PartEditorViewModel() {
+    public PartEditorViewModel(LotRepository lotRepository) {
+        this.lotRepository = lotRepository;
         refreshAll();
     }
 
@@ -90,7 +91,7 @@ public class PartEditorViewModel {
             return;
         }
 
-        currentLot = lotDatabaseService.loadLot(lotId);
+        currentLot = lotRepository.loadLot(lotId);
         currentPartNumber.set(1);
         lotLoaded.set(true);
         refreshAll();
@@ -103,7 +104,7 @@ public class PartEditorViewModel {
 
         String normalizedName = normalizeLotName(proposedName, currentLot.getName());
         currentLot.setName(normalizedName);
-        lotDatabaseService.saveLotName(currentLot.getId(), normalizedName);
+        lotRepository.saveLotName(currentLot.getId(), normalizedName);
         refreshAll();
     }
 
@@ -117,7 +118,7 @@ public class PartEditorViewModel {
         if (currentPartNumber.get() > currentLot.getLotSize()) {
             currentPartNumber.set(currentLot.getLotSize());
         }
-        lotDatabaseService.saveLotStructure(currentLot);
+        lotRepository.saveLotStructure(currentLot);
         refreshAll();
     }
 
@@ -158,7 +159,7 @@ public class PartEditorViewModel {
         boolean refreshSelectedPart = currentPart != null && currentPart.getId().equals(part.getId());
 
         part.setMeasurement(bubbleId, value);
-        lotDatabaseService.saveMeasurement(currentLot.getId(), part.getId(), bubbleId, value);
+        lotRepository.saveMeasurement(currentLot.getId(), part.getId(), bubbleId, value);
 
         if (refreshSelectedPart) {
             refreshCurrentPartRows();

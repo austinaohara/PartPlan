@@ -5,16 +5,18 @@ import javafx.collections.ObservableList;
 import model.InspectionLot;
 import model.InspectionLotSummary;
 import model.InspectionPlan;
-import service.InspectionLotDatabaseService;
-import service.PlanStorageService;
+import service.repository.LotRepository;
+import service.repository.PlanRepository;
 
 public class InspectionLotBrowserViewModel {
-    private final PlanStorageService planStorageService = new PlanStorageService();
-    private final InspectionLotDatabaseService lotDatabaseService = new InspectionLotDatabaseService();
+    private final PlanRepository planRepository;
+    private final LotRepository lotRepository;
     private final ObservableList<InspectionPlan> savedPlans = FXCollections.observableArrayList();
     private final ObservableList<InspectionLotSummary> savedLots = FXCollections.observableArrayList();
 
-    public InspectionLotBrowserViewModel() {
+    public InspectionLotBrowserViewModel(PlanRepository planRepository, LotRepository lotRepository) {
+        this.planRepository = planRepository;
+        this.lotRepository = lotRepository;
         refresh();
     }
 
@@ -27,8 +29,8 @@ public class InspectionLotBrowserViewModel {
     }
 
     public void refresh() {
-        savedPlans.setAll(planStorageService.loadPlans());
-        savedLots.setAll(lotDatabaseService.loadLotSummaries());
+        savedPlans.setAll(planRepository.loadPlans());
+        savedLots.setAll(lotRepository.loadLotSummaries());
     }
 
     public InspectionLot createLot(InspectionPlan selectedPlan, String proposedLotName, int proposedLotSize) {
@@ -36,8 +38,8 @@ public class InspectionLotBrowserViewModel {
             return null;
         }
 
-        InspectionPlan fullPlan = planStorageService.loadPlan(selectedPlan.getId());
-        InspectionLot createdLot = lotDatabaseService.createLot(proposedLotName, fullPlan, proposedLotSize);
+        InspectionPlan fullPlan = planRepository.loadPlan(selectedPlan.getId());
+        InspectionLot createdLot = lotRepository.createLot(proposedLotName, fullPlan, proposedLotSize);
         refresh();
         return createdLot;
     }
@@ -47,7 +49,7 @@ public class InspectionLotBrowserViewModel {
             return;
         }
 
-        lotDatabaseService.deleteLot(selectedLot.getId());
+        lotRepository.deleteLot(selectedLot.getId());
         refresh();
     }
 }
