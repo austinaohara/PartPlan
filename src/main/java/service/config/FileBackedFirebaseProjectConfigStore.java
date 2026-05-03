@@ -16,6 +16,7 @@ public class FileBackedFirebaseProjectConfigStore implements FirebaseProjectConf
     private static final String APP_ID = "appId";
     private static final String STORAGE_BUCKET = "storageBucket";
     private static final String AUTH_DOMAIN = "authDomain";
+    private static final String DATABASE_ID = "databaseId";
 
     private final Path configPath;
 
@@ -45,7 +46,8 @@ public class FileBackedFirebaseProjectConfigStore implements FirebaseProjectConf
                 properties.getProperty(PROJECT_ID),
                 properties.getProperty(APP_ID),
                 properties.getProperty(STORAGE_BUCKET),
-                properties.getProperty(AUTH_DOMAIN)
+                properties.getProperty(AUTH_DOMAIN),
+                properties.getProperty(DATABASE_ID)
         );
 
         return config.isComplete() ? Optional.of(config) : Optional.empty();
@@ -63,6 +65,7 @@ public class FileBackedFirebaseProjectConfigStore implements FirebaseProjectConf
         properties.setProperty(APP_ID, config.appId());
         properties.setProperty(STORAGE_BUCKET, config.storageBucket());
         properties.setProperty(AUTH_DOMAIN, config.authDomain());
+        properties.setProperty(DATABASE_ID, config.databaseId());
 
         try {
             Files.createDirectories(configPath.getParent());

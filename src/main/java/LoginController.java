@@ -62,7 +62,8 @@ public class LoginController {
             return;
         }
 
-        projectSummaryLabel.setText("Project: " + config.projectId());
+        projectSummaryLabel.setText("Project: " + config.projectId()
+                + " | Database: " + config.resolvedDatabaseId());
 
         if (sessionManager.getCurrentSession().isPresent()) {
             UserSession savedSession = sessionManager.requireCurrentSession();

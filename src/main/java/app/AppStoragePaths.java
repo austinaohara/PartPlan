@@ -18,4 +18,8 @@ public final class AppStoragePaths {
     public static Path sessionPath() {
         return appDataDirectory().resolve("session.properties");
     }
+
+    public static Path assetCacheDirectory() {
+        return appDataDirectory().resolve("asset-cache");
+    }
 }

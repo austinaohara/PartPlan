@@ -30,6 +30,8 @@ public class FirebaseSetupController {
     @FXML
     private TextField authDomainField;
     @FXML
+    private TextField databaseIdField;
+    @FXML
     private Label storagePathLabel;
     @FXML
     private Label statusLabel;
@@ -53,6 +55,7 @@ public class FirebaseSetupController {
                 appIdField.setText(config.appId());
                 storageBucketField.setText(config.storageBucket());
                 authDomainField.setText(config.authDomain());
+                databaseIdField.setText(config.databaseId());
             });
         } catch (RuntimeException exception) {
             setStatus("Saved Firebase settings could not be read. Re-enter them here.", true);
@@ -96,7 +99,8 @@ public class FirebaseSetupController {
                 projectIdField.getText(),
                 appIdField.getText(),
                 storageBucketField.getText(),
-                authDomainField.getText()
+                authDomainField.getText(),
+                databaseIdField.getText()
         );
         if (!config.isComplete()) {
             throw new IllegalArgumentException("API key, project ID, app ID, and storage bucket are required.");

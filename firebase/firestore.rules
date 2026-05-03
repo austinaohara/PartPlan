@@ -31,6 +31,13 @@ service cloud.firestore {
             allow create, update: if isOwner(userId)
               && get(planVersionPath(userId, familyId, planId)).data.status != "COMPLETE";
             allow delete: if isOwner(userId);
+
+            match /chunks/{chunkId} {
+              allow read: if isOwner(userId);
+              allow create, update: if isOwner(userId)
+                && get(planVersionPath(userId, familyId, planId)).data.status != "COMPLETE";
+              allow delete: if isOwner(userId);
+            }
           }
 
           match /bubbles/{bubbleId} {

@@ -7,8 +7,9 @@ import service.auth.AuthService;
 import service.auth.FirebaseAuthService;
 import service.config.FileBackedFirebaseProjectConfigStore;
 import service.config.FirebaseProjectConfigStore;
-import service.memory.InMemoryLotRepository;
-import service.memory.InMemoryPlanRepository;
+import service.firestore.FirestoreLotRepository;
+import service.firestore.FirestorePlanRepository;
+import service.firestore.FirestoreRestClient;
 import service.repository.LotRepository;
 import service.repository.PlanRepository;
 import service.session.FileBackedSessionManager;
@@ -49,9 +50,10 @@ public class AppContext {
 
         AssetStore assetStore = new TempFileAssetStore();
         PdfPageRenderingService pdfPageRenderingService = new PdfPageRenderingService();
-        PlanRepository planRepository = new InMemoryPlanRepository(sessionManager);
-        LotRepository lotRepository = new InMemoryLotRepository(sessionManager, planRepository);
         AuthService authService = new FirebaseAuthService(sessionManager, projectConfigStore);
+        FirestoreRestClient firestoreRestClient = new FirestoreRestClient(sessionManager, authService, projectConfigStore);
+        PlanRepository planRepository = new FirestorePlanRepository(firestoreRestClient);
+        LotRepository lotRepository = new FirestoreLotRepository(firestoreRestClient, planRepository);
 
         return new AppContext(
                 projectConfigStore,

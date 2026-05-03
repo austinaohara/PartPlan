@@ -40,7 +40,7 @@
                     <Label styleClass="field-label" text="API Key" GridPane.rowIndex="0" />
                     <TextField fx:id="apiKeyField" promptText="AIza..." GridPane.rowIndex="1" />
 
-                    <Label styleClass="field-label" text="Project ID" GridPane.rowIndex="2" />
+                    <Label styleClass="field-label" text="Project ID (not display name)" GridPane.rowIndex="2" />
                     <TextField fx:id="projectIdField" promptText="your-project-id" GridPane.rowIndex="3" />
 
                     <Label styleClass="field-label" text="App ID" GridPane.rowIndex="4" />
@@ -51,6 +51,9 @@
 
                     <Label styleClass="field-label" text="Auth Domain (Optional)" GridPane.rowIndex="8" />
                     <TextField fx:id="authDomainField" promptText="your-project.firebaseapp.com" GridPane.rowIndex="9" />
+
+                    <Label styleClass="field-label" text="Database ID (Optional)" GridPane.rowIndex="10" />
+                    <TextField fx:id="databaseIdField" promptText="(default)" GridPane.rowIndex="11" />
                 </GridPane>
 
                 <HBox spacing="10.0">
