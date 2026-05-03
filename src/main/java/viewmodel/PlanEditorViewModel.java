@@ -480,6 +480,31 @@ public class PlanEditorViewModel {
         return addedCount;
     }
 
+    public int currentPageBubbleCount() {
+        return pageBubbles.size();
+    }
+
+    public void clearSelectedPageBubbles() {
+        ensureCurrentPlanEditable();
+        InspectionPlan plan = requireCurrentPlan();
+        PlanPage page = selectedPage.get();
+        if (page == null) {
+            throw new IllegalStateException("No page is currently selected.");
+        }
+
+        List<Bubble> bubblesToRemove = plan.getBubbles().stream()
+                .filter(bubble -> page.getId().equals(bubble.getPageId()))
+                .toList();
+        for (Bubble bubble : bubblesToRemove) {
+            plan.removeBubble(bubble);
+        }
+        selectedBubble.set(null);
+        refreshPageBubbles();
+        if (!bubblesToRemove.isEmpty()) {
+            markDirty();
+        }
+    }
+
     public Bubble placeBubble(double x, double y) {
         return placeBubble(x, y, 18.0, true, "#E53935", true, "", InspectionType.NUMERIC, null, null, null, "");
     }

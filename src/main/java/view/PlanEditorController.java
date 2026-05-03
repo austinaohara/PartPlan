@@ -356,6 +356,9 @@ public class PlanEditorController {
         bubbleListView.getSelectionModel().selectedItemProperty()
                 .addListener((obs, oldBubble, newBubble) -> {
                     if (syncingBubbleSelection) return;
+                    if (draggingBubble != null && newBubble == null) {
+                        return;
+                    }
                     viewModel.selectBubble(newBubble);
                 });
         bubbleSearchField.textProperty().addListener((obs, oldText, newText) -> {
@@ -524,6 +527,23 @@ public class PlanEditorController {
             return;
         }
 
+        int existingBubbleCount = viewModel.currentPageBubbleCount();
+        boolean replaceExistingBubbles = existingBubbleCount > 0;
+        if (replaceExistingBubbles) {
+            Alert alert = new Alert(Alert.AlertType.WARNING);
+            alert.setTitle("Replace Existing Balloons");
+            alert.setHeaderText("Existing balloons will be replaced");
+            alert.setContentText("This page already has " + existingBubbleCount
+                    + " balloon" + (existingBubbleCount == 1 ? "" : "s")
+                    + ". Auto-balloon will remove them and replace them with the AI result if candidates are found.");
+            ButtonType replaceButton = new ButtonType("Replace");
+            alert.getButtonTypes().setAll(replaceButton, ButtonType.CANCEL);
+            Optional<ButtonType> decision = alert.showAndWait();
+            if (decision.isEmpty() || decision.get() != replaceButton) {
+                return;
+            }
+        }
+
         repositoryBusy.set(true);
         autoBalloonButton.setText("Detecting...");
         BackgroundTaskRunner.run("plan-auto-balloon",
@@ -531,6 +551,9 @@ public class PlanEditorController {
                 candidates -> {
                     repositoryBusy.set(false);
                     autoBalloonButton.setText("Auto-Balloon Page");
+                    if (replaceExistingBubbles && candidates != null && !candidates.isEmpty()) {
+                        viewModel.clearSelectedPageBubbles();
+                    }
                     int addedCount = viewModel.applyAutoBalloonCandidates(candidates, imageWidth, imageHeight);
                     renderBubbles();
                     syncBubbleListSelection(viewModel.getSelectedBubble());
@@ -1549,6 +1572,7 @@ public class PlanEditorController {
 
         Point2D overlayPoint = bubbleOverlayPane.sceneToLocal(sceneX, sceneY);
         updateBubblePosition(draggingBubble, overlayPoint.getX(), overlayPoint.getY());
+        viewModel.selectBubble(draggingBubble);
         bubbleDragged = true;
     }
 
