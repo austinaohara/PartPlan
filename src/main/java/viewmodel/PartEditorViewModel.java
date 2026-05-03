@@ -9,17 +9,21 @@ import javafx.beans.property.StringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import model.InspectionLot;
+import model.InspectionPlan;
 import model.PartBubbleDefinition;
 import model.PartRecord;
 import service.repository.LotRepository;
+import service.repository.PlanRepository;
 
 import java.util.List;
 
 public class PartEditorViewModel {
     private static final String NO_LOT_SELECTED = "No inspection lot selected";
     private static final String NO_PLAN_SELECTED = "No plan selected";
+    private static final String NO_UPVERSION_AVAILABLE = "No newer version";
 
     private final LotRepository lotRepository;
+    private final PlanRepository planRepository;
     private final ObservableList<PartRecord> parts = FXCollections.observableArrayList();
     private final ObservableList<PartBubbleDefinition> bubbles = FXCollections.observableArrayList();
     private final ObservableList<PartBubbleRowViewModel> currentPartRows = FXCollections.observableArrayList();
@@ -30,11 +34,15 @@ public class PartEditorViewModel {
     private final StringProperty currentLotName = new SimpleStringProperty("");
     private final StringProperty currentPlanName = new SimpleStringProperty(NO_PLAN_SELECTED);
     private final BooleanProperty lotLoaded = new SimpleBooleanProperty(false);
+    private final BooleanProperty upversionAvailable = new SimpleBooleanProperty(false);
+    private final StringProperty upversionTargetLabel = new SimpleStringProperty(NO_UPVERSION_AVAILABLE);
 
     private InspectionLot currentLot;
+    private InspectionPlan latestUpversionTarget;
 
-    public PartEditorViewModel(LotRepository lotRepository) {
+    public PartEditorViewModel(LotRepository lotRepository, PlanRepository planRepository) {
         this.lotRepository = lotRepository;
+        this.planRepository = planRepository;
         refreshAll();
     }
 
@@ -84,6 +92,14 @@ public class PartEditorViewModel {
 
     public BooleanProperty lotLoadedProperty() {
         return lotLoaded;
+    }
+
+    public BooleanProperty upversionAvailableProperty() {
+        return upversionAvailable;
+    }
+
+    public StringProperty upversionTargetLabelProperty() {
+        return upversionTargetLabel;
     }
 
     public void loadLot(String lotId) {
@@ -166,8 +182,30 @@ public class PartEditorViewModel {
         }
     }
 
+    public InspectionLot upversionCurrentLot() {
+        if (currentLot == null) {
+            return null;
+        }
+        if (latestUpversionTarget == null) {
+            throw new IllegalStateException("No newer completed plan version is available for this inspection lot.");
+        }
+
+        InspectionPlan fullTargetPlan = planRepository.loadPlan(latestUpversionTarget.getId());
+        currentLot = lotRepository.upversionLot(currentLot.getId(), fullTargetPlan);
+        refreshAll();
+        return currentLot;
+    }
+
     public String getCurrentLotId() {
         return currentLot == null ? "" : currentLot.getId();
+    }
+
+    public InspectionLot getCurrentLot() {
+        return currentLot;
+    }
+
+    public InspectionPlan getLatestUpversionTarget() {
+        return latestUpversionTarget;
     }
 
     private void refreshAll() {
@@ -177,6 +215,7 @@ public class PartEditorViewModel {
         bubbles.setAll(currentLot == null ? List.of() : currentLot.getBubbles());
         currentLotName.set(currentLot == null ? "" : currentLot.getName());
         currentPlanName.set(currentLot == null ? NO_PLAN_SELECTED : formatPlanReference(currentLot));
+        refreshUpversionState();
         refreshCurrentPartRows();
         refreshText();
     }
@@ -237,5 +276,39 @@ public class PartEditorViewModel {
             return baseName;
         }
         return baseName + " v" + lot.getPlanVersion();
+    }
+
+    private void refreshUpversionState() {
+        if (currentLot == null) {
+            latestUpversionTarget = null;
+            upversionAvailable.set(false);
+            upversionTargetLabel.set(NO_UPVERSION_AVAILABLE);
+            return;
+        }
+
+        latestUpversionTarget = planRepository.loadCompletePlans().stream()
+                .filter(plan -> currentLot.getPlanFamilyId().equals(plan.getFamilyId()))
+                .filter(plan -> plan.getVersion() > currentLot.getPlanVersion())
+                .max(java.util.Comparator.comparingInt(InspectionPlan::getVersion))
+                .orElse(null);
+
+        upversionAvailable.set(latestUpversionTarget != null);
+        upversionTargetLabel.set(latestUpversionTarget == null
+                ? NO_UPVERSION_AVAILABLE
+                : formatPlanReference(latestUpversionTarget));
+    }
+
+    private String formatPlanReference(InspectionPlan plan) {
+        if (plan == null || plan.getName() == null || plan.getName().isBlank()) {
+            return latestUpversionTarget == null || latestUpversionTarget.getVersion() <= 0
+                    ? "Untitled Plan"
+                    : "Untitled Plan v" + latestUpversionTarget.getVersion();
+        }
+
+        String baseName = plan.getName().trim();
+        if (plan.getVersion() <= 0) {
+            return baseName;
+        }
+        return baseName + " v" + plan.getVersion();
     }
 }

@@ -39,6 +39,16 @@ public class InMemoryLotRepository implements LotRepository {
     }
 
     @Override
+    public synchronized List<InspectionLotSummary> loadLotSummariesForPlan(String planId) {
+        return lotsForCurrentUser().values().stream()
+                .filter(lot -> lot.planId.equals(planId))
+                .map(StoredLot::toSummary)
+                .map(ModelCopies::copyLotSummary)
+                .sorted(Comparator.comparing(InspectionLotSummary::getUpdatedAt).reversed())
+                .toList();
+    }
+
+    @Override
     public synchronized InspectionLot createLot(String proposedLotName, InspectionPlan plan, int lotSize) {
         if (plan == null) {
             throw new IllegalArgumentException("plan must not be null");
@@ -76,6 +86,43 @@ public class InMemoryLotRepository implements LotRepository {
     }
 
     @Override
+    public synchronized InspectionLot upversionLot(String lotId, InspectionPlan targetPlan) {
+        if (targetPlan == null) {
+            throw new IllegalArgumentException("targetPlan must not be null");
+        }
+        if (!targetPlan.isComplete()) {
+            throw new IllegalStateException("Inspection lots can only target complete plan versions.");
+        }
+
+        StoredLot currentLot = requireLot(lotId);
+        if (!currentLot.planFamilyId.equals(targetPlan.getFamilyId())) {
+            throw new IllegalStateException("Inspection lots can only upversion within the same plan family.");
+        }
+        if (targetPlan.getVersion() <= currentLot.planVersion) {
+            throw new IllegalStateException("No newer completed plan version is available for this inspection lot.");
+        }
+
+        List<PartBubbleDefinition> bubbleDefinitions = InspectionSpecBuilder.buildBubbleDefinitions(targetPlan);
+        List<String> bubbleIds = bubbleDefinitions.stream()
+                .map(PartBubbleDefinition::getId)
+                .toList();
+        PartLot updatedLotData = copyStoredLotData(currentLot.lotData.getLotSize(), currentLot.lotData.getParts(), bubbleIds);
+        StoredLot updatedLot = new StoredLot(
+                currentLot.id,
+                currentLot.name,
+                targetPlan.getId(),
+                targetPlan.getFamilyId(),
+                displayPlanName(targetPlan),
+                targetPlan.getVersion(),
+                updatedLotData,
+                currentLot.createdAt,
+                LocalDateTime.now()
+        );
+        lotsForCurrentUser().put(updatedLot.id, updatedLot);
+        return restoreLot(updatedLot, bubbleDefinitions);
+    }
+
+    @Override
     public synchronized void saveLotName(String lotId, String lotName) {
         StoredLot lot = requireLot(lotId);
         lot.name = lotName;
@@ -109,6 +156,11 @@ public class InMemoryLotRepository implements LotRepository {
     @Override
     public synchronized void deleteLot(String lotId) {
         lotsForCurrentUser().remove(lotId);
+    }
+
+    @Override
+    public synchronized void deleteLotsForPlan(String planId) {
+        lotsForCurrentUser().entrySet().removeIf(entry -> entry.getValue().planId.equals(planId));
     }
 
     private StoredLot requireLot(String lotId) {

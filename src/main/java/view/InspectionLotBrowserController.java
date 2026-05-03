@@ -63,6 +63,8 @@ public class InspectionLotBrowserController {
     @FXML
     private Button deleteLotButton;
     @FXML
+    private Button upversionLotButton;
+    @FXML
     private Button createLotButton;
     @FXML
     private Label savedLotCountLabel;
@@ -113,6 +115,39 @@ public class InspectionLotBrowserController {
     @FXML
     private void onDeleteLot() {
         deleteSelectedLot();
+    }
+
+    @FXML
+    private void onUpversionLot() {
+        InspectionLotSummary selectedLot = savedLotsTableView.getSelectionModel().getSelectedItem();
+        if (selectedLot == null) {
+            return;
+        }
+
+        InspectionPlan targetPlan = viewModel.findLatestUpversionTarget(selectedLot);
+        if (targetPlan == null) {
+            showInformation("No newer completed plan version is available for this inspection lot.");
+            return;
+        }
+
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+        alert.setTitle("Upversion Inspection Lot");
+        alert.setHeaderText("Move selected inspection lot to a newer plan version?");
+        alert.setContentText(buildUpversionMessage(selectedLot, targetPlan));
+        Optional<ButtonType> result = alert.showAndWait();
+        if (result.isEmpty() || result.get() != ButtonType.OK) {
+            return;
+        }
+
+        try {
+            InspectionLot updatedLot = viewModel.upversionLot(selectedLot);
+            if (updatedLot != null) {
+                selectLot(updatedLot.getId());
+                showInformation("Inspection lot moved to " + formatPlanReference(updatedLot.getPlanName(), updatedLot.getPlanVersion()) + ".");
+            }
+        } catch (IllegalStateException exception) {
+            showInformation(exception.getMessage());
+        }
     }
 
     @FXML
@@ -215,6 +250,8 @@ public class InspectionLotBrowserController {
         deleteLotButton.disableProperty().bind(savedLotsTableView.getSelectionModel().selectedItemProperty().isNull());
         createLotButton.disableProperty().bind(planSelectorComboBox.getSelectionModel().selectedItemProperty().isNull());
         viewModel.getSavedLots().addListener((javafx.collections.ListChangeListener<InspectionLotSummary>) change -> updateSavedLotCount());
+        savedLotsTableView.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> updateUpversionActionState());
+        updateUpversionActionState();
     }
 
     private void syncDefaults() {
@@ -295,11 +332,30 @@ public class InspectionLotBrowserController {
         return name + " v" + planVersion;
     }
 
+    private String buildUpversionMessage(InspectionLotSummary lot, InspectionPlan targetPlan) {
+        return """
+                Lot: %s
+                Current plan: %s
+                New plan: %s
+
+                Measurements are preserved for matching bubble IDs. New bubbles will start blank, and removed bubbles will be dropped from the lot.
+                """.formatted(
+                lot.getName(),
+                formatPlanReference(lot.getPlanName(), lot.getPlanVersion()),
+                displayPlanName(targetPlan)
+        );
+    }
+
     private void showInformation(String message) {
         Alert alert = new Alert(Alert.AlertType.INFORMATION);
         alert.setTitle("Inspection Lots");
         alert.setHeaderText(null);
         alert.setContentText(message);
         alert.showAndWait();
+    }
+
+    private void updateUpversionActionState() {
+        InspectionLotSummary selectedLot = savedLotsTableView.getSelectionModel().getSelectedItem();
+        upversionLotButton.setDisable(selectedLot == null || viewModel.findLatestUpversionTarget(selectedLot) == null);
     }
 }

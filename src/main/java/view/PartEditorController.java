@@ -22,6 +22,8 @@ import javafx.scene.control.Tooltip;
 import javafx.scene.control.cell.TextFieldTableCell;
 import javafx.scene.text.TextAlignment;
 import javafx.util.StringConverter;
+import model.InspectionLot;
+import model.InspectionPlan;
 import model.PartBubbleDefinition;
 import model.PartRecord;
 import viewmodel.PartBubbleRowViewModel;
@@ -36,7 +38,10 @@ public class PartEditorController {
     private boolean syncingLotSize;
 
     public PartEditorController(AppContext appContext) {
-        this.viewModel = new PartEditorViewModel(appContext.getLotRepository());
+        this.viewModel = new PartEditorViewModel(
+                appContext.getLotRepository(),
+                appContext.getPlanRepository()
+        );
     }
 
     @FXML
@@ -47,6 +52,8 @@ public class PartEditorController {
     private Label lotSummaryLabel;
     @FXML
     private Label loadedPlanLabel;
+    @FXML
+    private Label nextPlanVersionLabel;
     @FXML
     private ComboBox<PartRecord> partSelectorComboBox;
     @FXML
@@ -67,6 +74,8 @@ public class PartEditorController {
     private Button previousPartButton;
     @FXML
     private Button nextPartButton;
+    @FXML
+    private Button upversionLotButton;
 
     @FXML
     private void initialize() {
@@ -121,6 +130,36 @@ public class PartEditorController {
     private void onNextPart() {
         viewModel.selectNextPart();
         syncPartSelection();
+    }
+
+    @FXML
+    private void onUpversionLot() {
+        InspectionLot currentLot = viewModel.getCurrentLot();
+        InspectionPlan targetPlan = viewModel.getLatestUpversionTarget();
+        if (currentLot == null || targetPlan == null) {
+            return;
+        }
+
+        javafx.scene.control.Alert alert = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.CONFIRMATION);
+        alert.setTitle("Upversion Inspection Lot");
+        alert.setHeaderText("Move this inspection lot to a newer plan version?");
+        alert.setContentText(buildUpversionMessage(currentLot, targetPlan));
+        java.util.Optional<javafx.scene.control.ButtonType> result = alert.showAndWait();
+        if (result.isEmpty() || result.get() != javafx.scene.control.ButtonType.OK) {
+            return;
+        }
+
+        try {
+            InspectionLot updatedLot = viewModel.upversionCurrentLot();
+            rebuildMasterColumns();
+            syncLoadedLotState();
+            syncPartSelection();
+            if (updatedLot != null) {
+                showInformation("Inspection lot moved to " + updatedLot.getPlanName() + " v" + updatedLot.getPlanVersion() + ".");
+            }
+        } catch (IllegalStateException exception) {
+            showInformation(exception.getMessage());
+        }
     }
 
     private void configureLotNameField() {
@@ -232,10 +271,12 @@ public class PartEditorController {
         lotSummaryLabel.textProperty().bind(viewModel.lotSummaryProperty());
         loadedPlanLabel.textProperty().bind(viewModel.currentPlanNameProperty());
         currentPartTitleLabel.textProperty().bind(viewModel.currentPartTitleProperty());
+        nextPlanVersionLabel.textProperty().bind(viewModel.upversionTargetLabelProperty());
 
         lotNameField.disableProperty().bind(viewModel.lotLoadedProperty().not());
         lotSizeSpinner.disableProperty().bind(viewModel.lotLoadedProperty().not());
         partSelectorComboBox.disableProperty().bind(viewModel.lotLoadedProperty().not());
+        upversionLotButton.disableProperty().bind(viewModel.lotLoadedProperty().not().or(viewModel.upversionAvailableProperty().not()));
         previousPartButton.disableProperty().bind(viewModel.lotLoadedProperty().not()
                 .or(viewModel.currentPartNumberProperty().lessThanOrEqualTo(1)));
         nextPartButton.disableProperty().bind(viewModel.lotLoadedProperty().not()
@@ -369,5 +410,29 @@ public class PartEditorController {
                 && bubble.getNominalValue().isBlank()
                 && bubble.getLowerTolerance().isBlank()
                 && bubble.getUpperTolerance().isBlank();
+    }
+
+    private String buildUpversionMessage(InspectionLot lot, InspectionPlan targetPlan) {
+        return """
+                Lot: %s
+                Current plan: %s v%d
+                New plan: %s v%d
+
+                Measurements are preserved for matching bubble IDs. New bubbles will start blank, and removed bubbles will be dropped from the lot.
+                """.formatted(
+                lot.getName(),
+                lot.getPlanName(),
+                lot.getPlanVersion(),
+                targetPlan.getName(),
+                targetPlan.getVersion()
+        );
+    }
+
+    private void showInformation(String message) {
+        javafx.scene.control.Alert alert = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.INFORMATION);
+        alert.setTitle("Part Editor");
+        alert.setHeaderText(null);
+        alert.setContentText(message);
+        alert.showAndWait();
     }
 }

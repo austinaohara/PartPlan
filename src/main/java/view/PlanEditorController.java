@@ -29,6 +29,7 @@ import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import javafx.stage.Window;
 import model.InspectionPlan;
+import model.InspectionLotSummary;
 import model.Bubble;
 import model.InspectionType;
 import model.PlanPage;
@@ -64,6 +65,7 @@ public class PlanEditorController {
     public PlanEditorController(AppContext appContext) {
         this.viewModel = new PlanEditorViewModel(
                 appContext.getPlanRepository(),
+                appContext.getLotRepository(),
                 appContext.getAssetStore(),
                 appContext.getPdfPageRenderingService()
         );
@@ -1388,10 +1390,32 @@ public class PlanEditorController {
 
     private String buildDeletePlanMessage(InspectionPlan plan) {
         String name = plan.getName() == null || plan.getName().isBlank() ? "Untitled Plan" : plan.getName().trim();
-        if (!plan.isComplete()) {
+        List<InspectionLotSummary> affectedLots = viewModel.getAffectedLotsForPlan(plan);
+        if (affectedLots.isEmpty()) {
             return name;
         }
-        return name + "\n\nDeleting a completed plan can invalidate inspection lots that reference it.";
+
+        List<String> lotNames = affectedLots.stream()
+                .limit(5)
+                .map(InspectionLotSummary::getName)
+                .toList();
+        String lotList = String.join("\n- ", lotNames);
+        String suffix = affectedLots.size() > lotNames.size()
+                ? "\n- and %d more".formatted(affectedLots.size() - lotNames.size())
+                : "";
+
+        return """
+                %s
+
+                This will also delete %d inspection %s for this exact plan version:
+                - %s%s
+                """.formatted(
+                name,
+                affectedLots.size(),
+                affectedLots.size() == 1 ? "lot" : "lots",
+                lotList,
+                suffix
+        );
     }
 
     private void setBubbleEditorEditable(boolean editable) {

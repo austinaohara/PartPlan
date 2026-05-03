@@ -33,6 +33,18 @@ public class InspectionLotBrowserViewModel {
         savedLots.setAll(lotRepository.loadLotSummaries());
     }
 
+    public InspectionPlan findLatestUpversionTarget(InspectionLotSummary selectedLot) {
+        if (selectedLot == null) {
+            return null;
+        }
+
+        return planRepository.loadCompletePlans().stream()
+                .filter(plan -> selectedLot.getPlanFamilyId().equals(plan.getFamilyId()))
+                .filter(plan -> plan.getVersion() > selectedLot.getPlanVersion())
+                .max(java.util.Comparator.comparingInt(InspectionPlan::getVersion))
+                .orElse(null);
+    }
+
     public InspectionLot createLot(InspectionPlan selectedPlan, String proposedLotName, int proposedLotSize) {
         if (selectedPlan == null) {
             return null;
@@ -42,6 +54,22 @@ public class InspectionLotBrowserViewModel {
         InspectionLot createdLot = lotRepository.createLot(proposedLotName, fullPlan, proposedLotSize);
         refresh();
         return createdLot;
+    }
+
+    public InspectionLot upversionLot(InspectionLotSummary selectedLot) {
+        if (selectedLot == null) {
+            return null;
+        }
+
+        InspectionPlan targetPlan = findLatestUpversionTarget(selectedLot);
+        if (targetPlan == null) {
+            throw new IllegalStateException("No newer completed plan version is available for this inspection lot.");
+        }
+
+        InspectionPlan fullTargetPlan = planRepository.loadPlan(targetPlan.getId());
+        InspectionLot updatedLot = lotRepository.upversionLot(selectedLot.getId(), fullTargetPlan);
+        refresh();
+        return updatedLot;
     }
 
     public void deleteLot(InspectionLotSummary selectedLot) {

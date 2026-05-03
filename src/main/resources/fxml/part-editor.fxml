@@ -35,6 +35,9 @@
                 <Spinner fx:id="lotSizeSpinner" prefWidth="110.0" />
                 <Label styleClass="field-label" text="Plan" />
                 <Label fx:id="loadedPlanLabel" styleClass="toolbar-pill" text="No plan selected" />
+                <Label styleClass="field-label" text="Next Version" />
+                <Label fx:id="nextPlanVersionLabel" styleClass="toolbar-pill" text="No newer version" />
+                <Button fx:id="upversionLotButton" mnemonicParsing="false" onAction="#onUpversionLot" styleClass="secondary-button" text="Upversion Lot" />
                 <Label styleClass="field-label" text="Summary" />
                 <Label fx:id="lotSummaryLabel" styleClass="toolbar-pill" text="No inspection lot selected" />
             </HBox>

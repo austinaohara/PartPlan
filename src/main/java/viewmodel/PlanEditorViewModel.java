@@ -9,12 +9,14 @@ import javafx.beans.property.StringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import model.Bubble;
+import model.InspectionLotSummary;
 import model.InspectionPlan;
 import model.InspectionType;
 import model.PlanDrawing;
 import model.PlanPage;
 import service.PdfPageRenderingService;
 import service.asset.AssetStore;
+import service.repository.LotRepository;
 import service.repository.PlanRepository;
 
 import java.io.File;
@@ -27,6 +29,7 @@ public class PlanEditorViewModel {
     private static final String DEFAULT_PLAN_NAME = "New Inspection Plan";
 
     private final PlanRepository storageService;
+    private final LotRepository lotRepository;
     private final AssetStore assetStore;
     private final PdfPageRenderingService pdfPageRenderingService;
     private final ObjectProperty<InspectionPlan> currentPlan = new SimpleObjectProperty<>();
@@ -47,10 +50,12 @@ public class PlanEditorViewModel {
 
     public PlanEditorViewModel(
             PlanRepository storageService,
+            LotRepository lotRepository,
             AssetStore assetStore,
             PdfPageRenderingService pdfPageRenderingService
     ) {
         this.storageService = Objects.requireNonNull(storageService, "storageService must not be null");
+        this.lotRepository = Objects.requireNonNull(lotRepository, "lotRepository must not be null");
         this.assetStore = Objects.requireNonNull(assetStore, "assetStore must not be null");
         this.pdfPageRenderingService = Objects.requireNonNull(pdfPageRenderingService, "pdfPageRenderingService must not be null");
         createNewPlan();
@@ -165,6 +170,7 @@ public class PlanEditorViewModel {
         if (selectedPlan == null) {
             return;
         }
+        lotRepository.deleteLotsForPlan(selectedPlan.getId());
         storageService.deletePlan(selectedPlan.getId());
         refreshSavedPlans();
 
@@ -172,6 +178,13 @@ public class PlanEditorViewModel {
         if (plan != null && plan.getId().equals(selectedPlan.getId())) {
             createNewPlan();
         }
+    }
+
+    public List<InspectionLotSummary> getAffectedLotsForPlan(InspectionPlan selectedPlan) {
+        if (selectedPlan == null) {
+            return List.of();
+        }
+        return lotRepository.loadLotSummariesForPlan(selectedPlan.getId());
     }
 
     public void refreshSavedPlans() {
