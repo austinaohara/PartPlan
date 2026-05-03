@@ -20,6 +20,10 @@ public final class AppStoragePaths {
     }
 
     public static Path autoBalloonConfigPath() {
+        return appDataDirectory().resolve("openai.properties");
+    }
+
+    public static Path legacyAutoBalloonConfigPath() {
         return appDataDirectory().resolve("auto-balloon.properties");
     }
 

@@ -15,23 +15,26 @@ public class FileBackedAutoBalloonConfigStore implements AutoBalloonConfigStore 
     private static final String MODEL = "model";
 
     private final Path configPath;
+    private final Path legacyConfigPath;
 
     public FileBackedAutoBalloonConfigStore() {
-        this(AppStoragePaths.autoBalloonConfigPath());
+        this(AppStoragePaths.autoBalloonConfigPath(), AppStoragePaths.legacyAutoBalloonConfigPath());
     }
 
-    FileBackedAutoBalloonConfigStore(Path configPath) {
+    FileBackedAutoBalloonConfigStore(Path configPath, Path legacyConfigPath) {
         this.configPath = configPath;
+        this.legacyConfigPath = legacyConfigPath;
     }
 
     @Override
     public Optional<AutoBalloonConfig> load() {
-        if (Files.notExists(configPath)) {
+        Path pathToRead = Files.exists(configPath) ? configPath : legacyConfigPath;
+        if (pathToRead == null || Files.notExists(pathToRead)) {
             return Optional.empty();
         }
 
         Properties properties = new Properties();
-        try (InputStream inputStream = Files.newInputStream(configPath)) {
+        try (InputStream inputStream = Files.newInputStream(pathToRead)) {
             properties.load(inputStream);
         } catch (IOException exception) {
             throw new IllegalStateException("Unable to load auto-balloon settings.", exception);
@@ -68,6 +71,9 @@ public class FileBackedAutoBalloonConfigStore implements AutoBalloonConfigStore 
     public void clear() {
         try {
             Files.deleteIfExists(configPath);
+            if (legacyConfigPath != null) {
+                Files.deleteIfExists(legacyConfigPath);
+            }
         } catch (IOException exception) {
             throw new IllegalStateException("Unable to clear auto-balloon settings.", exception);
         }
