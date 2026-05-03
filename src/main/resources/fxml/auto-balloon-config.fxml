@@ -11,14 +11,14 @@
 <?import javafx.scene.layout.Region?>
 <?import javafx.scene.layout.VBox?>
 
-<BorderPane prefHeight="700.0" prefWidth="1100.0" stylesheets="@../styles/main.css" xmlns="http://javafx.com/javafx/20.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="AutoBalloonSettingsController">
+<BorderPane prefHeight="360.0" prefWidth="560.0" stylesheets="@../styles/main.css" xmlns="http://javafx.com/javafx/20.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="AutoBalloonSettingsController">
     <top>
-        <VBox spacing="10.0" styleClass="top-bar">
+        <VBox spacing="8.0" styleClass="top-bar">
             <padding>
-                <Insets bottom="20.0" left="28.0" right="28.0" top="28.0" />
+                <Insets bottom="14.0" left="18.0" right="18.0" top="18.0" />
             </padding>
-            <HBox alignment="CENTER_LEFT" spacing="16.0">
-                <Label styleClass="screen-title" text="OpenAI Auto-Balloon Settings" />
+            <HBox alignment="CENTER_LEFT" spacing="12.0">
+                <Label styleClass="panel-title" text="OpenAI Auto-Balloon Settings" />
                 <Region HBox.hgrow="ALWAYS" />
                 <Button mnemonicParsing="false" onAction="#onSaveSettings" styleClass="primary-button" text="Save" />
                 <Button mnemonicParsing="false" onAction="#onClearSettings" styleClass="secondary-button" text="Clear" />
@@ -26,20 +26,26 @@
         </VBox>
     </top>
     <center>
-        <VBox maxWidth="760.0" spacing="18.0" styleClass="welcome-shell">
+        <VBox maxWidth="520.0" spacing="12.0" styleClass="welcome-shell">
             <padding>
-                <Insets bottom="36.0" left="36.0" right="36.0" top="36.0" />
+                <Insets bottom="18.0" left="18.0" right="18.0" top="18.0" />
             </padding>
-            <Label styleClass="welcome-copy" text="The auto-balloon feature sends the selected drawing page to the OpenAI Responses API and applies the returned callouts as local unsaved bubbles." wrapText="true" />
+            <Label styleClass="editor-copy" text="The selected page is sent to the OpenAI Responses API and the returned callouts are applied as local unsaved bubbles." wrapText="true" />
 
-            <VBox spacing="8.0" styleClass="welcome-card">
-                <Label styleClass="welcome-card-title" text="OpenAI API Key" />
+            <VBox spacing="6.0" styleClass="editor-card">
+                <padding>
+                    <Insets bottom="14.0" left="14.0" right="14.0" top="14.0" />
+                </padding>
+                <Label styleClass="field-label" text="OpenAI API Key" />
                 <PasswordField fx:id="apiKeyField" promptText="sk-..." />
                 <Label styleClass="editor-copy" text="Stored locally in this workspace. Do not commit this file to source control." wrapText="true" />
             </VBox>
 
-            <VBox spacing="8.0" styleClass="welcome-card">
-                <Label styleClass="welcome-card-title" text="Model" />
+            <VBox spacing="6.0" styleClass="editor-card">
+                <padding>
+                    <Insets bottom="14.0" left="14.0" right="14.0" top="14.0" />
+                </padding>
+                <Label styleClass="field-label" text="Model" />
                 <ComboBox fx:id="modelComboBox" />
                 <Label styleClass="editor-copy" text="Use a lower-cost model like gpt-5.4-mini, or switch to gpt-5.5 if you need better extraction quality." wrapText="true" />
             </VBox>

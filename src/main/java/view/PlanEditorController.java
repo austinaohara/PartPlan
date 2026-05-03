@@ -209,6 +209,7 @@ public class PlanEditorController {
     private double dragStartWidth;
     private Bubble draggingBubble;
     private boolean bubbleDragged;
+    private boolean suppressNextOverlayClick;
     private boolean drawingPannableBeforeBubbleDrag = true;
     private boolean syncingBubbleSelection;
     private FilteredList<Bubble> filteredBubbles;
@@ -556,9 +557,11 @@ public class PlanEditorController {
                 autoBalloonSettingsStage = new Stage();
                 autoBalloonSettingsStage.setTitle("PartPlan - OpenAI Settings");
                 autoBalloonSettingsStage.setScene(new Scene(settingsRoot));
+                autoBalloonSettingsStage.setResizable(false);
                 if (root.getScene() != null) {
                     autoBalloonSettingsStage.initOwner(root.getScene().getWindow());
                 }
+                autoBalloonSettingsStage.sizeToScene();
                 autoBalloonSettingsStage.show();
             } else {
                 autoBalloonSettingsStage.toFront();
@@ -1113,6 +1116,11 @@ public class PlanEditorController {
         if (drawingImageView.getImage() == null || viewModel.getSelectedPage() == null) {
             return;
         }
+        if (suppressNextOverlayClick) {
+            suppressNextOverlayClick = false;
+            event.consume();
+            return;
+        }
 
         if (event.isShiftDown() && !viewModel.isCurrentPlanEditable()) {
             event.consume();
@@ -1558,6 +1566,8 @@ public class PlanEditorController {
             Point2D overlayPoint = bubbleOverlayPane.sceneToLocal(sceneX, sceneY);
             updateBubblePosition(draggingBubble, overlayPoint.getX(), overlayPoint.getY());
             viewModel.persistBubbleLayout();
+            viewModel.selectBubble(draggingBubble);
+            suppressNextOverlayClick = true;
         }
 
         drawingScrollPane.setPannable(drawingPannableBeforeBubbleDrag);
