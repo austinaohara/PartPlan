@@ -1,10 +1,11 @@
 import app.AppContext;
 import app.AppStoragePaths;
 import app.UserFacingErrorMessages;
+import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
+import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.PasswordField;
-import javafx.scene.control.TextField;
 import service.config.AutoBalloonConfig;
 import service.config.AutoBalloonConfigStore;
 
@@ -14,7 +15,7 @@ public class AutoBalloonSettingsController {
     @FXML
     private PasswordField apiKeyField;
     @FXML
-    private TextField modelField;
+    private ComboBox<String> modelComboBox;
     @FXML
     private Label storagePathLabel;
     @FXML
@@ -27,11 +28,16 @@ public class AutoBalloonSettingsController {
     @FXML
     private void initialize() {
         storagePathLabel.setText(AppStoragePaths.autoBalloonConfigPath().toString());
-        modelField.setText(AutoBalloonConfig.DEFAULT_MODEL);
+        modelComboBox.setItems(FXCollections.observableArrayList(
+                "gpt-5.4-mini",
+                "gpt-5.4",
+                "gpt-5.5"
+        ));
+        modelComboBox.setValue(AutoBalloonConfig.DEFAULT_MODEL);
         try {
             configStore.load().ifPresent(config -> {
                 apiKeyField.setText(config.apiKey());
-                modelField.setText(config.resolvedModel());
+                modelComboBox.setValue(config.resolvedModel());
             });
         } catch (RuntimeException exception) {
             setStatus(UserFacingErrorMessages.format(exception, "Saved auto-balloon settings could not be read."), true);
@@ -53,7 +59,7 @@ public class AutoBalloonSettingsController {
         try {
             configStore.clear();
             apiKeyField.clear();
-            modelField.setText(AutoBalloonConfig.DEFAULT_MODEL);
+            modelComboBox.setValue(AutoBalloonConfig.DEFAULT_MODEL);
             setStatus("Auto-balloon settings cleared.", false);
         } catch (RuntimeException exception) {
             setStatus(UserFacingErrorMessages.format(exception, "Unable to clear auto-balloon settings."), true);
@@ -63,7 +69,7 @@ public class AutoBalloonSettingsController {
     private AutoBalloonConfig readConfig() {
         AutoBalloonConfig config = new AutoBalloonConfig(
                 apiKeyField.getText(),
-                modelField.getText()
+                modelComboBox.getValue()
         );
         if (!config.isComplete()) {
             throw new IllegalArgumentException("An OpenAI API key is required.");

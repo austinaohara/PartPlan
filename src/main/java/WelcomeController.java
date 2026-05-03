@@ -50,11 +50,6 @@ public class WelcomeController {
     }
 
     @FXML
-    private void onOpenAutoBalloonSettings(ActionEvent event) throws IOException {
-        AppNavigator.swapRoot((Node) event.getSource(), "/fxml/auto-balloon-config.fxml", "PartPlan - OpenAI Settings");
-    }
-
-    @FXML
     private void onSignOut(ActionEvent event) throws IOException {
         authService.signOut();
         AppNavigator.swapRoot((Node) event.getSource(), "/fxml/login.fxml", "PartPlan - Sign In");

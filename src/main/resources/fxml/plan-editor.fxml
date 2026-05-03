@@ -37,7 +37,14 @@
                 <Button fx:id="completePlanButton" mnemonicParsing="false" onAction="#onCompletePlan" styleClass="primary-button" text="Complete Plan" />
                 <Button fx:id="createRevisionButton" mnemonicParsing="false" onAction="#onCreateRevision" styleClass="secondary-button" text="Create Revision" />
                 <Button fx:id="addPageButton" mnemonicParsing="false" onAction="#onImportDrawing" styleClass="primary-button" text="Add Page" />
-                <Button fx:id="autoBalloonButton" mnemonicParsing="false" onAction="#onAutoBalloonPage" styleClass="secondary-button" text="Auto-Balloon Page" />
+                <HBox fx:id="autoBalloonButtonShell" alignment="CENTER_LEFT" spacing="2.0" styleClass="secondary-button,auto-balloon-shell">
+                    <Button fx:id="autoBalloonSettingsButton" mnemonicParsing="false" onAction="#onOpenAutoBalloonSettings" styleClass="auto-balloon-segment-button" text="⚙">
+                        <tooltip>
+                            <Tooltip text="OpenAI auto-balloon settings" />
+                        </tooltip>
+                    </Button>
+                    <Button fx:id="autoBalloonButton" mnemonicParsing="false" onAction="#onAutoBalloonPage" styleClass="auto-balloon-segment-button" text="Auto-Balloon Page" />
+                </HBox>
                 <MenuButton mnemonicParsing="false" text="Export" styleClass="secondary-button">
                     <items>
                         <MenuItem mnemonicParsing="false" text="Export as CSV" onAction="#onExportCsv"/>

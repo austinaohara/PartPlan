@@ -27,10 +27,28 @@ import java.io.File;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import java.util.Objects;
 
 public class PlanEditorViewModel {
     private static final String DEFAULT_PLAN_NAME = "New Inspection Plan";
+    private static final Set<String> GDT_CHARACTERISTICS = Set.of(
+            "position",
+            "parallelism",
+            "perpendicularity",
+            "flatness",
+            "straightness",
+            "circularity",
+            "cylindricity",
+            "concentricity",
+            "symmetry",
+            "circular runout",
+            "total runout",
+            "profile of a line",
+            "profile of a surface",
+            "profile",
+            "angularity"
+    );
 
     private final PlanRepository storageService;
     private final LotRepository lotRepository;
@@ -422,9 +440,23 @@ public class PlanEditorViewModel {
             if (resolvedNote.isBlank() && "Note".equalsIgnoreCase(resolvedCharacteristic)) {
                 resolvedNote = detectedText;
             }
-            InspectionType inspectionType = "Note".equalsIgnoreCase(resolvedCharacteristic)
+            boolean noteCharacteristic = "Note".equalsIgnoreCase(resolvedCharacteristic);
+            boolean gdtCharacteristic = isGdtCharacteristic(resolvedCharacteristic);
+            InspectionType inspectionType = noteCharacteristic
                     ? InspectionType.PASS_FAIL
                     : InspectionType.NUMERIC;
+            Double nominal = candidate.nominal();
+            Double lowerTolerance = absoluteOrNull(candidate.lowerTolerance());
+            Double upperTolerance = absoluteOrNull(candidate.upperTolerance());
+            if (gdtCharacteristic) {
+                nominal = 0.0;
+                lowerTolerance = 0.0;
+                upperTolerance = resolveGdtUpperTolerance(candidate);
+            } else if (noteCharacteristic) {
+                nominal = null;
+                lowerTolerance = null;
+                upperTolerance = null;
+            }
             placeBubble(
                     x,
                     y,
@@ -434,9 +466,9 @@ public class PlanEditorViewModel {
                     true,
                     resolvedCharacteristic,
                     inspectionType,
-                    inspectionType == InspectionType.NUMERIC ? candidate.nominal() : null,
-                    inspectionType == InspectionType.NUMERIC ? absoluteOrNull(candidate.lowerTolerance()) : null,
-                    inspectionType == InspectionType.NUMERIC ? absoluteOrNull(candidate.upperTolerance()) : null,
+                    nominal,
+                    lowerTolerance,
+                    upperTolerance,
                     resolvedNote
             );
             addedCount++;
@@ -707,6 +739,26 @@ public class PlanEditorViewModel {
 
     private Double absoluteOrNull(Double value) {
         return value == null ? null : Math.abs(value);
+    }
+
+    private boolean isGdtCharacteristic(String characteristic) {
+        if (characteristic == null || characteristic.isBlank()) {
+            return false;
+        }
+        return GDT_CHARACTERISTICS.contains(characteristic.trim().toLowerCase(Locale.ROOT));
+    }
+
+    private Double resolveGdtUpperTolerance(AutoBalloonCandidate candidate) {
+        if (candidate.upperTolerance() != null) {
+            return Math.abs(candidate.upperTolerance());
+        }
+        if (candidate.lowerTolerance() != null) {
+            return Math.abs(candidate.lowerTolerance());
+        }
+        if (candidate.nominal() != null) {
+            return Math.abs(candidate.nominal());
+        }
+        return null;
     }
 
     private void upsertSavedPlan(InspectionPlan plan) {

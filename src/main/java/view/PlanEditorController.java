@@ -23,6 +23,7 @@ import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.input.ScrollEvent;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
@@ -147,6 +148,10 @@ public class PlanEditorController {
     private Button addPageButton;
     @FXML
     private Button autoBalloonButton;
+    @FXML
+    private Button autoBalloonSettingsButton;
+    @FXML
+    private HBox autoBalloonButtonShell;
 
     // Panel collapse fields
     @FXML
@@ -220,6 +225,7 @@ public class PlanEditorController {
     private boolean updatingBubbleDefaultsUi;
 
     private Stage dataEditorStage;
+    private Stage autoBalloonSettingsStage;
 
     @FXML
     private void initialize() {
@@ -240,6 +246,7 @@ public class PlanEditorController {
         autoBalloonButton.disableProperty().bind(viewModel.currentPlanEditableProperty().not()
                 .or(viewModel.drawingLoadedProperty().not())
                 .or(repositoryBusy));
+        autoBalloonSettingsButton.disableProperty().bind(repositoryBusy);
         completePlanButton.disableProperty().bind(viewModel.currentPlanEditableProperty().not().or(repositoryBusy));
         createRevisionButton.disableProperty().bind(viewModel.currentPlanCompleteProperty().not().or(repositoryBusy));
         planUnsavedLabel.textProperty().bind(viewModel.saveStateProperty());
@@ -530,13 +537,35 @@ public class PlanEditorController {
                         showInformation("No callouts were detected on this page.");
                         return;
                     }
-                    showInformation(addedCount + " auto-balloon candidate" + (addedCount == 1 ? " was" : "s were") + " added to the current page.");
+                    showInformation(addedCount + " AI-generated balloon candidate" + (addedCount == 1 ? " was" : "s were")
+                            + " added to the current page. Review all balloons for accuracy before saving.");
                 },
                 failure -> {
                     repositoryBusy.set(false);
                     autoBalloonButton.setText("Auto-Balloon Page");
                     showFailure(failure, "Unable to auto-balloon the selected page.");
                 });
+    }
+
+    @FXML
+    private void onOpenAutoBalloonSettings() {
+        try {
+            if (autoBalloonSettingsStage == null || !autoBalloonSettingsStage.isShowing()) {
+                FXMLLoader loader = AppNavigator.createLoader("/fxml/auto-balloon-config.fxml");
+                Parent settingsRoot = loader.load();
+                autoBalloonSettingsStage = new Stage();
+                autoBalloonSettingsStage.setTitle("PartPlan - OpenAI Settings");
+                autoBalloonSettingsStage.setScene(new Scene(settingsRoot));
+                if (root.getScene() != null) {
+                    autoBalloonSettingsStage.initOwner(root.getScene().getWindow());
+                }
+                autoBalloonSettingsStage.show();
+            } else {
+                autoBalloonSettingsStage.toFront();
+            }
+        } catch (IOException exception) {
+            throw new IllegalStateException("Unable to open the OpenAI settings window.", exception);
+        }
     }
 
     @FXML

@@ -71,6 +71,30 @@
     -fx-border-radius: 10px;
 }
 
+.auto-balloon-shell {
+    -fx-padding: 0;
+    -fx-background-radius: 10px;
+    -fx-border-radius: 10px;
+    -fx-alignment: center-left;
+}
+
+.auto-balloon-segment-button {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-text-fill: #f6fbff;
+    -fx-padding: 10px 10px;
+    -fx-background-radius: 10px;
+    -fx-border-radius: 10px;
+}
+
+.auto-balloon-segment-button:hover {
+    -fx-background-color: rgba(255, 255, 255, 0.10);
+}
+
+.auto-balloon-segment-button:pressed {
+    -fx-background-color: rgba(255, 255, 255, 0.14);
+}
+
 .menu-button.secondary-button .label {
     -fx-text-fill: #f6fbff;
 }
