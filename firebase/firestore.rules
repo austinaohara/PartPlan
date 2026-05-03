@@ -1,0 +1,64 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isOwner(userId) {
+      return request.auth != null && request.auth.uid == userId;
+    }
+
+    function planVersionPath(userId, familyId, planId) {
+      return /databases/$(database)/documents/users/$(userId)/planFamilies/$(familyId)/versions/$(planId);
+    }
+
+    match /users/{userId} {
+      allow read, write: if isOwner(userId);
+
+      match /planFamilies/{familyId} {
+        allow read, write: if isOwner(userId);
+
+        match /versions/{planId} {
+          allow read: if isOwner(userId);
+
+          allow create: if isOwner(userId);
+
+          // Complete versions are immutable once written, but can still be deleted
+          // by the app's explicit cascade flow.
+          allow update: if isOwner(userId)
+            && resource.data.status != "COMPLETE";
+          allow delete: if isOwner(userId);
+
+          match /pages/{pageId} {
+            allow read: if isOwner(userId);
+            allow create, update: if isOwner(userId)
+              && get(planVersionPath(userId, familyId, planId)).data.status != "COMPLETE";
+            allow delete: if isOwner(userId);
+          }
+
+          match /bubbles/{bubbleId} {
+            allow read: if isOwner(userId);
+            allow create, update: if isOwner(userId)
+              && get(planVersionPath(userId, familyId, planId)).data.status != "COMPLETE";
+            allow delete: if isOwner(userId);
+          }
+        }
+      }
+
+      match /inspectionLots/{lotId} {
+        allow read: if isOwner(userId);
+
+        // Lots must always point to a complete plan version.
+        allow create, update: if isOwner(userId)
+          && get(planVersionPath(
+              userId,
+              request.resource.data.planFamilyId,
+              request.resource.data.planId
+          )).data.status == "COMPLETE";
+        allow delete: if isOwner(userId);
+
+        match /parts/{partId} {
+          allow read: if isOwner(userId);
+          allow create, update, delete: if isOwner(userId);
+        }
+      }
+    }
+  }
+}
