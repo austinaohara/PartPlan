@@ -9,13 +9,19 @@ public class InspectionLot {
     private final String id;
     private String name;
     private final String planId;
+    private final String planFamilyId;
     private final String planName;
+    private final int planVersion;
     private final PartLot lotData;
     private final LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
     public InspectionLot(String name, String planId, String planName, int lotSize) {
-        this(UUID.randomUUID().toString(), name, planId, planName, new PartLot(lotSize), LocalDateTime.now(), LocalDateTime.now());
+        this(UUID.randomUUID().toString(), name, planId, planId, planName, 0, new PartLot(lotSize), LocalDateTime.now(), LocalDateTime.now());
+    }
+
+    public InspectionLot(String name, String planId, String planFamilyId, String planName, int planVersion, int lotSize) {
+        this(UUID.randomUUID().toString(), name, planId, planFamilyId, planName, planVersion, new PartLot(lotSize), LocalDateTime.now(), LocalDateTime.now());
     }
 
     public InspectionLot(
@@ -27,10 +33,26 @@ public class InspectionLot {
             LocalDateTime createdAt,
             LocalDateTime updatedAt
     ) {
+        this(id, name, planId, planId, planName, 0, lotData, createdAt, updatedAt);
+    }
+
+    public InspectionLot(
+            String id,
+            String name,
+            String planId,
+            String planFamilyId,
+            String planName,
+            int planVersion,
+            PartLot lotData,
+            LocalDateTime createdAt,
+            LocalDateTime updatedAt
+    ) {
         this.id = id;
         this.name = name;
         this.planId = planId;
+        this.planFamilyId = planFamilyId == null || planFamilyId.isBlank() ? planId : planFamilyId;
         this.planName = planName;
+        this.planVersion = Math.max(0, planVersion);
         this.lotData = lotData == null ? new PartLot(1) : lotData;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
@@ -53,8 +75,16 @@ public class InspectionLot {
         return planId;
     }
 
+    public String getPlanFamilyId() {
+        return planFamilyId;
+    }
+
     public String getPlanName() {
         return planName;
+    }
+
+    public int getPlanVersion() {
+        return planVersion;
     }
 
     public int getLotSize() {
@@ -96,7 +126,7 @@ public class InspectionLot {
     }
 
     public InspectionLotSummary toSummary() {
-        return new InspectionLotSummary(id, name, planId, planName, getLotSize(), createdAt, updatedAt);
+        return new InspectionLotSummary(id, name, planId, planFamilyId, planName, planVersion, getLotSize(), createdAt, updatedAt);
     }
 
     private void touch() {

@@ -36,10 +36,14 @@ public class PlanEditorViewModel {
     private final ObservableList<PlanPage> planPages = FXCollections.observableArrayList();
     private final ObservableList<Bubble> pageBubbles = FXCollections.observableArrayList();
     private final StringProperty planName = new SimpleStringProperty();
+    private final StringProperty planStatus = new SimpleStringProperty("Pending");
+    private final StringProperty planVersion = new SimpleStringProperty("Draft");
     private final StringProperty drawingFileName = new SimpleStringProperty("No drawing selected");
     private final StringProperty drawingPath = new SimpleStringProperty("");
     private final StringProperty pageName = new SimpleStringProperty("");
     private final BooleanProperty drawingLoaded = new SimpleBooleanProperty(false);
+    private final BooleanProperty currentPlanEditable = new SimpleBooleanProperty(true);
+    private final BooleanProperty currentPlanComplete = new SimpleBooleanProperty(false);
 
     public PlanEditorViewModel(
             PlanRepository storageService,
@@ -59,6 +63,7 @@ public class PlanEditorViewModel {
     }
 
     public void renamePlan(String newName) {
+        ensureCurrentPlanEditable();
         InspectionPlan plan = requireCurrentPlan();
         String sanitizedName = sanitizePlanName(newName);
         plan.rename(sanitizedName);
@@ -67,6 +72,7 @@ public class PlanEditorViewModel {
 
     public void importDrawing(File drawingFile) {
         Objects.requireNonNull(drawingFile, "drawingFile must not be null");
+        ensureCurrentPlanEditable();
 
         InspectionPlan plan = requireCurrentPlan();
         if (isPdf(drawingFile)) {
@@ -124,6 +130,27 @@ public class PlanEditorViewModel {
         persistCurrentPlanState();
         refreshSavedPlans();
     }
+
+    public void completeCurrentPlan() {
+        InspectionPlan plan = requireCurrentPlan();
+        ensureCurrentPlanEditable();
+        storageService.savePlan(plan);
+        InspectionPlan completedPlan = storageService.completePlan(plan.getId());
+        loadPlan(completedPlan);
+        refreshSavedPlans();
+    }
+
+    public void createRevisionFromCurrentPlan() {
+        InspectionPlan plan = requireCurrentPlan();
+        if (!plan.isComplete()) {
+            throw new IllegalStateException("Only complete plans can create a revision.");
+        }
+
+        InspectionPlan revision = storageService.createRevision(plan.getId());
+        loadPlan(revision);
+        refreshSavedPlans();
+    }
+
     public void openPlan(InspectionPlan selectedPlan) {
         if (selectedPlan == null) {
             return;
@@ -196,6 +223,14 @@ public class PlanEditorViewModel {
         return planName;
     }
 
+    public StringProperty planStatusProperty() {
+        return planStatus;
+    }
+
+    public StringProperty planVersionProperty() {
+        return planVersion;
+    }
+
     public String getDrawingFileName() {
         return drawingFileName.get();
     }
@@ -228,6 +263,22 @@ public class PlanEditorViewModel {
         return drawingLoaded;
     }
 
+    public BooleanProperty currentPlanEditableProperty() {
+        return currentPlanEditable;
+    }
+
+    public boolean isCurrentPlanEditable() {
+        return currentPlanEditable.get();
+    }
+
+    public BooleanProperty currentPlanCompleteProperty() {
+        return currentPlanComplete;
+    }
+
+    public boolean isCurrentPlanComplete() {
+        return currentPlanComplete.get();
+    }
+
     public Bubble placeBubble(double x, double y) {
         return placeBubble(x, y, 18.0, true, "#E53935", true, "", InspectionType.NUMERIC, null, null, null, "");
     }
@@ -246,6 +297,7 @@ public class PlanEditorViewModel {
             Double upperTolerance,
             String note
     ) {
+        ensureCurrentPlanEditable();
         InspectionPlan plan = requireCurrentPlan();
         PlanPage page = selectedPage.get();
         if (page == null) {
@@ -287,6 +339,7 @@ public class PlanEditorViewModel {
             String upperToleranceText,
             String note
     ) {
+        ensureCurrentPlanEditable();
         Bubble bubble = selectedBubble.get();
         if (bubble == null) {
             return;
@@ -309,6 +362,7 @@ public class PlanEditorViewModel {
     }
 
     public void moveBubble(Bubble bubble, double x, double y) {
+        ensureCurrentPlanEditable();
         if (bubble == null) {
             return;
         }
@@ -319,10 +373,12 @@ public class PlanEditorViewModel {
     }
 
     public void persistBubbleLayout() {
+        ensureCurrentPlanEditable();
         persistPlanSilently();
     }
 
     public Bubble copySelectedBubble() {
+        ensureCurrentPlanEditable();
         Bubble source = selectedBubble.get();
         if (source == null) {
             return null;
@@ -365,6 +421,7 @@ public class PlanEditorViewModel {
     }
 
     public void deleteSelectedBubble() {
+        ensureCurrentPlanEditable();
         Bubble bubble = selectedBubble.get();
         if (bubble == null) {
             return;
@@ -378,6 +435,7 @@ public class PlanEditorViewModel {
     }
 
     public void applyBubbleDefaults(double diameter, String color) {
+        ensureCurrentPlanEditable();
         InspectionPlan plan = requireCurrentPlan();
         double radius = diameter / 2.0;
         String normalizedColor = color == null || color.isBlank() ? "#E53935" : color.trim();
@@ -400,6 +458,7 @@ public class PlanEditorViewModel {
         currentPlan.set(plan);
         selectedBubble.set(null);
         planName.set(plan.getName());
+        refreshCurrentPlanMetadata(plan);
         planPages.setAll(plan.getPages());
 
         if (planPages.isEmpty()) {
@@ -459,15 +518,21 @@ public class PlanEditorViewModel {
     }
 
     private void persistCurrentPlanState() {
+        ensureCurrentPlanEditable();
         persistPlanSilently();
     }
 
     private void persistPlanSilently() {
         InspectionPlan plan = requireCurrentPlan();
+        if (!plan.isPending()) {
+            refreshCurrentPlanMetadata(plan);
+            return;
+        }
         PlanPage currentPage = selectedPage.get();
         Bubble currentBubble = selectedBubble.get();
 
         storageService.savePlan(plan);
+        refreshCurrentPlanMetadata(plan);
         planPages.setAll(plan.getPages());
 
         if (planPages.isEmpty()) {
@@ -541,5 +606,19 @@ public class PlanEditorViewModel {
 
     private String valueOrEmpty(String value) {
         return value == null ? "" : value.trim();
+    }
+
+    private void refreshCurrentPlanMetadata(InspectionPlan plan) {
+        planStatus.set(plan == null ? "Pending" : plan.getStatus().name().charAt(0) + plan.getStatus().name().substring(1).toLowerCase(Locale.ROOT));
+        planVersion.set(plan == null || plan.getVersion() <= 0 ? "Draft" : "v" + plan.getVersion());
+        currentPlanEditable.set(plan != null && plan.isEditable());
+        currentPlanComplete.set(plan != null && plan.isComplete());
+    }
+
+    private void ensureCurrentPlanEditable() {
+        InspectionPlan plan = requireCurrentPlan();
+        if (!plan.isEditable()) {
+            throw new IllegalStateException("Complete plans are read-only. Create a revision to make changes.");
+        }
     }
 }

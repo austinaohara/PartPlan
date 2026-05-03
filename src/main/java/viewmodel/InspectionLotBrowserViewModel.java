@@ -29,7 +29,7 @@ public class InspectionLotBrowserViewModel {
     }
 
     public void refresh() {
-        savedPlans.setAll(planRepository.loadPlans());
+        savedPlans.setAll(planRepository.loadCompletePlans());
         savedLots.setAll(lotRepository.loadLotSummaries());
     }
 

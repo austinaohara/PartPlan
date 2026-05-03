@@ -176,7 +176,7 @@ public class PartEditorViewModel {
         parts.setAll(currentLot == null ? List.of() : currentLot.getParts());
         bubbles.setAll(currentLot == null ? List.of() : currentLot.getBubbles());
         currentLotName.set(currentLot == null ? "" : currentLot.getName());
-        currentPlanName.set(currentLot == null ? NO_PLAN_SELECTED : currentLot.getPlanName());
+        currentPlanName.set(currentLot == null ? NO_PLAN_SELECTED : formatPlanReference(currentLot));
         refreshCurrentPartRows();
         refreshText();
     }
@@ -229,5 +229,13 @@ public class PartEditorViewModel {
             return fallback == null || fallback.isBlank() ? "Inspection Lot" : fallback;
         }
         return proposedName.trim();
+    }
+
+    private String formatPlanReference(InspectionLot lot) {
+        String baseName = lot.getPlanName() == null || lot.getPlanName().isBlank() ? "Untitled Plan" : lot.getPlanName().trim();
+        if (lot.getPlanVersion() <= 0) {
+            return baseName;
+        }
+        return baseName + " v" + lot.getPlanVersion();
     }
 }

@@ -31,6 +31,7 @@ public final class ModelCopies {
 
         return new InspectionPlan(
                 plan.getId(),
+                plan.getFamilyId(),
                 plan.getName(),
                 plan.getPartNumber(),
                 plan.getRevision(),
@@ -38,6 +39,9 @@ public final class ModelCopies {
                 copyDrawing(plan.getDrawing()),
                 pages,
                 bubbles,
+                plan.getVersion(),
+                plan.getStatus(),
+                plan.getCompletedAt(),
                 plan.getCreatedAt(),
                 plan.getUpdatedAt()
         );
@@ -52,7 +56,9 @@ public final class ModelCopies {
                 lot.getId(),
                 lot.getName(),
                 lot.getPlanId(),
+                lot.getPlanFamilyId(),
                 lot.getPlanName(),
+                lot.getPlanVersion(),
                 copyPartLot(lot),
                 lot.getCreatedAt(),
                 lot.getUpdatedAt()
@@ -68,7 +74,9 @@ public final class ModelCopies {
                 summary.getId(),
                 summary.getName(),
                 summary.getPlanId(),
+                summary.getPlanFamilyId(),
                 summary.getPlanName(),
+                summary.getPlanVersion(),
                 summary.getLotSize(),
                 summary.getCreatedAt(),
                 summary.getUpdatedAt()

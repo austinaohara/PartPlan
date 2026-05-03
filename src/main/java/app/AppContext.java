@@ -46,7 +46,7 @@ public class AppContext {
         AssetStore assetStore = new TempFileAssetStore();
         PdfPageRenderingService pdfPageRenderingService = new PdfPageRenderingService();
         PlanRepository planRepository = new InMemoryPlanRepository(sessionManager);
-        LotRepository lotRepository = new InMemoryLotRepository(sessionManager);
+        LotRepository lotRepository = new InMemoryLotRepository(sessionManager, planRepository);
         AuthService authService = new UnsupportedAuthService(sessionManager);
 
         return new AppContext(

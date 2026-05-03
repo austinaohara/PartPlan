@@ -120,11 +120,17 @@ public class InspectionLotBrowserController {
         commitLotSizeEditor();
         InspectionPlan selectedPlan = planSelectorComboBox.getSelectionModel().getSelectedItem();
         Integer requestedSize = lotSizeSpinner.getValue();
-        InspectionLot createdLot = viewModel.createLot(
-                selectedPlan,
-                lotNameField.getText(),
-                requestedSize == null ? 1 : requestedSize
-        );
+        InspectionLot createdLot;
+        try {
+            createdLot = viewModel.createLot(
+                    selectedPlan,
+                    lotNameField.getText(),
+                    requestedSize == null ? 1 : requestedSize
+            );
+        } catch (IllegalStateException exception) {
+            showInformation(exception.getMessage());
+            return;
+        }
 
         if (createdLot == null) {
             return;
@@ -146,7 +152,7 @@ public class InspectionLotBrowserController {
         savedLotsTableView.setOnKeyPressed(this::handleSavedLotsTableKeyPressed);
 
         lotNameColumn.setCellValueFactory(data -> new ReadOnlyStringWrapper(data.getValue().getName()));
-        lotPlanColumn.setCellValueFactory(data -> new ReadOnlyStringWrapper(data.getValue().getPlanName()));
+        lotPlanColumn.setCellValueFactory(data -> new ReadOnlyStringWrapper(formatPlanReference(data.getValue().getPlanName(), data.getValue().getPlanVersion())));
         lotSizeColumn.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(data.getValue().getLotSize()));
         lotUpdatedColumn.setCellValueFactory(data -> new ReadOnlyStringWrapper(formatTimestamp(data.getValue().getUpdatedAt())));
 
@@ -256,7 +262,11 @@ public class InspectionLotBrowserController {
         if (plan == null || plan.getName() == null || plan.getName().isBlank()) {
             return "Untitled Plan";
         }
-        return plan.getName().trim();
+        String name = plan.getName().trim();
+        if (plan.getVersion() <= 0) {
+            return name;
+        }
+        return name + " v" + plan.getVersion();
     }
 
     private void deleteSelectedLot() {
@@ -275,5 +285,21 @@ public class InspectionLotBrowserController {
         }
 
         viewModel.deleteLot(selectedLot);
+    }
+
+    private String formatPlanReference(String planName, int planVersion) {
+        String name = planName == null || planName.isBlank() ? "Untitled Plan" : planName.trim();
+        if (planVersion <= 0) {
+            return name;
+        }
+        return name + " v" + planVersion;
+    }
+
+    private void showInformation(String message) {
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setTitle("Inspection Lots");
+        alert.setHeaderText(null);
+        alert.setContentText(message);
+        alert.showAndWait();
     }
 }

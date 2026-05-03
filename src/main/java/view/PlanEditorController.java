@@ -1,6 +1,7 @@
 package view;
 
 import app.AppContext;
+import javafx.beans.binding.Bindings;
 import javafx.application.Platform;
 import javafx.collections.ListChangeListener;
 import javafx.collections.transformation.FilteredList;
@@ -75,6 +76,10 @@ public class PlanEditorController {
     @FXML
     private TextField planNameField;
     @FXML
+    private Label planStatusValueLabel;
+    @FXML
+    private Label planVersionValueLabel;
+    @FXML
     private Label drawingFileNameLabel;
     @FXML
     private Label drawingPathLabel;
@@ -98,6 +103,16 @@ public class PlanEditorController {
     private ListView<InspectionPlan> savedPlansListView;
     @FXML
     private ListView<PlanPage> planPagesListView;
+    @FXML
+    private Button savePlanButton;
+    @FXML
+    private Button deletePlanButton;
+    @FXML
+    private Button completePlanButton;
+    @FXML
+    private Button createRevisionButton;
+    @FXML
+    private Button addPageButton;
 
     // Panel collapse fields
     @FXML
@@ -112,6 +127,8 @@ public class PlanEditorController {
     private VBox rightCollapsedTab;
     @FXML
     private VBox rightResizeHandle;
+    @FXML
+    private VBox bubbleEditorPane;
     @FXML
     private Label bubbleModeLabel;
     @FXML
@@ -173,10 +190,18 @@ public class PlanEditorController {
     @FXML
     private void initialize() {
         planNameField.setText(displayPlanName(viewModel.getPlanName()));
+        planStatusValueLabel.textProperty().bind(viewModel.planStatusProperty());
+        planVersionValueLabel.textProperty().bind(viewModel.planVersionProperty());
         drawingFileNameLabel.textProperty().bind(viewModel.drawingFileNameProperty());
         drawingPathLabel.textProperty().bind(viewModel.drawingPathProperty());
         emptyStateLabel.visibleProperty().bind(viewModel.drawingLoadedProperty().not());
         emptyStateLabel.managedProperty().bind(emptyStateLabel.visibleProperty());
+        planNameField.disableProperty().bind(viewModel.currentPlanEditableProperty().not());
+        savePlanButton.disableProperty().bind(viewModel.currentPlanEditableProperty().not());
+        addPageButton.disableProperty().bind(viewModel.currentPlanEditableProperty().not());
+        completePlanButton.disableProperty().bind(viewModel.currentPlanEditableProperty().not());
+        createRevisionButton.disableProperty().bind(viewModel.currentPlanCompleteProperty().not());
+        bubbleEditorPane.disableProperty().bind(viewModel.currentPlanEditableProperty().not());
         drawingScrollPane.setVisible(false);
         drawingScrollPane.setManaged(false);
         pdfPreviewLabel.setVisible(false);
@@ -204,6 +229,11 @@ public class PlanEditorController {
         refreshBubbleEditor(null);
 
         savedPlansListView.setItems(viewModel.getSavedPlans());
+        deletePlanButton.disableProperty().bind(Bindings.createBooleanBinding(() -> {
+                    InspectionPlan selectedPlan = savedPlansListView.getSelectionModel().getSelectedItem();
+                    return selectedPlan == null || selectedPlan.isComplete();
+                },
+                savedPlansListView.getSelectionModel().selectedItemProperty()));
         savedPlansListView.setCellFactory(listView -> new ListCell<>() {
             protected void updateItem(InspectionPlan item, boolean empty) {
                 super.updateItem(item, empty);
@@ -211,7 +241,7 @@ public class PlanEditorController {
                     setText(null);
                     return;
                 }
-                setText(item.getName());
+                setText(formatPlanListEntry(item));
             }
         });
         planPagesListView.setItems(viewModel.getPlanPages());
@@ -352,6 +382,10 @@ public class PlanEditorController {
 
     @FXML
     private void onSavePlan() {
+        if (!viewModel.isCurrentPlanEditable()) {
+            showInformation("Complete plans are read-only. Create a revision to make changes.");
+            return;
+        }
         onPlanNameChanged();
         viewModel.saveCurrentPlan();
         planNameField.setText(displayPlanName(viewModel.getPlanName()));
@@ -359,6 +393,37 @@ public class PlanEditorController {
         selectCurrentPageIfPresent();
         selectCurrentPlanIfPresent();
         showInformation("Plan saved in the current session.");
+    }
+
+    @FXML
+    private void onCompletePlan() {
+        try {
+            onPlanNameChanged();
+            viewModel.completeCurrentPlan();
+            planNameField.setText(displayPlanName(viewModel.getPlanName()));
+            selectCurrentPageIfPresent();
+            loadDrawingPreview(viewModel.getDrawingPath());
+            resetViewport();
+            selectCurrentPlanIfPresent();
+            showInformation("Plan marked complete as " + viewModel.planVersionProperty().get() + ".");
+        } catch (IllegalStateException exception) {
+            showInformation(exception.getMessage());
+        }
+    }
+
+    @FXML
+    private void onCreateRevision() {
+        try {
+            viewModel.createRevisionFromCurrentPlan();
+            planNameField.setText(displayPlanName(viewModel.getPlanName()));
+            selectCurrentPageIfPresent();
+            loadDrawingPreview(viewModel.getDrawingPath());
+            resetViewport();
+            selectCurrentPlanIfPresent();
+            showInformation("Pending revision opened.");
+        } catch (IllegalStateException exception) {
+            showInformation(exception.getMessage());
+        }
     }
 
     @FXML
@@ -389,7 +454,12 @@ public class PlanEditorController {
         alert.setContentText(selectedPlan.getName());
         Optional<ButtonType> result = alert.showAndWait();
         if (result.isEmpty() || result.get() != ButtonType.OK) return;
-        viewModel.deletePlan(selectedPlan);
+        try {
+            viewModel.deletePlan(selectedPlan);
+        } catch (IllegalStateException exception) {
+            showInformation(exception.getMessage());
+            return;
+        }
         planNameField.setText(displayPlanName(viewModel.getPlanName()));
         selectCurrentPageIfPresent();
         loadDrawingPreview(viewModel.getDrawingPath());
@@ -403,6 +473,9 @@ public class PlanEditorController {
 
     @FXML
     private void onPlanNameChanged() {
+        if (!viewModel.isCurrentPlanEditable()) {
+            return;
+        }
         viewModel.renamePlan(planNameField.getText());
         String displayName = displayPlanName(viewModel.getPlanName());
         if (!planNameField.getText().equals(displayName)) {
@@ -413,6 +486,10 @@ public class PlanEditorController {
 
     @FXML
     private void onImportDrawing() {
+        if (!viewModel.isCurrentPlanEditable()) {
+            showInformation("Complete plans are read-only. Create a revision to make changes.");
+            return;
+        }
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("Select Drawing Page");
         fileChooser.getExtensionFilters().addAll(
@@ -432,6 +509,10 @@ public class PlanEditorController {
 
     @FXML
     private void onSaveBubble() {
+        if (!viewModel.isCurrentPlanEditable()) {
+            showInformation("Complete plans are read-only. Create a revision to make changes.");
+            return;
+        }
         try {
             double radius = parseBubbleRadius();
             String color = normalizeBubbleColor();
@@ -483,6 +564,10 @@ public class PlanEditorController {
 
     @FXML
     private void onCopyBubble() {
+        if (!viewModel.isCurrentPlanEditable()) {
+            showInformation("Complete plans are read-only. Create a revision to make changes.");
+            return;
+        }
         if (viewModel.getSelectedBubble() == null) {
             showInformation("Select a bubble first to copy it.");
             return;
@@ -492,6 +577,10 @@ public class PlanEditorController {
 
     @FXML
     private void onDeleteBubble() {
+        if (!viewModel.isCurrentPlanEditable()) {
+            showInformation("Complete plans are read-only. Create a revision to make changes.");
+            return;
+        }
         if (viewModel.getSelectedBubble() == null) {
             return;
         }
@@ -836,6 +925,11 @@ public class PlanEditorController {
             return;
         }
 
+        if (event.isShiftDown() && !viewModel.isCurrentPlanEditable()) {
+            event.consume();
+            return;
+        }
+
         if (!event.isShiftDown()) {
             viewModel.selectBubble(null);
             event.consume();
@@ -905,15 +999,22 @@ public class PlanEditorController {
                 if (mouseEvent.isShiftDown()) {
                     return;
                 }
+                viewModel.selectBubble(bubble);
+                if (!viewModel.isCurrentPlanEditable()) {
+                    mouseEvent.consume();
+                    return;
+                }
                 draggingBubble = bubble;
                 bubbleDragged = false;
                 drawingPannableBeforeBubbleDrag = drawingScrollPane.isPannable();
                 drawingScrollPane.setPannable(false);
-                viewModel.selectBubble(bubble);
                 circle.toFront();
                 mouseEvent.consume();
             });
             circle.setOnMouseDragged(mouseEvent -> {
+                if (!viewModel.isCurrentPlanEditable()) {
+                    return;
+                }
                 if (draggingBubble == null || !draggingBubble.getId().equals(bubble.getId())) {
                     return;
                 }
@@ -921,6 +1022,9 @@ public class PlanEditorController {
                 mouseEvent.consume();
             });
             circle.setOnMouseReleased(mouseEvent -> {
+                if (!viewModel.isCurrentPlanEditable()) {
+                    return;
+                }
                 if (draggingBubble == null || !draggingBubble.getId().equals(bubble.getId())) {
                     return;
                 }
@@ -1229,6 +1333,9 @@ public class PlanEditorController {
     }
 
     private void handleActiveBubbleDrag(double sceneX, double sceneY) {
+        if (!viewModel.isCurrentPlanEditable()) {
+            return;
+        }
         if (draggingBubble == null) {
             return;
         }
@@ -1239,6 +1346,11 @@ public class PlanEditorController {
     }
 
     private void finishActiveBubbleDrag(double sceneX, double sceneY) {
+        if (!viewModel.isCurrentPlanEditable()) {
+            draggingBubble = null;
+            bubbleDragged = false;
+            return;
+        }
         if (draggingBubble == null) {
             return;
         }
@@ -1263,5 +1375,12 @@ public class PlanEditorController {
         double clampedY = Math.max(radius, Math.min(overlayY, imageHeight - radius));
 
         viewModel.moveBubble(bubble, clampedX / scale, clampedY / scale);
+    }
+
+    private String formatPlanListEntry(InspectionPlan plan) {
+        String name = plan.getName() == null || plan.getName().isBlank() ? "Untitled Plan" : plan.getName().trim();
+        String versionText = plan.getVersion() <= 0 ? "Draft" : "v" + plan.getVersion();
+        String statusText = plan.isComplete() ? "Complete" : "Pending";
+        return name + " (" + statusText + ", " + versionText + ")";
     }
 }
