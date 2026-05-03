@@ -66,6 +66,14 @@ public class PlanEditorController {
     @FXML
     private TextField planNameField;
     @FXML
+    private Label planVersionLabel;
+    @FXML
+    private Button finalizePlanButton;
+    @FXML
+    private Button addPageButton;
+    @FXML
+    private Button openDataEditorButton;
+    @FXML
     private Label drawingFileNameLabel;
     @FXML
     private Label drawingPathLabel;
@@ -116,6 +124,8 @@ public class PlanEditorController {
     @FXML
     private TextField bubbleNumberField;
     @FXML
+    private TextField bubbleInternalIdField;
+    @FXML
     private TextField bubbleColorField;
     @FXML
     private TextField characteristicField;
@@ -164,6 +174,10 @@ public class PlanEditorController {
     @FXML
     private void initialize() {
         planNameField.setText(displayPlanName(viewModel.getPlanName()));
+        planVersionLabel.textProperty().bind(viewModel.planVersionTextProperty());
+        finalizePlanButton.disableProperty().bind(viewModel.planLockedProperty());
+        addPageButton.disableProperty().bind(viewModel.planLockedProperty());
+        planNameField.disableProperty().bind(viewModel.planLockedProperty());
         drawingFileNameLabel.textProperty().bind(viewModel.drawingFileNameProperty());
         drawingPathLabel.textProperty().bind(viewModel.drawingPathProperty());
         emptyStateLabel.visibleProperty().bind(viewModel.drawingLoadedProperty().not());
@@ -193,6 +207,7 @@ public class PlanEditorController {
         useDefaultColorCheckBox.selectedProperty().addListener((observable, oldValue, newValue) -> updateDefaultControlLocks());
         inspectionTypeComboBox.valueProperty().addListener((observable, oldValue, newValue) -> updateInspectionTypeControls());
         refreshBubbleEditor(null);
+        configurePlanLockBindings();
 
         savedPlansListView.setItems(viewModel.getSavedPlans());
         savedPlansListView.setCellFactory(listView -> new ListCell<>() {
@@ -202,7 +217,7 @@ public class PlanEditorController {
                     setText(null);
                     return;
                 }
-                setText(item.getName());
+                setText(item.getName() + " — v" + item.getVersion() + (item.isLocked() ? " (Locked)" : " (Draft)"));
             }
         });
         planPagesListView.setItems(viewModel.getPlanPages());
@@ -262,6 +277,7 @@ public class PlanEditorController {
                 setText(characteristic == null || characteristic.isBlank()
                         ? label
                         : label + " — " + characteristic);
+                setTooltip(new Tooltip("Internal ID: " + item.getInternalId()));
             }
         });
         bubbleListView.getSelectionModel().selectedItemProperty()
@@ -403,6 +419,31 @@ public class PlanEditorController {
     }
 
     @FXML
+    private void onFinalizePlan() {
+        if (viewModel.isCurrentPlanLocked()) {
+            showInformation("This plan is already finalized and locked.");
+            return;
+        }
+
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+        alert.setTitle("Finalize Plan");
+        alert.setHeaderText("Finalize and lock this plan?");
+        alert.setContentText("Finalizing increments the plan version and prevents further plan or bubble edits.");
+        Optional<ButtonType> result = alert.showAndWait();
+        if (result.isEmpty() || result.get() != ButtonType.OK) {
+            return;
+        }
+
+        onPlanNameChanged();
+        viewModel.finalizeCurrentPlan();
+        planNameField.setText(displayPlanName(viewModel.getPlanName()));
+        selectCurrentPlanIfPresent();
+        refreshBubbleEditor(viewModel.getSelectedBubble());
+        renderBubbles();
+        showInformation("Plan finalized, locked, and upversioned.");
+    }
+
+    @FXML
     private void onImportDrawing() {
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("Select Drawing Page");
@@ -415,7 +456,12 @@ public class PlanEditorController {
         Window window = planNameField.getScene().getWindow();
         File selectedFile = fileChooser.showOpenDialog(window);
         if (selectedFile == null) return;
-        viewModel.importDrawing(selectedFile);
+        try {
+            viewModel.importDrawing(selectedFile);
+        } catch (IllegalStateException exception) {
+            showInformation(exception.getMessage());
+            return;
+        }
         selectCurrentPageIfPresent();
         loadDrawingPreview(viewModel.getDrawingPath());
         resetViewport();
@@ -423,6 +469,10 @@ public class PlanEditorController {
 
     @FXML
     private void onSaveBubble() {
+        if (viewModel.isCurrentPlanLocked()) {
+            showInformation("Finalized plans cannot be edited.");
+            return;
+        }
         try {
             double radius = parseBubbleRadius();
             String color = normalizeBubbleColor();
@@ -474,6 +524,10 @@ public class PlanEditorController {
 
     @FXML
     private void onCopyBubble() {
+        if (viewModel.isCurrentPlanLocked()) {
+            showInformation("Finalized plans cannot be edited.");
+            return;
+        }
         if (viewModel.getSelectedBubble() == null) {
             showInformation("Select a bubble first to copy it.");
             return;
@@ -483,6 +537,10 @@ public class PlanEditorController {
 
     @FXML
     private void onDeleteBubble() {
+        if (viewModel.isCurrentPlanLocked()) {
+            showInformation("Finalized plans cannot be edited.");
+            return;
+        }
         if (viewModel.getSelectedBubble() == null) {
             return;
         }
@@ -827,6 +885,12 @@ public class PlanEditorController {
             return;
         }
 
+        if (viewModel.isCurrentPlanLocked()) {
+            viewModel.selectBubble(null);
+            event.consume();
+            return;
+        }
+
         if (!event.isShiftDown()) {
             viewModel.selectBubble(null);
             event.consume();
@@ -886,14 +950,14 @@ public class PlanEditorController {
             text.setY(circle.getCenterY() + text.getLayoutBounds().getHeight() / 4.0);
 
             circle.setOnMouseClicked(mouseEvent -> {
-                if (mouseEvent.isShiftDown()) {
+                if (viewModel.isCurrentPlanLocked() || mouseEvent.isShiftDown()) {
                     return;
                 }
                 viewModel.selectBubble(bubble);
                 mouseEvent.consume();
             });
             circle.setOnMousePressed(mouseEvent -> {
-                if (mouseEvent.isShiftDown()) {
+                if (viewModel.isCurrentPlanLocked() || mouseEvent.isShiftDown()) {
                     return;
                 }
                 draggingBubble = bubble;
@@ -1001,13 +1065,12 @@ public class PlanEditorController {
             bubbleModeLabel.setText("Default Bubble Settings");
             bubbleHintLabel.setText("Shift + Click to place a bubble. Ctrl + C to copy.");
             saveBubbleButton.setText("Save Defaults");
-            deleteBubbleButton.setDisable(true);
-            copyBubbleButton.setDisable(true); // when no bubble selected
             updatingBubbleDefaultsUi = true;
             useDefaultDiameterCheckBox.setSelected(true);
             useDefaultColorCheckBox.setSelected(true);
             bubbleDiameterField.setText(formatNumber(defaultBubbleDiameter));
             bubbleNumberField.clear();
+            bubbleInternalIdField.clear();
             bubbleNumberField.setDisable(true);
             bubbleColorField.setText(defaultBubbleColor);
             updatingBubbleDefaultsUi = false;
@@ -1019,14 +1082,13 @@ public class PlanEditorController {
             bubbleNoteArea.setText(defaultNote);
             updateDefaultControlLocks();
             updateInspectionTypeControls();
+            updatePlanLockedEditorState();
             return;
         }
 
         bubbleModeLabel.setText("Selected Bubble");
         bubbleHintLabel.setText("Bubble " + selectedBubble.getLabel() + String.format(" at %.1f, %.1f", selectedBubble.getX(), selectedBubble.getY()));
         saveBubbleButton.setText("Save Bubble");
-        deleteBubbleButton.setDisable(false);
-        copyBubbleButton.setDisable(false); // when a bubble is selected
         updatingBubbleDefaultsUi = true;
         useDefaultDiameterCheckBox.setSelected(selectedBubble.isUseDefaultDiameter());
         useDefaultColorCheckBox.setSelected(selectedBubble.isUseDefaultColor());
@@ -1034,7 +1096,8 @@ public class PlanEditorController {
                 ? formatNumber(defaultBubbleDiameter)
                 : formatNumber(selectedBubble.getRadius() * 2.0));
         bubbleNumberField.setText(String.valueOf(selectedBubble.getSequenceNumber()));
-        bubbleNumberField.setDisable(false);
+        bubbleInternalIdField.setText(selectedBubble.getInternalId());
+        bubbleNumberField.setDisable(viewModel.isCurrentPlanLocked());
         bubbleColorField.setText(useDefaultColorCheckBox.isSelected()
                 ? defaultBubbleColor
                 : selectedBubble.getColor());
@@ -1047,6 +1110,7 @@ public class PlanEditorController {
         bubbleNoteArea.setText(selectedBubble.getNote());
         updateDefaultControlLocks();
         updateInspectionTypeControls();
+        updatePlanLockedEditorState();
     }
 
     private void applyBubbleSort(String sortOption) {
@@ -1082,6 +1146,24 @@ public class PlanEditorController {
         refreshBubbleEditor(null);
     }
 
+    private void configurePlanLockBindings() {
+        saveBubbleButton.disableProperty().bind(viewModel.planLockedProperty());
+        copyBubbleButton.disableProperty().bind(viewModel.planLockedProperty().or(viewModel.selectedBubbleProperty().isNull()));
+        deleteBubbleButton.disableProperty().bind(viewModel.planLockedProperty().or(viewModel.selectedBubbleProperty().isNull()));
+    }
+
+    private void updatePlanLockedEditorState() {
+        boolean locked = viewModel.isCurrentPlanLocked();
+        useDefaultDiameterCheckBox.setDisable(locked);
+        useDefaultColorCheckBox.setDisable(locked);
+        characteristicField.setDisable(locked);
+        inspectionTypeComboBox.setDisable(locked);
+        nominalValueField.setDisable(locked || inspectionTypeComboBox.getValue() == InspectionType.PASS_FAIL);
+        lowerToleranceField.setDisable(locked || inspectionTypeComboBox.getValue() == InspectionType.PASS_FAIL);
+        upperToleranceField.setDisable(locked || inspectionTypeComboBox.getValue() == InspectionType.PASS_FAIL);
+        bubbleNoteArea.setDisable(locked);
+    }
+
     private void updateInspectionTypeControls() {
         InspectionType inspectionType = inspectionTypeComboBox.getValue();
         boolean passFail = inspectionType == InspectionType.PASS_FAIL;
@@ -1092,9 +1174,10 @@ public class PlanEditorController {
             upperToleranceField.clear();
         }
 
-        nominalValueField.setDisable(passFail);
-        lowerToleranceField.setDisable(passFail);
-        upperToleranceField.setDisable(passFail);
+        boolean locked = viewModel.isCurrentPlanLocked();
+        nominalValueField.setDisable(locked || passFail);
+        lowerToleranceField.setDisable(locked || passFail);
+        upperToleranceField.setDisable(locked || passFail);
     }
 
     private void updateDefaultControlLocks() {
@@ -1103,6 +1186,11 @@ public class PlanEditorController {
         }
 
         Bubble selectedBubble = viewModel.getSelectedBubble();
+        if (viewModel.isCurrentPlanLocked()) {
+            bubbleDiameterField.setDisable(true);
+            bubbleColorField.setDisable(true);
+            return;
+        }
 
         if (selectedBubble == null) {
             bubbleDiameterField.setDisable(false);
