@@ -2,6 +2,7 @@ package view;
 
 import app.AppContext;
 import app.BackgroundTaskRunner;
+import app.UnsavedChangesDialogs;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.ReadOnlyObjectWrapper;
@@ -25,6 +26,8 @@ import javafx.scene.control.Tooltip;
 import javafx.scene.control.cell.TextFieldTableCell;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.text.TextAlignment;
+import javafx.stage.Window;
+import javafx.stage.WindowEvent;
 import javafx.util.StringConverter;
 import model.InspectionLot;
 import model.InspectionPlan;
@@ -34,6 +37,7 @@ import viewmodel.PartBubbleRowViewModel;
 import viewmodel.PartEditorViewModel;
 
 import java.io.IOException;
+import java.util.function.Consumer;
 
 public class PartEditorController {
     private static final int MAX_LOT_SIZE = 1000;
@@ -41,6 +45,12 @@ public class PartEditorController {
     private final PartEditorViewModel viewModel;
     private final BooleanProperty repositoryBusy = new SimpleBooleanProperty(false);
     private boolean syncingLotSize;
+    private Window guardedWindow;
+    private final javafx.event.EventHandler<WindowEvent> closeRequestHandler = event -> {
+        if (!canProceedWithPotentialDiscard("close the lot editor", false)) {
+            event.consume();
+        }
+    };
 
     public PartEditorController(AppContext appContext) {
         this.viewModel = new PartEditorViewModel(
@@ -91,6 +101,7 @@ public class PartEditorController {
     @FXML
     private void initialize() {
         root.disableProperty().bind(repositoryBusy);
+        root.sceneProperty().addListener((observable, oldScene, newScene) -> registerWindowCloseGuard(newScene));
         configureLotNameField();
         configureLotSizeSpinner();
         configurePartSelector();
@@ -120,6 +131,9 @@ public class PartEditorController {
 
     @FXML
     private void onReturnToLotBrowser(ActionEvent event) throws IOException {
+        if (!canProceedWithPotentialDiscard("return to inspection lots", true)) {
+            return;
+        }
         AppNavigator.swapRoot((Node) event.getSource(), "/fxml/inspection-lot-browser.fxml", "PartPlan - Inspection Lots", loader -> {
             InspectionLotBrowserController controller = loader.getController();
             controller.selectLot(viewModel.getCurrentLotId());
@@ -128,6 +142,9 @@ public class PartEditorController {
 
     @FXML
     private void onReturnToHub(ActionEvent event) throws IOException {
+        if (!canProceedWithPotentialDiscard("return to the hub", true)) {
+            return;
+        }
         AppNavigator.swapRoot((Node) event.getSource(), "/fxml/welcome.fxml", "PartPlan");
     }
 
@@ -195,6 +212,9 @@ public class PartEditorController {
         InspectionLot currentLot = viewModel.getCurrentLot();
         InspectionPlan targetPlan = viewModel.getLatestUpversionTarget();
         if (currentLot == null || targetPlan == null) {
+            return;
+        }
+        if (!canProceedWithPotentialDiscard("upversion this inspection lot", true)) {
             return;
         }
 
@@ -503,5 +523,48 @@ public class PartEditorController {
         alert.setHeaderText(null);
         alert.setContentText(message);
         alert.showAndWait();
+    }
+
+    private boolean canProceedWithPotentialDiscard(String actionLabel, boolean showBusyMessage) {
+        if (repositoryBusy.get()) {
+            if (showBusyMessage) {
+                showInformation("Please wait for the current database operation to finish.");
+            }
+            return false;
+        }
+        if (!viewModel.unsavedChangesProperty().get()) {
+            return true;
+        }
+        return UnsavedChangesDialogs.confirmDiscard("inspection lot", actionLabel);
+    }
+
+    private void registerWindowCloseGuard(javafx.scene.Scene scene) {
+        if (guardedWindow != null) {
+            guardedWindow.removeEventFilter(WindowEvent.WINDOW_CLOSE_REQUEST, closeRequestHandler);
+            guardedWindow = null;
+        }
+        if (scene == null) {
+            return;
+        }
+
+        Consumer<Window> installer = window -> {
+            if (window == null || window == guardedWindow) {
+                return;
+            }
+            guardedWindow = window;
+            guardedWindow.addEventFilter(WindowEvent.WINDOW_CLOSE_REQUEST, closeRequestHandler);
+        };
+
+        installer.accept(scene.getWindow());
+        scene.windowProperty().addListener((observable, oldWindow, newWindow) -> {
+            if (oldWindow != null && oldWindow != guardedWindow) {
+                oldWindow.removeEventFilter(WindowEvent.WINDOW_CLOSE_REQUEST, closeRequestHandler);
+            }
+            if (oldWindow != null && oldWindow == guardedWindow) {
+                oldWindow.removeEventFilter(WindowEvent.WINDOW_CLOSE_REQUEST, closeRequestHandler);
+                guardedWindow = null;
+            }
+            installer.accept(newWindow);
+        });
     }
 }

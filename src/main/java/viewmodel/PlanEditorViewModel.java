@@ -68,8 +68,6 @@ public class PlanEditorViewModel {
     public void createNewPlan() {
         InspectionPlan plan = new InspectionPlan(DEFAULT_PLAN_NAME);
         loadPlan(plan);
-        unsavedChanges.set(true);
-        saveState.set("Unsaved changes");
     }
 
     public void renamePlan(String newName) {
