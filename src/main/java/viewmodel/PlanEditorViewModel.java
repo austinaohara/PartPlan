@@ -37,7 +37,11 @@ public class PlanEditorViewModel {
     private final StringProperty drawingFileName = new SimpleStringProperty("No drawing selected");
     private final StringProperty drawingPath = new SimpleStringProperty("");
     private final StringProperty pageName = new SimpleStringProperty("");
+    private final StringProperty planVersionText = new SimpleStringProperty("Version 1 • Draft");
+    private final StringProperty measurementDataVersionText = new SimpleStringProperty("Measurement Data v1");
+    private final StringProperty planDescriptionText = new SimpleStringProperty("Description: No description provided");
     private final BooleanProperty drawingLoaded = new SimpleBooleanProperty(false);
+    private final BooleanProperty planLocked = new SimpleBooleanProperty(false);
 
     public PlanEditorViewModel() {
         createNewPlan();
@@ -51,6 +55,10 @@ public class PlanEditorViewModel {
 
     public void renamePlan(String newName) {
         InspectionPlan plan = requireCurrentPlan();
+        if (plan.isLocked()) {
+            planName.set(plan.getName());
+            return;
+        }
         String sanitizedName = sanitizePlanName(newName);
         plan.rename(sanitizedName);
         planName.set(plan.getName());
@@ -60,6 +68,9 @@ public class PlanEditorViewModel {
         Objects.requireNonNull(drawingFile, "drawingFile must not be null");
 
         InspectionPlan plan = requireCurrentPlan();
+        if (plan.isLocked()) {
+            throw new IllegalStateException("Finalized plans cannot be edited.");
+        }
         if (isPdf(drawingFile)) {
             importPdfPages(plan, drawingFile);
             return;
@@ -217,6 +228,39 @@ public class PlanEditorViewModel {
         return pageName;
     }
 
+    public String getPlanVersionText() {
+        return planVersionText.get();
+    }
+
+    public StringProperty planVersionTextProperty() {
+        return planVersionText;
+    }
+
+    public String getMeasurementDataVersionText() {
+        return measurementDataVersionText.get();
+    }
+
+    public StringProperty measurementDataVersionTextProperty() {
+        return measurementDataVersionText;
+    }
+
+    public String getPlanDescriptionText() {
+        return planDescriptionText.get();
+    }
+
+    public StringProperty planDescriptionTextProperty() {
+        return planDescriptionText;
+    }
+
+    public boolean isCurrentPlanLocked() {
+        InspectionPlan plan = currentPlan.get();
+        return plan != null && plan.isLocked();
+    }
+
+    public BooleanProperty planLockedProperty() {
+        return planLocked;
+    }
+
     public boolean isDrawingLoaded() {
         return drawingLoaded.get();
     }
@@ -244,6 +288,9 @@ public class PlanEditorViewModel {
             String note
     ) {
         InspectionPlan plan = requireCurrentPlan();
+        if (plan.isLocked()) {
+            throw new IllegalStateException("Finalized plans cannot be edited.");
+        }
         PlanPage page = selectedPage.get();
         if (page == null) {
             throw new IllegalStateException("No page is currently selected.");
@@ -290,6 +337,9 @@ public class PlanEditorViewModel {
         }
 
         InspectionPlan plan = requireCurrentPlan();
+        if (plan.isLocked()) {
+            return;
+        }
         plan.moveBubbleToSequence(bubble, sequenceNumber);
         bubble.setRadius(radius);
         bubble.setUseDefaultDiameter(useDefaultDiameter);
@@ -310,6 +360,9 @@ public class PlanEditorViewModel {
             return;
         }
 
+        if (isCurrentPlanLocked()) {
+            return;
+        }
         bubble.setX(x);
         bubble.setY(y);
         refreshPageBubbles();
@@ -325,6 +378,9 @@ public class PlanEditorViewModel {
             return null;
         }
         InspectionPlan plan = requireCurrentPlan();
+        if (plan.isLocked()) {
+            return null;
+        }
         PlanPage page = selectedPage.get();
         if (page == null) {
             return null;
@@ -368,6 +424,9 @@ public class PlanEditorViewModel {
         }
 
         InspectionPlan plan = requireCurrentPlan();
+        if (plan.isLocked()) {
+            return;
+        }
         plan.removeBubble(bubble);
         selectedBubble.set(null);
         refreshPageBubbles();
@@ -376,6 +435,9 @@ public class PlanEditorViewModel {
 
     public void applyBubbleDefaults(double diameter, String color) {
         InspectionPlan plan = requireCurrentPlan();
+        if (plan.isLocked()) {
+            return;
+        }
         double radius = diameter / 2.0;
         String normalizedColor = color == null || color.isBlank() ? "#E53935" : color.trim();
 
@@ -392,11 +454,31 @@ public class PlanEditorViewModel {
         persistPlanSilently();
     }
 
+    public void finalizeCurrentPlan() {
+        InspectionPlan plan = requireCurrentPlan();
+        if (plan.isLocked()) {
+            return;
+        }
+
+        persistPlanSilently();
+        plan.finalizeAndLock();
+        updateVersionState(plan);
+        persistPlanSilently();
+    }
+
+    public void upversionMeasurementData() {
+        InspectionPlan plan = requireCurrentPlan();
+        plan.incrementMeasurementDataVersion();
+        updateVersionState(plan);
+        persistPlanSilently();
+    }
+
     private void loadPlan(InspectionPlan plan) {
         normalizeBubblePageIds(plan);
         currentPlan.set(plan);
         selectedBubble.set(null);
         planName.set(plan.getName());
+        updateVersionState(plan);
         planPages.setAll(plan.getPages());
 
         if (planPages.isEmpty()) {
@@ -465,6 +547,7 @@ public class PlanEditorViewModel {
         Bubble currentBubble = selectedBubble.get();
 
         storageService.savePlan(plan);
+        updateVersionState(plan);
         planPages.setAll(plan.getPages());
 
         if (planPages.isEmpty()) {
@@ -505,6 +588,24 @@ public class PlanEditorViewModel {
         pageBubbles.setAll(plan.getBubbles().stream()
                 .filter(bubble -> page.getId().equals(bubble.getPageId()))
                 .toList());
+    }
+
+    private void updateVersionState(InspectionPlan plan) {
+        if (plan == null) {
+            planVersionText.set("Version 1 • Draft");
+            measurementDataVersionText.set("Measurement Data v1");
+            planDescriptionText.set("Description: No description provided");
+            planLocked.set(false);
+            return;
+        }
+
+        planVersionText.set("Version " + plan.getVersion() + (plan.isLocked() ? " • Locked" : " • Draft"));
+        measurementDataVersionText.set("Measurement Data v" + plan.getMeasurementDataVersion());
+        String description = plan.getDescription();
+        planDescriptionText.set(description == null || description.isBlank()
+                ? "Description: No description provided"
+                : "Description: " + description.trim());
+        planLocked.set(plan.isLocked());
     }
 
     private void normalizeBubblePageIds(InspectionPlan plan) {
