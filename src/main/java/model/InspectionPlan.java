@@ -12,6 +12,9 @@ public class InspectionPlan {
     private String partNumber;
     private String revision;
     private String description;
+    private int version;
+    private boolean locked;
+    private int measurementDataVersion;
     private PlanDrawing drawing;
     private List<PlanPage> pages;
     private List<Bubble> bubbles;
@@ -19,11 +22,11 @@ public class InspectionPlan {
     private LocalDateTime updatedAt;
 
     public InspectionPlan() {
-        this(UUID.randomUUID().toString(), "", "", "", "", null, new ArrayList<>(), LocalDateTime.now(), LocalDateTime.now());
+        this(UUID.randomUUID().toString(), "", "", "", "", 1, false, 1, null, new ArrayList<>(), LocalDateTime.now(), LocalDateTime.now());
     }
 
     public InspectionPlan(String name) {
-        this(UUID.randomUUID().toString(), name, "", "", "", null, new ArrayList<>(), LocalDateTime.now(), LocalDateTime.now());
+        this(UUID.randomUUID().toString(), name, "", "", "", 1, false, 1, null, new ArrayList<>(), LocalDateTime.now(), LocalDateTime.now());
     }
 
     public InspectionPlan(
@@ -36,7 +39,7 @@ public class InspectionPlan {
             LocalDateTime createdAt,
             LocalDateTime updatedAt
     ) {
-        this(id, name, partNumber, revision, description, drawing, new ArrayList<>(), createdAt, updatedAt);
+        this(id, name, partNumber, revision, description, 1, false, 1, drawing, new ArrayList<>(), createdAt, updatedAt);
     }
 
     public InspectionPlan(
@@ -50,11 +53,31 @@ public class InspectionPlan {
             LocalDateTime createdAt,
             LocalDateTime updatedAt
     ) {
+        this(id, name, partNumber, revision, description, 1, false, 1, drawing, bubbles, createdAt, updatedAt);
+    }
+
+    public InspectionPlan(
+            String id,
+            String name,
+            String partNumber,
+            String revision,
+            String description,
+            int version,
+            boolean locked,
+            int measurementDataVersion,
+            PlanDrawing drawing,
+            List<Bubble> bubbles,
+            LocalDateTime createdAt,
+            LocalDateTime updatedAt
+    ) {
         this.id = id;
         this.name = name;
         this.partNumber = partNumber;
         this.revision = revision;
         this.description = description;
+        this.version = Math.max(1, version);
+        this.locked = locked;
+        this.measurementDataVersion = Math.max(1, measurementDataVersion);
         this.drawing = drawing;
         this.pages = new ArrayList<>();
         if (drawing != null) {
@@ -77,11 +100,32 @@ public class InspectionPlan {
             LocalDateTime createdAt,
             LocalDateTime updatedAt
     ) {
+        this(id, name, partNumber, revision, description, 1, false, 1, drawing, pages, bubbles, createdAt, updatedAt);
+    }
+
+    public InspectionPlan(
+            String id,
+            String name,
+            String partNumber,
+            String revision,
+            String description,
+            int version,
+            boolean locked,
+            int measurementDataVersion,
+            PlanDrawing drawing,
+            List<PlanPage> pages,
+            List<Bubble> bubbles,
+            LocalDateTime createdAt,
+            LocalDateTime updatedAt
+    ) {
         this.id = id;
         this.name = name;
         this.partNumber = partNumber;
         this.revision = revision;
         this.description = description;
+        this.version = Math.max(1, version);
+        this.locked = locked;
+        this.measurementDataVersion = Math.max(1, measurementDataVersion);
         this.drawing = drawing;
         this.pages = pages == null ? new ArrayList<>() : new ArrayList<>(pages);
         if (this.drawing == null && !this.pages.isEmpty()) {
@@ -101,6 +145,9 @@ public class InspectionPlan {
     }
 
     public void setName(String name) {
+        if (locked) {
+            return;
+        }
         this.name = name;
         touch();
     }
@@ -110,6 +157,9 @@ public class InspectionPlan {
     }
 
     public void setPartNumber(String partNumber) {
+        if (locked) {
+            return;
+        }
         this.partNumber = partNumber;
         touch();
     }
@@ -119,6 +169,9 @@ public class InspectionPlan {
     }
 
     public void setRevision(String revision) {
+        if (locked) {
+            return;
+        }
         this.revision = revision;
         touch();
     }
@@ -128,7 +181,56 @@ public class InspectionPlan {
     }
 
     public void setDescription(String description) {
+        if (locked) {
+            return;
+        }
         this.description = description;
+        touch();
+    }
+
+    public int getVersion() {
+        return version;
+    }
+
+    public void setVersion(int version) {
+        this.version = Math.max(1, version);
+        touch();
+    }
+
+    public boolean isLocked() {
+        return locked;
+    }
+
+    public void setLocked(boolean locked) {
+        this.locked = locked;
+        touch();
+    }
+
+    public int getMeasurementDataVersion() {
+        return measurementDataVersion;
+    }
+
+    public void setMeasurementDataVersion(int measurementDataVersion) {
+        this.measurementDataVersion = Math.max(1, measurementDataVersion);
+        touch();
+    }
+
+    public void incrementVersion() {
+        version++;
+        touch();
+    }
+
+    public void incrementMeasurementDataVersion() {
+        measurementDataVersion++;
+        touch();
+    }
+
+    public void finalizeAndLock() {
+        if (locked) {
+            return;
+        }
+        incrementVersion();
+        locked = true;
         touch();
     }
 
@@ -137,6 +239,9 @@ public class InspectionPlan {
     }
 
     public void setDrawing(PlanDrawing drawing) {
+        if (locked) {
+            return;
+        }
         this.drawing = drawing;
         this.pages.clear();
         if (drawing != null) {
@@ -150,13 +255,16 @@ public class InspectionPlan {
     }
 
     public void setPages(List<PlanPage> pages) {
+        if (locked) {
+            return;
+        }
         this.pages = pages == null ? new ArrayList<>() : new ArrayList<>(pages);
         this.drawing = this.pages.isEmpty() ? null : this.pages.getFirst().getDrawing();
         touch();
     }
 
     public void addPage(PlanPage page) {
-        if (page == null) {
+        if (locked || page == null) {
             return;
         }
 
@@ -168,7 +276,7 @@ public class InspectionPlan {
     }
 
     public void removePage(PlanPage page) {
-        if (page == null) {
+        if (locked || page == null) {
             return;
         }
 
@@ -189,12 +297,15 @@ public class InspectionPlan {
     }
 
     public void setBubbles(List<Bubble> bubbles) {
+        if (locked) {
+            return;
+        }
         this.bubbles = bubbles == null ? new ArrayList<>() : new ArrayList<>(bubbles);
         touch();
     }
 
     public void addBubble(Bubble bubble) {
-        if (bubble == null) {
+        if (locked || bubble == null) {
             return;
         }
 
@@ -204,7 +315,7 @@ public class InspectionPlan {
     }
 
     public void removeBubble(Bubble bubble) {
-        if (bubble == null) {
+        if (locked || bubble == null) {
             return;
         }
 
@@ -214,7 +325,7 @@ public class InspectionPlan {
     }
 
     public void moveBubbleToSequence(Bubble bubble, int requestedSequence) {
-        if (bubble == null) {
+        if (locked || bubble == null) {
             return;
         }
 
@@ -278,6 +389,9 @@ public class InspectionPlan {
     }
 
     public void rename(String newName) {
+        if (locked) {
+            return;
+        }
         this.name = newName;
         touch();
     }
