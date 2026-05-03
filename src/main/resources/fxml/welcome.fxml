@@ -17,6 +17,7 @@
             <HBox alignment="CENTER_LEFT" spacing="16.0">
                 <Label fx:id="welcomeLabel" styleClass="screen-title" text="Welcome" />
                 <Region HBox.hgrow="ALWAYS" />
+                <Button mnemonicParsing="false" onAction="#onOpenAutoBalloonSettings" styleClass="secondary-button" text="OpenAI Settings" />
                 <Button mnemonicParsing="false" onAction="#onSignOut" styleClass="secondary-button" text="Sign Out" />
             </HBox>
         </VBox>

@@ -12,6 +12,7 @@ import view.AppNavigator;
 import java.io.IOException;
 
 public class WelcomeController {
+    private final AppContext appContext;
     private final SessionManager sessionManager;
     private final AuthService authService;
 
@@ -19,6 +20,7 @@ public class WelcomeController {
     private Label welcomeLabel;
 
     public WelcomeController(AppContext appContext) {
+        this.appContext = appContext;
         this.sessionManager = appContext.getSessionManager();
         this.authService = appContext.getAuthService();
     }
@@ -45,6 +47,11 @@ public class WelcomeController {
     @FXML
     private void onOpenPartEditor(ActionEvent event) throws IOException {
         AppNavigator.swapRoot((Node) event.getSource(), "/fxml/inspection-lot-browser.fxml", "PartPlan - Inspection Lots");
+    }
+
+    @FXML
+    private void onOpenAutoBalloonSettings(ActionEvent event) throws IOException {
+        AppNavigator.swapRoot((Node) event.getSource(), "/fxml/auto-balloon-config.fxml", "PartPlan - OpenAI Settings");
     }
 
     @FXML

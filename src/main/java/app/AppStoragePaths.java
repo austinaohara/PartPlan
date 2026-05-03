@@ -19,6 +19,10 @@ public final class AppStoragePaths {
         return appDataDirectory().resolve("session.properties");
     }
 
+    public static Path autoBalloonConfigPath() {
+        return appDataDirectory().resolve("auto-balloon.properties");
+    }
+
     public static Path assetCacheDirectory() {
         return appDataDirectory().resolve("asset-cache");
     }

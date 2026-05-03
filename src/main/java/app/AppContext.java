@@ -1,11 +1,15 @@
 package app;
 
-import service.PdfPageRenderingService;
 import service.asset.ImportWorkspace;
 import service.asset.TempImportWorkspace;
 import service.auth.AuthService;
 import service.auth.FirebaseAuthService;
+import service.autoballoon.AutoBalloonDetectionService;
+import service.autoballoon.OpenAiAutoBalloonService;
+import service.PdfPageRenderingService;
+import service.config.AutoBalloonConfigStore;
 import service.config.FileBackedFirebaseProjectConfigStore;
+import service.config.FileBackedAutoBalloonConfigStore;
 import service.config.FirebaseProjectConfigStore;
 import service.firestore.FirestoreLotRepository;
 import service.firestore.FirestorePlanRepository;
@@ -19,33 +23,40 @@ import java.lang.reflect.Constructor;
 
 public class AppContext {
     private final FirebaseProjectConfigStore projectConfigStore;
+    private final AutoBalloonConfigStore autoBalloonConfigStore;
     private final SessionManager sessionManager;
     private final AuthService authService;
     private final PlanRepository planRepository;
     private final LotRepository lotRepository;
     private final ImportWorkspace assetStore;
     private final PdfPageRenderingService pdfPageRenderingService;
+    private final AutoBalloonDetectionService autoBalloonDetectionService;
 
     public AppContext(
             FirebaseProjectConfigStore projectConfigStore,
+            AutoBalloonConfigStore autoBalloonConfigStore,
             SessionManager sessionManager,
             AuthService authService,
             PlanRepository planRepository,
             LotRepository lotRepository,
             ImportWorkspace assetStore,
-            PdfPageRenderingService pdfPageRenderingService
+            PdfPageRenderingService pdfPageRenderingService,
+            AutoBalloonDetectionService autoBalloonDetectionService
     ) {
         this.projectConfigStore = projectConfigStore;
+        this.autoBalloonConfigStore = autoBalloonConfigStore;
         this.sessionManager = sessionManager;
         this.authService = authService;
         this.planRepository = planRepository;
         this.lotRepository = lotRepository;
         this.assetStore = assetStore;
         this.pdfPageRenderingService = pdfPageRenderingService;
+        this.autoBalloonDetectionService = autoBalloonDetectionService;
     }
 
     public static AppContext createDefault() {
         FirebaseProjectConfigStore projectConfigStore = new FileBackedFirebaseProjectConfigStore();
+        AutoBalloonConfigStore autoBalloonConfigStore = new FileBackedAutoBalloonConfigStore();
         SessionManager sessionManager = new FileBackedSessionManager();
 
         ImportWorkspace assetStore = new TempImportWorkspace();
@@ -54,15 +65,18 @@ public class AppContext {
         FirestoreRestClient firestoreRestClient = new FirestoreRestClient(sessionManager, authService, projectConfigStore);
         PlanRepository planRepository = new FirestorePlanRepository(firestoreRestClient);
         LotRepository lotRepository = new FirestoreLotRepository(firestoreRestClient, planRepository);
+        AutoBalloonDetectionService autoBalloonDetectionService = new OpenAiAutoBalloonService(autoBalloonConfigStore);
 
         return new AppContext(
                 projectConfigStore,
+                autoBalloonConfigStore,
                 sessionManager,
                 authService,
                 planRepository,
                 lotRepository,
                 assetStore,
-                pdfPageRenderingService
+                pdfPageRenderingService,
+                autoBalloonDetectionService
         );
     }
 
@@ -90,6 +104,10 @@ public class AppContext {
         return sessionManager;
     }
 
+    public AutoBalloonConfigStore getAutoBalloonConfigStore() {
+        return autoBalloonConfigStore;
+    }
+
     public AuthService getAuthService() {
         return authService;
     }
@@ -108,6 +126,10 @@ public class AppContext {
 
     public PdfPageRenderingService getPdfPageRenderingService() {
         return pdfPageRenderingService;
+    }
+
+    public AutoBalloonDetectionService getAutoBalloonDetectionService() {
+        return autoBalloonDetectionService;
     }
 
     public Object createController(Class<?> controllerType) {

@@ -45,6 +45,33 @@ public final class UserFacingErrorMessages {
         if (message.contains("Expected page chunk bytes")) {
             return "A saved plan page is incomplete or unreadable in Firestore.";
         }
+        if (message.contains("Auto-balloon settings are missing or incomplete")) {
+            return "Auto-balloon settings are incomplete. Open OpenAI Settings and set the API key.";
+        }
+        if (message.contains("OpenAI rejected the API key")
+                || message.contains("Incorrect API key")
+                || message.contains("invalid_api_key")) {
+            return "OpenAI rejected the configured API key. Update it in OpenAI Settings.";
+        }
+        if (message.contains("insufficient_quota")
+                || message.contains("quota")
+                || message.contains("billing")) {
+            return "OpenAI rejected the request because the API project is out of credits or billing is not active.";
+        }
+        if (message.contains("rate limit")
+                || message.contains("Rate limit")) {
+            return "OpenAI rate limits were hit. Wait briefly or switch to a lower-cost model in OpenAI Settings.";
+        }
+        if (message.contains("Unable to reach OpenAI")) {
+            return "Could not reach OpenAI. Check your internet connection and try again.";
+        }
+        if (message.contains("OpenAI returned no readable auto-balloon JSON")
+                || message.contains("OpenAI returned malformed auto-balloon JSON")) {
+            return "OpenAI responded, but the auto-balloon result could not be read. Try the request again.";
+        }
+        if (message.contains("OpenAI request failed: ")) {
+            return message.substring("OpenAI request failed: ".length());
+        }
         if (message.startsWith("Firestore request failed: ")) {
             return message.substring("Firestore request failed: ".length());
         }

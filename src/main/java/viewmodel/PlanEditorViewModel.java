@@ -16,6 +16,9 @@ import model.PlanDrawing;
 import model.PlanPage;
 import service.PdfPageRenderingService;
 import service.asset.ImportWorkspace;
+import service.autoballoon.AutoBalloonCandidate;
+import service.autoballoon.AutoBalloonDetectionService;
+import service.autoballoon.AutoBalloonRequest;
 import service.repository.LotRepository;
 import service.repository.PlanRepository;
 import service.util.ModelCopies;
@@ -33,6 +36,7 @@ public class PlanEditorViewModel {
     private final LotRepository lotRepository;
     private final ImportWorkspace assetStore;
     private final PdfPageRenderingService pdfPageRenderingService;
+    private final AutoBalloonDetectionService autoBalloonDetectionService;
     private final ObjectProperty<InspectionPlan> currentPlan = new SimpleObjectProperty<>();
     private final ObjectProperty<PlanPage> selectedPage = new SimpleObjectProperty<>();
     private final ObjectProperty<Bubble> selectedBubble = new SimpleObjectProperty<>();
@@ -56,12 +60,14 @@ public class PlanEditorViewModel {
             PlanRepository storageService,
             LotRepository lotRepository,
             ImportWorkspace assetStore,
-            PdfPageRenderingService pdfPageRenderingService
+            PdfPageRenderingService pdfPageRenderingService,
+            AutoBalloonDetectionService autoBalloonDetectionService
     ) {
         this.storageService = Objects.requireNonNull(storageService, "storageService must not be null");
         this.lotRepository = Objects.requireNonNull(lotRepository, "lotRepository must not be null");
         this.assetStore = Objects.requireNonNull(assetStore, "assetStore must not be null");
         this.pdfPageRenderingService = Objects.requireNonNull(pdfPageRenderingService, "pdfPageRenderingService must not be null");
+        this.autoBalloonDetectionService = Objects.requireNonNull(autoBalloonDetectionService, "autoBalloonDetectionService must not be null");
         createNewPlan();
     }
 
@@ -359,6 +365,89 @@ public class PlanEditorViewModel {
         }
     }
 
+    public AutoBalloonRequest createAutoBalloonRequest(int imageWidth, int imageHeight) {
+        ensureCurrentPlanEditable();
+        PlanPage page = selectedPage.get();
+        if (page == null || page.getDrawing() == null) {
+            throw new IllegalStateException("Select a drawing page before running auto-balloon.");
+        }
+
+        String drawingPath = page.getDrawing().getStoredPath();
+        if (drawingPath == null || drawingPath.isBlank()) {
+            throw new IllegalStateException("The selected page has no local drawing image available for auto-ballooning.");
+        }
+
+        return new AutoBalloonRequest(
+                page.getId(),
+                page.getName(),
+                Path.of(drawingPath),
+                imageWidth,
+                imageHeight
+        );
+    }
+
+    public List<AutoBalloonCandidate> detectAutoBalloonCandidates(AutoBalloonRequest request) {
+        return autoBalloonDetectionService.detectBalloons(request);
+    }
+
+    public int applyAutoBalloonCandidates(List<AutoBalloonCandidate> candidates, int imageWidth, int imageHeight) {
+        ensureCurrentPlanEditable();
+        PlanPage page = selectedPage.get();
+        if (page == null) {
+            throw new IllegalStateException("Select a drawing page before applying auto-balloon suggestions.");
+        }
+        if (candidates == null || candidates.isEmpty()) {
+            return 0;
+        }
+        if (imageWidth <= 0 || imageHeight <= 0) {
+            throw new IllegalArgumentException("The selected drawing image dimensions are invalid.");
+        }
+
+        int addedCount = 0;
+        for (AutoBalloonCandidate candidate : candidates) {
+            String characteristic = valueOrEmpty(candidate.characteristic());
+            String detectedText = valueOrEmpty(candidate.detectedText());
+            String noteText = valueOrEmpty(candidate.noteText());
+            if (characteristic.isBlank() && detectedText.isBlank() && noteText.isBlank()) {
+                continue;
+            }
+
+            double x = clampNormalized(candidate.anchorX()) * imageWidth;
+            double y = clampNormalized(candidate.anchorY()) * imageHeight;
+            String resolvedCharacteristic = characteristic;
+            if (resolvedCharacteristic.isBlank()) {
+                resolvedCharacteristic = noteText.isBlank() ? detectedText : "Note";
+            }
+            String resolvedNote = noteText;
+            if (resolvedNote.isBlank() && "Note".equalsIgnoreCase(resolvedCharacteristic)) {
+                resolvedNote = detectedText;
+            }
+            InspectionType inspectionType = "Note".equalsIgnoreCase(resolvedCharacteristic)
+                    ? InspectionType.PASS_FAIL
+                    : InspectionType.NUMERIC;
+            placeBubble(
+                    x,
+                    y,
+                    18.0,
+                    true,
+                    "#E53935",
+                    true,
+                    resolvedCharacteristic,
+                    inspectionType,
+                    inspectionType == InspectionType.NUMERIC ? candidate.nominal() : null,
+                    inspectionType == InspectionType.NUMERIC ? absoluteOrNull(candidate.lowerTolerance()) : null,
+                    inspectionType == InspectionType.NUMERIC ? absoluteOrNull(candidate.upperTolerance()) : null,
+                    resolvedNote
+            );
+            addedCount++;
+        }
+
+        if (addedCount > 0) {
+            markDirty();
+        }
+        return addedCount;
+    }
+
     public Bubble placeBubble(double x, double y) {
         return placeBubble(x, y, 18.0, true, "#E53935", true, "", InspectionType.NUMERIC, null, null, null, "");
     }
@@ -607,6 +696,17 @@ public class PlanEditorViewModel {
             unsavedChanges.set(true);
             saveState.set("Unsaved changes");
         }
+    }
+
+    private double clampNormalized(double value) {
+        if (Double.isNaN(value) || Double.isInfinite(value)) {
+            return 0.5;
+        }
+        return Math.max(0.0, Math.min(1.0, value));
+    }
+
+    private Double absoluteOrNull(Double value) {
+        return value == null ? null : Math.abs(value);
     }
 
     private void upsertSavedPlan(InspectionPlan plan) {

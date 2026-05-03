@@ -39,6 +39,7 @@ import model.InspectionLotSummary;
 import model.Bubble;
 import model.InspectionType;
 import model.PlanPage;
+import service.autoballoon.AutoBalloonRequest;
 import service.export.ExportFormat;
 import service.export.InspectionExportService;
 import viewmodel.PlanEditorViewModel;
@@ -94,7 +95,8 @@ public class PlanEditorController {
                 appContext.getPlanRepository(),
                 appContext.getLotRepository(),
                 appContext.getAssetStore(),
-                appContext.getPdfPageRenderingService()
+                appContext.getPdfPageRenderingService(),
+                appContext.getAutoBalloonDetectionService()
         );
     }
 
@@ -143,6 +145,8 @@ public class PlanEditorController {
     private Button createRevisionButton;
     @FXML
     private Button addPageButton;
+    @FXML
+    private Button autoBalloonButton;
 
     // Panel collapse fields
     @FXML
@@ -233,6 +237,9 @@ public class PlanEditorController {
                 .or(viewModel.saveInProgressProperty())
                 .or(repositoryBusy));
         addPageButton.disableProperty().bind(viewModel.currentPlanEditableProperty().not().or(repositoryBusy));
+        autoBalloonButton.disableProperty().bind(viewModel.currentPlanEditableProperty().not()
+                .or(viewModel.drawingLoadedProperty().not())
+                .or(repositoryBusy));
         completePlanButton.disableProperty().bind(viewModel.currentPlanEditableProperty().not().or(repositoryBusy));
         createRevisionButton.disableProperty().bind(viewModel.currentPlanCompleteProperty().not().or(repositoryBusy));
         planUnsavedLabel.textProperty().bind(viewModel.saveStateProperty());
@@ -486,6 +493,50 @@ public class PlanEditorController {
             repositoryBusy.set(false);
             showFailure(failure, "Unable to create a revision.");
         });
+    }
+
+    @FXML
+    private void onAutoBalloonPage() {
+        if (!viewModel.isCurrentPlanEditable()) {
+            showInformation("Complete plans are read-only. Create a revision to make changes.");
+            return;
+        }
+        if (drawingImageView.getImage() == null || viewModel.getSelectedPage() == null) {
+            showInformation("Select a drawing page before running auto-balloon.");
+            return;
+        }
+
+        int imageWidth = (int) Math.round(drawingImageView.getImage().getWidth());
+        int imageHeight = (int) Math.round(drawingImageView.getImage().getHeight());
+        AutoBalloonRequest request;
+        try {
+            request = viewModel.createAutoBalloonRequest(imageWidth, imageHeight);
+        } catch (RuntimeException exception) {
+            showInformation(exception.getMessage());
+            return;
+        }
+
+        repositoryBusy.set(true);
+        autoBalloonButton.setText("Detecting...");
+        BackgroundTaskRunner.run("plan-auto-balloon",
+                () -> viewModel.detectAutoBalloonCandidates(request),
+                candidates -> {
+                    repositoryBusy.set(false);
+                    autoBalloonButton.setText("Auto-Balloon Page");
+                    int addedCount = viewModel.applyAutoBalloonCandidates(candidates, imageWidth, imageHeight);
+                    renderBubbles();
+                    syncBubbleListSelection(viewModel.getSelectedBubble());
+                    if (addedCount == 0) {
+                        showInformation("No callouts were detected on this page.");
+                        return;
+                    }
+                    showInformation(addedCount + " auto-balloon candidate" + (addedCount == 1 ? " was" : "s were") + " added to the current page.");
+                },
+                failure -> {
+                    repositoryBusy.set(false);
+                    autoBalloonButton.setText("Auto-Balloon Page");
+                    showFailure(failure, "Unable to auto-balloon the selected page.");
+                });
     }
 
     @FXML

@@ -37,6 +37,7 @@
                 <Button fx:id="completePlanButton" mnemonicParsing="false" onAction="#onCompletePlan" styleClass="primary-button" text="Complete Plan" />
                 <Button fx:id="createRevisionButton" mnemonicParsing="false" onAction="#onCreateRevision" styleClass="secondary-button" text="Create Revision" />
                 <Button fx:id="addPageButton" mnemonicParsing="false" onAction="#onImportDrawing" styleClass="primary-button" text="Add Page" />
+                <Button fx:id="autoBalloonButton" mnemonicParsing="false" onAction="#onAutoBalloonPage" styleClass="secondary-button" text="Auto-Balloon Page" />
                 <MenuButton mnemonicParsing="false" text="Export" styleClass="secondary-button">
                     <items>
                         <MenuItem mnemonicParsing="false" text="Export as CSV" onAction="#onExportCsv"/>
