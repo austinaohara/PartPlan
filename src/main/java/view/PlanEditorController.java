@@ -1,7 +1,6 @@
 package view;
 
 import app.AppContext;
-import javafx.beans.binding.Bindings;
 import javafx.application.Platform;
 import javafx.collections.ListChangeListener;
 import javafx.collections.transformation.FilteredList;
@@ -201,7 +200,6 @@ public class PlanEditorController {
         addPageButton.disableProperty().bind(viewModel.currentPlanEditableProperty().not());
         completePlanButton.disableProperty().bind(viewModel.currentPlanEditableProperty().not());
         createRevisionButton.disableProperty().bind(viewModel.currentPlanCompleteProperty().not());
-        bubbleEditorPane.disableProperty().bind(viewModel.currentPlanEditableProperty().not());
         drawingScrollPane.setVisible(false);
         drawingScrollPane.setManaged(false);
         pdfPreviewLabel.setVisible(false);
@@ -226,14 +224,11 @@ public class PlanEditorController {
         useDefaultDiameterCheckBox.selectedProperty().addListener((observable, oldValue, newValue) -> updateDefaultControlLocks());
         useDefaultColorCheckBox.selectedProperty().addListener((observable, oldValue, newValue) -> updateDefaultControlLocks());
         inspectionTypeComboBox.valueProperty().addListener((observable, oldValue, newValue) -> updateInspectionTypeControls());
+        viewModel.currentPlanEditableProperty().addListener((observable, oldValue, newValue) -> refreshBubbleEditor(viewModel.getSelectedBubble()));
         refreshBubbleEditor(null);
 
         savedPlansListView.setItems(viewModel.getSavedPlans());
-        deletePlanButton.disableProperty().bind(Bindings.createBooleanBinding(() -> {
-                    InspectionPlan selectedPlan = savedPlansListView.getSelectionModel().getSelectedItem();
-                    return selectedPlan == null || selectedPlan.isComplete();
-                },
-                savedPlansListView.getSelectionModel().selectedItemProperty()));
+        deletePlanButton.disableProperty().bind(savedPlansListView.getSelectionModel().selectedItemProperty().isNull());
         savedPlansListView.setCellFactory(listView -> new ListCell<>() {
             protected void updateItem(InspectionPlan item, boolean empty) {
                 super.updateItem(item, empty);
@@ -274,9 +269,6 @@ public class PlanEditorController {
             bubbleSearchField.clear();
             syncSelectedPage(newPage);
         });
-        viewModel.getSavedPlans().addListener(
-                (ListChangeListener<InspectionPlan>) change -> selectCurrentPlanIfPresent());
-
         // Bubble list (feature #51 + #52 + #61 sort)
         filteredBubbles = new FilteredList<>(viewModel.getPageBubbles(), b -> true);
         sortedBubbles = new SortedList<>(filteredBubbles);
@@ -451,7 +443,7 @@ public class PlanEditorController {
         Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
         alert.setTitle("Delete Plan");
         alert.setHeaderText("Delete selected plan?");
-        alert.setContentText(selectedPlan.getName());
+        alert.setContentText(buildDeletePlanMessage(selectedPlan));
         Optional<ButtonType> result = alert.showAndWait();
         if (result.isEmpty() || result.get() != ButtonType.OK) return;
         try {
@@ -1110,6 +1102,7 @@ public class PlanEditorController {
     }
 
     private void refreshBubbleEditor(Bubble selectedBubble) {
+        boolean editable = viewModel.isCurrentPlanEditable();
         if (selectedBubble == null) {
             bubbleModeLabel.setText("Default Bubble Settings");
             bubbleHintLabel.setText("Shift + Click to place a bubble. Ctrl + C to copy.");
@@ -1122,6 +1115,7 @@ public class PlanEditorController {
             bubbleDiameterField.setText(formatNumber(defaultBubbleDiameter));
             bubbleNumberField.clear();
             bubbleNumberField.setDisable(true);
+            bubbleNumberField.setEditable(false);
             bubbleColorField.setText(defaultBubbleColor);
             updatingBubbleDefaultsUi = false;
             characteristicField.setText(defaultCharacteristic);
@@ -1130,6 +1124,7 @@ public class PlanEditorController {
             lowerToleranceField.setText(defaultLowerTolerance);
             upperToleranceField.setText(defaultUpperTolerance);
             bubbleNoteArea.setText(defaultNote);
+            setBubbleEditorEditable(editable);
             updateDefaultControlLocks();
             updateInspectionTypeControls();
             return;
@@ -1138,8 +1133,8 @@ public class PlanEditorController {
         bubbleModeLabel.setText("Selected Bubble");
         bubbleHintLabel.setText("Bubble " + selectedBubble.getLabel() + String.format(" at %.1f, %.1f", selectedBubble.getX(), selectedBubble.getY()));
         saveBubbleButton.setText("Save Bubble");
-        deleteBubbleButton.setDisable(false);
-        copyBubbleButton.setDisable(false); // when a bubble is selected
+        deleteBubbleButton.setDisable(!editable);
+        copyBubbleButton.setDisable(!editable); // when a bubble is selected
         updatingBubbleDefaultsUi = true;
         useDefaultDiameterCheckBox.setSelected(selectedBubble.isUseDefaultDiameter());
         useDefaultColorCheckBox.setSelected(selectedBubble.isUseDefaultColor());
@@ -1147,7 +1142,8 @@ public class PlanEditorController {
                 ? formatNumber(defaultBubbleDiameter)
                 : formatNumber(selectedBubble.getRadius() * 2.0));
         bubbleNumberField.setText(String.valueOf(selectedBubble.getSequenceNumber()));
-        bubbleNumberField.setDisable(false);
+        bubbleNumberField.setDisable(!editable);
+        bubbleNumberField.setEditable(editable);
         bubbleColorField.setText(useDefaultColorCheckBox.isSelected()
                 ? defaultBubbleColor
                 : selectedBubble.getColor());
@@ -1158,6 +1154,7 @@ public class PlanEditorController {
         lowerToleranceField.setText(formatNullableNumber(selectedBubble.getLowerTolerance()));
         upperToleranceField.setText(formatNullableNumber(selectedBubble.getUpperTolerance()));
         bubbleNoteArea.setText(selectedBubble.getNote());
+        setBubbleEditorEditable(editable);
         updateDefaultControlLocks();
         updateInspectionTypeControls();
     }
@@ -1198,16 +1195,17 @@ public class PlanEditorController {
     private void updateInspectionTypeControls() {
         InspectionType inspectionType = inspectionTypeComboBox.getValue();
         boolean passFail = inspectionType == InspectionType.PASS_FAIL;
+        boolean editable = viewModel.isCurrentPlanEditable();
 
-        if (passFail) {
+        if (passFail && editable) {
             nominalValueField.clear();
             lowerToleranceField.clear();
             upperToleranceField.clear();
         }
 
-        nominalValueField.setDisable(passFail);
-        lowerToleranceField.setDisable(passFail);
-        upperToleranceField.setDisable(passFail);
+        nominalValueField.setDisable(!editable || passFail);
+        lowerToleranceField.setDisable(!editable || passFail);
+        upperToleranceField.setDisable(!editable || passFail);
     }
 
     private void updateDefaultControlLocks() {
@@ -1216,10 +1214,14 @@ public class PlanEditorController {
         }
 
         Bubble selectedBubble = viewModel.getSelectedBubble();
+        boolean editable = viewModel.isCurrentPlanEditable();
+        useDefaultDiameterCheckBox.setDisable(!editable);
+        useDefaultColorCheckBox.setDisable(!editable);
+        inspectionTypeComboBox.setDisable(!editable);
 
         if (selectedBubble == null) {
-            bubbleDiameterField.setDisable(false);
-            bubbleColorField.setDisable(false);
+            bubbleDiameterField.setDisable(!editable);
+            bubbleColorField.setDisable(!editable);
             return;
         }
 
@@ -1227,7 +1229,7 @@ public class PlanEditorController {
             bubbleDiameterField.setText(formatNumber(defaultBubbleDiameter));
             bubbleDiameterField.setDisable(true);
         } else {
-            bubbleDiameterField.setDisable(false);
+            bubbleDiameterField.setDisable(!editable);
             if (selectedBubble.isUseDefaultDiameter()) {
                 bubbleDiameterField.setText(formatNumber(selectedBubble.getRadius() * 2.0));
             }
@@ -1237,7 +1239,7 @@ public class PlanEditorController {
             bubbleColorField.setText(defaultBubbleColor);
             bubbleColorField.setDisable(true);
         } else {
-            bubbleColorField.setDisable(false);
+            bubbleColorField.setDisable(!editable);
             if (selectedBubble.isUseDefaultColor()) {
                 bubbleColorField.setText(selectedBubble.getColor());
             }
@@ -1382,5 +1384,25 @@ public class PlanEditorController {
         String versionText = plan.getVersion() <= 0 ? "Draft" : "v" + plan.getVersion();
         String statusText = plan.isComplete() ? "Complete" : "Pending";
         return name + " (" + statusText + ", " + versionText + ")";
+    }
+
+    private String buildDeletePlanMessage(InspectionPlan plan) {
+        String name = plan.getName() == null || plan.getName().isBlank() ? "Untitled Plan" : plan.getName().trim();
+        if (!plan.isComplete()) {
+            return name;
+        }
+        return name + "\n\nDeleting a completed plan can invalidate inspection lots that reference it.";
+    }
+
+    private void setBubbleEditorEditable(boolean editable) {
+        saveBubbleButton.setDisable(!editable);
+        characteristicField.setEditable(editable);
+        bubbleNoteArea.setEditable(editable);
+        bubbleDiameterField.setEditable(editable);
+        bubbleNumberField.setEditable(editable);
+        bubbleColorField.setEditable(editable);
+        nominalValueField.setEditable(editable);
+        lowerToleranceField.setEditable(editable);
+        upperToleranceField.setEditable(editable);
     }
 }

@@ -33,7 +33,7 @@
                 <Button mnemonicParsing="false" onAction="#onNewPlan" styleClass="secondary-button" text="New Plan" />
                 <Button fx:id="savePlanButton" mnemonicParsing="false" onAction="#onSavePlan" styleClass="primary-button" text="Save Draft" />
                 <Button mnemonicParsing="false" onAction="#onOpenPlan" styleClass="secondary-button" text="Open Plan" />
-                <Button fx:id="deletePlanButton" mnemonicParsing="false" onAction="#onDeletePlan" styleClass="secondary-button" text="Delete Draft" />
+                <Button fx:id="deletePlanButton" mnemonicParsing="false" onAction="#onDeletePlan" styleClass="secondary-button" text="Delete Plan" />
                 <Button fx:id="completePlanButton" mnemonicParsing="false" onAction="#onCompletePlan" styleClass="primary-button" text="Complete Plan" />
                 <Button fx:id="createRevisionButton" mnemonicParsing="false" onAction="#onCreateRevision" styleClass="secondary-button" text="Create Revision" />
                 <Button fx:id="addPageButton" mnemonicParsing="false" onAction="#onImportDrawing" styleClass="primary-button" text="Add Page" />
@@ -65,7 +65,7 @@
                     <HBox HBox.hgrow="ALWAYS" />
                     <Button onAction="#onToggleLeftPanel" styleClass="tool-window-close-btn" text="X" />
                 </HBox>
-                <VBox fx:id="bubbleEditorPane" spacing="10.0" VBox.vgrow="ALWAYS">
+                <VBox spacing="10.0" VBox.vgrow="ALWAYS">
                     <padding>
                         <Insets bottom="16.0" left="16.0" right="16.0" top="12.0" />
                     </padding>
@@ -134,7 +134,7 @@
                     <Button onAction="#onToggleRightPanel" styleClass="tool-window-close-btn" text="X" />
                     <Label styleClass="tool-window-title" text="Bubble Data" HBox.hgrow="ALWAYS" />
                 </HBox>
-                <VBox spacing="10.0" VBox.vgrow="ALWAYS">
+                <VBox fx:id="bubbleEditorPane" spacing="10.0" VBox.vgrow="ALWAYS">
                     <padding>
                         <Insets bottom="16.0" left="16.0" right="16.0" top="12.0" />
                     </padding>

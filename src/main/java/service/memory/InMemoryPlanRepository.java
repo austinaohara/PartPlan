@@ -109,10 +109,7 @@ public class InMemoryPlanRepository implements PlanRepository {
 
     @Override
     public synchronized void deletePlan(String planId) {
-        InspectionPlan storedPlan = requirePlan(planId);
-        if (storedPlan.isComplete()) {
-            throw new IllegalStateException("Complete plans cannot be deleted.");
-        }
+        requirePlan(planId);
         plansForCurrentUser().remove(planId);
     }
 
