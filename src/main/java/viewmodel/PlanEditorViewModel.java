@@ -47,6 +47,7 @@ public class PlanEditorViewModel {
     private final BooleanProperty drawingLoaded = new SimpleBooleanProperty(false);
     private final BooleanProperty currentPlanEditable = new SimpleBooleanProperty(true);
     private final BooleanProperty currentPlanComplete = new SimpleBooleanProperty(false);
+    private final BooleanProperty unsavedChanges = new SimpleBooleanProperty(false);
 
     public PlanEditorViewModel(
             PlanRepository storageService,
@@ -65,6 +66,7 @@ public class PlanEditorViewModel {
     public void createNewPlan() {
         InspectionPlan plan = new InspectionPlan(DEFAULT_PLAN_NAME);
         loadPlan(plan);
+        unsavedChanges.set(true);
     }
 
     public void renamePlan(String newName) {
@@ -73,6 +75,7 @@ public class PlanEditorViewModel {
         String sanitizedName = sanitizePlanName(newName);
         plan.rename(sanitizedName);
         planName.set(plan.getName());
+        markDirty();
     }
 
     public void importDrawing(File drawingFile) {
@@ -115,6 +118,7 @@ public class PlanEditorViewModel {
         plan.addPage(page);
         planPages.setAll(plan.getPages());
         selectPage(page);
+        markDirty();
         return page;
     }
 
@@ -292,6 +296,14 @@ public class PlanEditorViewModel {
         return currentPlanComplete.get();
     }
 
+    public BooleanProperty unsavedChangesProperty() {
+        return unsavedChanges;
+    }
+
+    public boolean hasUnsavedChanges() {
+        return unsavedChanges.get();
+    }
+
     public Bubble placeBubble(double x, double y) {
         return placeBubble(x, y, 18.0, true, "#E53935", true, "", InspectionType.NUMERIC, null, null, null, "");
     }
@@ -371,7 +383,7 @@ public class PlanEditorViewModel {
         bubble.setUpperTolerance(parseNullableDouble(upperToleranceText));
         bubble.setNote(valueOrEmpty(note));
         refreshPageBubbles();
-        persistPlanSilently();
+        markDirty();
     }
 
     public void moveBubble(Bubble bubble, double x, double y) {
@@ -383,11 +395,12 @@ public class PlanEditorViewModel {
         bubble.setX(x);
         bubble.setY(y);
         refreshPageBubbles();
+        markDirty();
     }
 
     public void persistBubbleLayout() {
         ensureCurrentPlanEditable();
-        persistPlanSilently();
+        markDirty();
     }
 
     public Bubble copySelectedBubble() {
@@ -429,7 +442,7 @@ public class PlanEditorViewModel {
         plan.addBubble(copy);
         refreshPageBubbles();
         selectedBubble.set(copy);
-        persistPlanSilently();
+        markDirty();
         return copy;
     }
 
@@ -444,7 +457,7 @@ public class PlanEditorViewModel {
         plan.removeBubble(bubble);
         selectedBubble.set(null);
         refreshPageBubbles();
-        persistPlanSilently();
+        markDirty();
     }
 
     public void applyBubbleDefaults(double diameter, String color) {
@@ -463,7 +476,7 @@ public class PlanEditorViewModel {
         }
 
         refreshPageBubbles();
-        persistPlanSilently();
+        markDirty();
     }
 
     private void loadPlan(InspectionPlan plan) {
@@ -473,6 +486,7 @@ public class PlanEditorViewModel {
         planName.set(plan.getName());
         refreshCurrentPlanMetadata(plan);
         planPages.setAll(plan.getPages());
+        unsavedChanges.set(false);
 
         if (planPages.isEmpty()) {
             clearDrawingState();
@@ -545,6 +559,7 @@ public class PlanEditorViewModel {
         Bubble currentBubble = selectedBubble.get();
 
         storageService.savePlan(plan);
+        unsavedChanges.set(false);
         refreshCurrentPlanMetadata(plan);
         planPages.setAll(plan.getPages());
 
@@ -573,6 +588,13 @@ public class PlanEditorViewModel {
                 .orElse(null);
         selectedBubble.set(matchingBubble);
         refreshSavedPlans();
+    }
+
+    private void markDirty() {
+        InspectionPlan plan = currentPlan.get();
+        if (plan != null && plan.isPending()) {
+            unsavedChanges.set(true);
+        }
     }
 
     private void refreshPageBubbles() {

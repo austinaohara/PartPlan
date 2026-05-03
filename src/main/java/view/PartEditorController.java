@@ -55,6 +55,8 @@ public class PartEditorController {
     @FXML
     private Label nextPlanVersionLabel;
     @FXML
+    private Label lotUnsavedLabel;
+    @FXML
     private ComboBox<PartRecord> partSelectorComboBox;
     @FXML
     private Label currentPartTitleLabel;
@@ -76,6 +78,8 @@ public class PartEditorController {
     private Button nextPartButton;
     @FXML
     private Button upversionLotButton;
+    @FXML
+    private Button saveLotButton;
 
     @FXML
     private void initialize() {
@@ -118,6 +122,20 @@ public class PartEditorController {
 
         viewModel.saveCurrentLotName(lotNameField.getText());
         syncLoadedLotState();
+    }
+
+    @FXML
+    private void onSaveLot() {
+        if (!viewModel.lotLoadedProperty().get()) {
+            return;
+        }
+
+        onLotNameCommitted();
+        viewModel.saveCurrentLot();
+        syncLoadedLotState();
+        syncPartSelection();
+        rebuildMasterColumns();
+        showInformation("Inspection lot saved to Firebase.");
     }
 
     @FXML
@@ -276,12 +294,15 @@ public class PartEditorController {
         lotNameField.disableProperty().bind(viewModel.lotLoadedProperty().not());
         lotSizeSpinner.disableProperty().bind(viewModel.lotLoadedProperty().not());
         partSelectorComboBox.disableProperty().bind(viewModel.lotLoadedProperty().not());
+        saveLotButton.disableProperty().bind(viewModel.lotLoadedProperty().not().or(viewModel.unsavedChangesProperty().not()));
         upversionLotButton.disableProperty().bind(viewModel.lotLoadedProperty().not().or(viewModel.upversionAvailableProperty().not()));
         previousPartButton.disableProperty().bind(viewModel.lotLoadedProperty().not()
                 .or(viewModel.currentPartNumberProperty().lessThanOrEqualTo(1)));
         nextPartButton.disableProperty().bind(viewModel.lotLoadedProperty().not()
                 .or(viewModel.currentPartNumberProperty().greaterThanOrEqualTo(viewModel.lotSizeProperty())));
         editorTabPane.disableProperty().bind(viewModel.lotLoadedProperty().not());
+        lotUnsavedLabel.visibleProperty().bind(viewModel.unsavedChangesProperty());
+        lotUnsavedLabel.managedProperty().bind(lotUnsavedLabel.visibleProperty());
 
         viewModel.currentPartNumberProperty().addListener((observable, oldValue, newValue) -> syncPartSelection());
     }

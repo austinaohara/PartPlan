@@ -35,6 +35,7 @@ public class PartEditorViewModel {
     private final StringProperty currentPlanName = new SimpleStringProperty(NO_PLAN_SELECTED);
     private final BooleanProperty lotLoaded = new SimpleBooleanProperty(false);
     private final BooleanProperty upversionAvailable = new SimpleBooleanProperty(false);
+    private final BooleanProperty unsavedChanges = new SimpleBooleanProperty(false);
     private final StringProperty upversionTargetLabel = new SimpleStringProperty(NO_UPVERSION_AVAILABLE);
 
     private InspectionLot currentLot;
@@ -98,6 +99,10 @@ public class PartEditorViewModel {
         return upversionAvailable;
     }
 
+    public BooleanProperty unsavedChangesProperty() {
+        return unsavedChanges;
+    }
+
     public StringProperty upversionTargetLabelProperty() {
         return upversionTargetLabel;
     }
@@ -111,6 +116,7 @@ public class PartEditorViewModel {
         currentPartNumber.set(1);
         lotLoaded.set(true);
         refreshAll();
+        unsavedChanges.set(false);
     }
 
     public void saveCurrentLotName(String proposedName) {
@@ -119,9 +125,11 @@ public class PartEditorViewModel {
         }
 
         String normalizedName = normalizeLotName(proposedName, currentLot.getName());
-        currentLot.setName(normalizedName);
-        lotRepository.saveLotName(currentLot.getId(), normalizedName);
-        refreshAll();
+        if (!normalizedName.equals(currentLot.getName())) {
+            currentLot.setName(normalizedName);
+            refreshAll();
+            markDirty();
+        }
     }
 
     public void setLotSize(int value) {
@@ -134,8 +142,8 @@ public class PartEditorViewModel {
         if (currentPartNumber.get() > currentLot.getLotSize()) {
             currentPartNumber.set(currentLot.getLotSize());
         }
-        lotRepository.saveLotStructure(currentLot);
         refreshAll();
+        markDirty();
     }
 
     public void selectPart(int partNumber) {
@@ -175,11 +183,21 @@ public class PartEditorViewModel {
         boolean refreshSelectedPart = currentPart != null && currentPart.getId().equals(part.getId());
 
         part.setMeasurement(bubbleId, value);
-        lotRepository.saveMeasurement(currentLot.getId(), part.getId(), bubbleId, value);
+        markDirty();
 
         if (refreshSelectedPart) {
             refreshCurrentPartRows();
         }
+    }
+
+    public void saveCurrentLot() {
+        if (currentLot == null) {
+            return;
+        }
+
+        lotRepository.saveLotStructure(currentLot);
+        refreshAll();
+        unsavedChanges.set(false);
     }
 
     public InspectionLot upversionCurrentLot() {
@@ -193,6 +211,7 @@ public class PartEditorViewModel {
         InspectionPlan fullTargetPlan = planRepository.loadPlan(latestUpversionTarget.getId());
         currentLot = lotRepository.upversionLot(currentLot.getId(), fullTargetPlan);
         refreshAll();
+        unsavedChanges.set(false);
         return currentLot;
     }
 
@@ -310,5 +329,11 @@ public class PartEditorViewModel {
             return baseName;
         }
         return baseName + " v" + plan.getVersion();
+    }
+
+    private void markDirty() {
+        if (currentLot != null) {
+            unsavedChanges.set(true);
+        }
     }
 }

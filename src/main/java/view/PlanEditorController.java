@@ -81,6 +81,8 @@ public class PlanEditorController {
     @FXML
     private Label planVersionValueLabel;
     @FXML
+    private Label planUnsavedLabel;
+    @FXML
     private Label drawingFileNameLabel;
     @FXML
     private Label drawingPathLabel;
@@ -198,10 +200,12 @@ public class PlanEditorController {
         emptyStateLabel.visibleProperty().bind(viewModel.drawingLoadedProperty().not());
         emptyStateLabel.managedProperty().bind(emptyStateLabel.visibleProperty());
         planNameField.disableProperty().bind(viewModel.currentPlanEditableProperty().not());
-        savePlanButton.disableProperty().bind(viewModel.currentPlanEditableProperty().not());
+        savePlanButton.disableProperty().bind(viewModel.currentPlanEditableProperty().not().or(viewModel.unsavedChangesProperty().not()));
         addPageButton.disableProperty().bind(viewModel.currentPlanEditableProperty().not());
         completePlanButton.disableProperty().bind(viewModel.currentPlanEditableProperty().not());
         createRevisionButton.disableProperty().bind(viewModel.currentPlanCompleteProperty().not());
+        planUnsavedLabel.visibleProperty().bind(viewModel.unsavedChangesProperty());
+        planUnsavedLabel.managedProperty().bind(planUnsavedLabel.visibleProperty());
         drawingScrollPane.setVisible(false);
         drawingScrollPane.setManaged(false);
         pdfPreviewLabel.setVisible(false);
@@ -386,7 +390,7 @@ public class PlanEditorController {
         loadDrawingPreview(viewModel.getDrawingPath());
         selectCurrentPageIfPresent();
         selectCurrentPlanIfPresent();
-        showInformation("Plan saved in the current session.");
+        showInformation("Plan saved to Firebase.");
     }
 
     @FXML

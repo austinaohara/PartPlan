@@ -37,6 +37,8 @@
                 <Label fx:id="loadedPlanLabel" styleClass="toolbar-pill" text="No plan selected" />
                 <Label styleClass="field-label" text="Next Version" />
                 <Label fx:id="nextPlanVersionLabel" styleClass="toolbar-pill" text="No newer version" />
+                <Label fx:id="lotUnsavedLabel" managed="false" styleClass="toolbar-pill" text="Unsaved changes" visible="false" />
+                <Button fx:id="saveLotButton" mnemonicParsing="false" onAction="#onSaveLot" styleClass="primary-button" text="Save Lot" />
                 <Button fx:id="upversionLotButton" mnemonicParsing="false" onAction="#onUpversionLot" styleClass="secondary-button" text="Upversion Lot" />
                 <Label styleClass="field-label" text="Summary" />
                 <Label fx:id="lotSummaryLabel" styleClass="toolbar-pill" text="No inspection lot selected" />
@@ -53,7 +55,7 @@
                             <Insets bottom="24.0" left="24.0" right="24.0" top="24.0" />
                         </padding>
                         <Label styleClass="panel-title" text="Lot Overview" />
-                        <Label styleClass="editor-copy" text="Edit measurements for any part directly in the lot overview. Bubble columns scroll horizontally when the lot has many characteristics." wrapText="true" />
+                        <Label styleClass="editor-copy" text="Edit measurements for any part directly in the lot overview, then save the lot when you are ready to write changes to Firebase." wrapText="true" />
                         <TableView fx:id="masterTableView" editable="true" VBox.vgrow="ALWAYS">
                             <columnResizePolicy>
                                 <TableView fx:constant="UNCONSTRAINED_RESIZE_POLICY" />
@@ -81,7 +83,7 @@
                                     <Insets bottom="24.0" left="24.0" right="24.0" top="24.0" />
                                 </padding>
                                 <Label fx:id="currentPartTitleLabel" styleClass="panel-title" text="Measurements for Part 1 of 1" />
-                                <Label styleClass="editor-copy" text="Bubbles come from the lot&apos;s saved plan snapshot. Enter measurement values for the current part and they will be saved automatically." wrapText="true" />
+                                <Label styleClass="editor-copy" text="Bubbles come from the lot&apos;s saved plan snapshot. Enter measurement values for the current part, then save the lot to write them to Firebase." wrapText="true" />
                                 <TableView fx:id="partTableView" editable="true" VBox.vgrow="ALWAYS">
                                     <columnResizePolicy>
                                         <TableView fx:constant="CONSTRAINED_RESIZE_POLICY" />
