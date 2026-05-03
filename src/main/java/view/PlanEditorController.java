@@ -69,11 +69,24 @@ public class PlanEditorController {
     private double zoomLevel = DEFAULT_ZOOM;
     private final InspectionExportService exportService = new InspectionExportService();
     private Window guardedWindow;
-    private final javafx.event.EventHandler<WindowEvent> closeRequestHandler = event -> {
-        if (!canProceedWithPotentialDiscard("close the plan editor", false)) {
-            event.consume();
+    private boolean allowWindowClose;
+    private final javafx.event.EventHandler<WindowEvent> closeRequestHandler = this::handleCloseRequest;
+
+    private void handleCloseRequest(WindowEvent event) {
+        if (allowWindowClose) {
+            allowWindowClose = false;
+            return;
         }
-    };
+        if (repositoryBusy.get()) {
+            event.consume();
+            return;
+        }
+        if (!viewModel.hasUnsavedChanges()) {
+            return;
+        }
+        event.consume();
+        requestProceedWithPotentialUnsavedChanges("close the plan editor", false, this::closeWindowAfterSaveOrDiscard);
+    }
 
     public PlanEditorController(AppContext appContext) {
         this.viewModel = new PlanEditorViewModel(
@@ -394,14 +407,15 @@ public class PlanEditorController {
 
     @FXML
     private void onNewPlan() {
-        if (!canProceedWithPotentialDiscard("start a new plan", true)) {
-            return;
-        }
-        applyNewPlanView();
+        requestProceedWithPotentialUnsavedChanges("start a new plan", true, this::applyNewPlanView);
     }
 
     @FXML
     private void onSavePlan() {
+        saveCurrentPlanAsync(null);
+    }
+
+    private void saveCurrentPlanAsync(Runnable onSuccessContinuation) {
         if (!viewModel.isCurrentPlanEditable()) {
             showInformation("Complete plans are read-only. Create a revision to make changes.");
             return;
@@ -425,6 +439,9 @@ public class PlanEditorController {
             viewModel.finishSaveSuccess(savedPlan);
             savePlanButton.setText("Save Draft");
             selectCurrentPlanIfPresent();
+            if (onSuccessContinuation != null) {
+                onSuccessContinuation.run();
+            }
         }, failure -> {
             repositoryBusy.set(false);
             viewModel.finishSaveFailure(snapshot.getId());
@@ -483,21 +500,19 @@ public class PlanEditorController {
             showInformation("Select a saved plan first.");
             return;
         }
-        if (!canProceedWithPotentialDiscard("open another plan", true)) {
-            return;
-        }
-
-        repositoryBusy.set(true);
-        BackgroundTaskRunner.run("plan-open", () -> viewModel.loadPlanFromRepository(selectedPlan.getId()), loadedPlan -> {
-            repositoryBusy.set(false);
-            viewModel.applyLoadedPlan(loadedPlan);
-            viewModel.addOrUpdateSavedPlan(loadedPlan);
-            refreshLoadedPlanView();
-        }, failure -> {
-            repositoryBusy.set(false);
-            showInformation(failure == null || failure.getMessage() == null
-                    ? "Unable to open the selected plan."
-                    : failure.getMessage());
+        requestProceedWithPotentialUnsavedChanges("open another plan", true, () -> {
+            repositoryBusy.set(true);
+            BackgroundTaskRunner.run("plan-open", () -> viewModel.loadPlanFromRepository(selectedPlan.getId()), loadedPlan -> {
+                repositoryBusy.set(false);
+                viewModel.applyLoadedPlan(loadedPlan);
+                viewModel.addOrUpdateSavedPlan(loadedPlan);
+                refreshLoadedPlanView();
+            }, failure -> {
+                repositoryBusy.set(false);
+                showInformation(failure == null || failure.getMessage() == null
+                        ? "Unable to open the selected plan."
+                        : failure.getMessage());
+            });
         });
     }
 
@@ -511,10 +526,15 @@ public class PlanEditorController {
         InspectionPlan currentPlan = viewModel.getCurrentPlan();
         if (currentPlan != null
                 && selectedPlan.getId().equals(currentPlan.getId())
-                && !canProceedWithPotentialDiscard("delete the current plan", true)) {
+                && viewModel.hasUnsavedChanges()) {
+            requestProceedWithPotentialUnsavedChanges("delete the current plan", true, () -> proceedDeletePlan(selectedPlan));
             return;
         }
 
+        proceedDeletePlan(selectedPlan);
+    }
+
+    private void proceedDeletePlan(InspectionPlan selectedPlan) {
         repositoryBusy.set(true);
         BackgroundTaskRunner.run("plan-delete-prepare",
                 () -> new DeletePlanPreparation(selectedPlan, viewModel.loadAffectedLotsForPlan(selectedPlan.getId())),
@@ -554,10 +574,13 @@ public class PlanEditorController {
 
     @FXML
     private void onReturnToHub(ActionEvent event) throws IOException {
-        if (!canProceedWithPotentialDiscard("return to the hub", true)) {
-            return;
-        }
-        AppNavigator.swapRoot((Node) event.getSource(), "/fxml/welcome.fxml", "PartPlan");
+        requestProceedWithPotentialUnsavedChanges("return to the hub", true, () -> {
+            try {
+                AppNavigator.swapRoot((Node) event.getSource(), "/fxml/welcome.fxml", "PartPlan");
+            } catch (IOException exception) {
+                throw new IllegalStateException("Unable to return to the hub.", exception);
+            }
+        });
     }
 
     @FXML
@@ -1518,17 +1541,24 @@ public class PlanEditorController {
         savedPlansListView.getSelectionModel().clearSelection();
     }
 
-    private boolean canProceedWithPotentialDiscard(String actionLabel, boolean showBusyMessage) {
+    private void requestProceedWithPotentialUnsavedChanges(String actionLabel, boolean showBusyMessage, Runnable continuation) {
         if (repositoryBusy.get()) {
             if (showBusyMessage) {
                 showInformation("Please wait for the current database operation to finish.");
             }
-            return false;
+            return;
         }
         if (!viewModel.hasUnsavedChanges()) {
-            return true;
+            continuation.run();
+            return;
         }
-        return UnsavedChangesDialogs.confirmDiscard("plan", actionLabel);
+
+        switch (UnsavedChangesDialogs.promptToSaveDiscardOrCancel("plan", actionLabel)) {
+            case SAVE -> saveCurrentPlanAsync(continuation);
+            case DISCARD -> continuation.run();
+            case CANCEL -> {
+            }
+        }
     }
 
     private void registerWindowCloseGuard(Scene scene) {
@@ -1559,6 +1589,18 @@ public class PlanEditorController {
             }
             installer.accept(newWindow);
         });
+    }
+
+    private void closeWindowAfterSaveOrDiscard() {
+        if (guardedWindow == null) {
+            return;
+        }
+        allowWindowClose = true;
+        if (guardedWindow instanceof Stage stage) {
+            stage.close();
+            return;
+        }
+        guardedWindow.hide();
     }
 
     private String buildDeletePlanMessage(InspectionPlan plan, List<InspectionLotSummary> affectedLots) {

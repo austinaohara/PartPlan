@@ -46,11 +46,24 @@ public class PartEditorController {
     private final BooleanProperty repositoryBusy = new SimpleBooleanProperty(false);
     private boolean syncingLotSize;
     private Window guardedWindow;
-    private final javafx.event.EventHandler<WindowEvent> closeRequestHandler = event -> {
-        if (!canProceedWithPotentialDiscard("close the lot editor", false)) {
-            event.consume();
+    private boolean allowWindowClose;
+    private final javafx.event.EventHandler<WindowEvent> closeRequestHandler = this::handleCloseRequest;
+
+    private void handleCloseRequest(WindowEvent event) {
+        if (allowWindowClose) {
+            allowWindowClose = false;
+            return;
         }
-    };
+        if (repositoryBusy.get()) {
+            event.consume();
+            return;
+        }
+        if (!viewModel.unsavedChangesProperty().get()) {
+            return;
+        }
+        event.consume();
+        requestProceedWithPotentialUnsavedChanges("close the lot editor", false, this::closeWindowAfterSaveOrDiscard);
+    }
 
     public PartEditorController(AppContext appContext) {
         this.viewModel = new PartEditorViewModel(
@@ -131,21 +144,27 @@ public class PartEditorController {
 
     @FXML
     private void onReturnToLotBrowser(ActionEvent event) throws IOException {
-        if (!canProceedWithPotentialDiscard("return to inspection lots", true)) {
-            return;
-        }
-        AppNavigator.swapRoot((Node) event.getSource(), "/fxml/inspection-lot-browser.fxml", "PartPlan - Inspection Lots", loader -> {
-            InspectionLotBrowserController controller = loader.getController();
-            controller.selectLot(viewModel.getCurrentLotId());
+        requestProceedWithPotentialUnsavedChanges("return to inspection lots", true, () -> {
+            try {
+                AppNavigator.swapRoot((Node) event.getSource(), "/fxml/inspection-lot-browser.fxml", "PartPlan - Inspection Lots", loader -> {
+                    InspectionLotBrowserController controller = loader.getController();
+                    controller.selectLot(viewModel.getCurrentLotId());
+                });
+            } catch (IOException exception) {
+                throw new IllegalStateException("Unable to return to inspection lots.", exception);
+            }
         });
     }
 
     @FXML
     private void onReturnToHub(ActionEvent event) throws IOException {
-        if (!canProceedWithPotentialDiscard("return to the hub", true)) {
-            return;
-        }
-        AppNavigator.swapRoot((Node) event.getSource(), "/fxml/welcome.fxml", "PartPlan");
+        requestProceedWithPotentialUnsavedChanges("return to the hub", true, () -> {
+            try {
+                AppNavigator.swapRoot((Node) event.getSource(), "/fxml/welcome.fxml", "PartPlan");
+            } catch (IOException exception) {
+                throw new IllegalStateException("Unable to return to the hub.", exception);
+            }
+        });
     }
 
     @FXML
@@ -160,6 +179,10 @@ public class PartEditorController {
 
     @FXML
     private void onSaveLot() {
+        saveCurrentLotAsync(null);
+    }
+
+    private void saveCurrentLotAsync(Runnable onSuccessContinuation) {
         if (!viewModel.lotLoadedProperty().get()) {
             return;
         }
@@ -185,6 +208,9 @@ public class PartEditorController {
             syncLoadedLotState();
             syncPartSelection();
             rebuildMasterColumns();
+            if (onSuccessContinuation != null) {
+                onSuccessContinuation.run();
+            }
         }, failure -> {
             repositoryBusy.set(false);
             viewModel.finishSaveFailure(snapshot.getId());
@@ -214,34 +240,33 @@ public class PartEditorController {
         if (currentLot == null || targetPlan == null) {
             return;
         }
-        if (!canProceedWithPotentialDiscard("upversion this inspection lot", true)) {
-            return;
-        }
 
-        javafx.scene.control.Alert alert = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.CONFIRMATION);
-        alert.setTitle("Upversion Inspection Lot");
-        alert.setHeaderText("Move this inspection lot to a newer plan version?");
-        alert.setContentText(buildUpversionMessage(currentLot, targetPlan));
-        java.util.Optional<javafx.scene.control.ButtonType> result = alert.showAndWait();
-        if (result.isEmpty() || result.get() != javafx.scene.control.ButtonType.OK) {
-            return;
-        }
-
-        repositoryBusy.set(true);
-        BackgroundTaskRunner.run("lot-upversion", viewModel::upversionCurrentLotInRepository, updatedLot -> {
-            repositoryBusy.set(false);
-            viewModel.applyUpversionedLot(updatedLot);
-            rebuildMasterColumns();
-            syncLoadedLotState();
-            syncPartSelection();
-            if (updatedLot != null) {
-                showInformation("Inspection lot moved to " + updatedLot.getPlanName() + " v" + updatedLot.getPlanVersion() + ".");
+        requestProceedWithPotentialUnsavedChanges("upversion this inspection lot", true, () -> {
+            javafx.scene.control.Alert alert = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.CONFIRMATION);
+            alert.setTitle("Upversion Inspection Lot");
+            alert.setHeaderText("Move this inspection lot to a newer plan version?");
+            alert.setContentText(buildUpversionMessage(currentLot, targetPlan));
+            java.util.Optional<javafx.scene.control.ButtonType> result = alert.showAndWait();
+            if (result.isEmpty() || result.get() != javafx.scene.control.ButtonType.OK) {
+                return;
             }
-        }, failure -> {
-            repositoryBusy.set(false);
-            showInformation(failure == null || failure.getMessage() == null
-                    ? "Unable to upversion the inspection lot."
-                    : failure.getMessage());
+
+            repositoryBusy.set(true);
+            BackgroundTaskRunner.run("lot-upversion", viewModel::upversionCurrentLotInRepository, updatedLot -> {
+                repositoryBusy.set(false);
+                viewModel.applyUpversionedLot(updatedLot);
+                rebuildMasterColumns();
+                syncLoadedLotState();
+                syncPartSelection();
+                if (updatedLot != null) {
+                    showInformation("Inspection lot moved to " + updatedLot.getPlanName() + " v" + updatedLot.getPlanVersion() + ".");
+                }
+            }, failure -> {
+                repositoryBusy.set(false);
+                showInformation(failure == null || failure.getMessage() == null
+                        ? "Unable to upversion the inspection lot."
+                        : failure.getMessage());
+            });
         });
     }
 
@@ -525,17 +550,24 @@ public class PartEditorController {
         alert.showAndWait();
     }
 
-    private boolean canProceedWithPotentialDiscard(String actionLabel, boolean showBusyMessage) {
+    private void requestProceedWithPotentialUnsavedChanges(String actionLabel, boolean showBusyMessage, Runnable continuation) {
         if (repositoryBusy.get()) {
             if (showBusyMessage) {
                 showInformation("Please wait for the current database operation to finish.");
             }
-            return false;
+            return;
         }
         if (!viewModel.unsavedChangesProperty().get()) {
-            return true;
+            continuation.run();
+            return;
         }
-        return UnsavedChangesDialogs.confirmDiscard("inspection lot", actionLabel);
+
+        switch (UnsavedChangesDialogs.promptToSaveDiscardOrCancel("inspection lot", actionLabel)) {
+            case SAVE -> saveCurrentLotAsync(continuation);
+            case DISCARD -> continuation.run();
+            case CANCEL -> {
+            }
+        }
     }
 
     private void registerWindowCloseGuard(javafx.scene.Scene scene) {
@@ -566,5 +598,17 @@ public class PartEditorController {
             }
             installer.accept(newWindow);
         });
+    }
+
+    private void closeWindowAfterSaveOrDiscard() {
+        if (guardedWindow == null) {
+            return;
+        }
+        allowWindowClose = true;
+        if (guardedWindow instanceof javafx.stage.Stage stage) {
+            stage.close();
+            return;
+        }
+        guardedWindow.hide();
     }
 }
