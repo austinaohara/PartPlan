@@ -13,10 +13,10 @@ public class PartPlanApplication extends Application {
     @Override
     public void start(Stage stage) throws IOException {
         AppNavigator.initialize(appContext);
-        FXMLLoader loader = AppNavigator.createLoader("/fxml/welcome.fxml");
+        FXMLLoader loader = AppNavigator.createLoader(appContext.getStartupFxmlPath());
         Scene scene = new Scene(loader.load(), 1100, 700);
 
-        stage.setTitle("PartPlan");
+        stage.setTitle(appContext.getStartupTitle());
         stage.setScene(scene);
         stage.show();
     }

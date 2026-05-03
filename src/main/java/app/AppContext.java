@@ -4,18 +4,20 @@ import service.PdfPageRenderingService;
 import service.asset.AssetStore;
 import service.asset.TempFileAssetStore;
 import service.auth.AuthService;
-import service.auth.UnsupportedAuthService;
+import service.auth.FirebaseAuthService;
+import service.config.FileBackedFirebaseProjectConfigStore;
+import service.config.FirebaseProjectConfigStore;
 import service.memory.InMemoryLotRepository;
 import service.memory.InMemoryPlanRepository;
 import service.repository.LotRepository;
 import service.repository.PlanRepository;
-import service.session.InMemorySessionManager;
+import service.session.FileBackedSessionManager;
 import service.session.SessionManager;
-import service.session.UserSession;
 
 import java.lang.reflect.Constructor;
 
 public class AppContext {
+    private final FirebaseProjectConfigStore projectConfigStore;
     private final SessionManager sessionManager;
     private final AuthService authService;
     private final PlanRepository planRepository;
@@ -24,6 +26,7 @@ public class AppContext {
     private final PdfPageRenderingService pdfPageRenderingService;
 
     public AppContext(
+            FirebaseProjectConfigStore projectConfigStore,
             SessionManager sessionManager,
             AuthService authService,
             PlanRepository planRepository,
@@ -31,6 +34,7 @@ public class AppContext {
             AssetStore assetStore,
             PdfPageRenderingService pdfPageRenderingService
     ) {
+        this.projectConfigStore = projectConfigStore;
         this.sessionManager = sessionManager;
         this.authService = authService;
         this.planRepository = planRepository;
@@ -40,16 +44,17 @@ public class AppContext {
     }
 
     public static AppContext createDefault() {
-        InMemorySessionManager sessionManager = new InMemorySessionManager();
-        sessionManager.setCurrentSession(UserSession.localSession("local-user"));
+        FirebaseProjectConfigStore projectConfigStore = new FileBackedFirebaseProjectConfigStore();
+        SessionManager sessionManager = new FileBackedSessionManager();
 
         AssetStore assetStore = new TempFileAssetStore();
         PdfPageRenderingService pdfPageRenderingService = new PdfPageRenderingService();
         PlanRepository planRepository = new InMemoryPlanRepository(sessionManager);
         LotRepository lotRepository = new InMemoryLotRepository(sessionManager, planRepository);
-        AuthService authService = new UnsupportedAuthService(sessionManager);
+        AuthService authService = new FirebaseAuthService(sessionManager, projectConfigStore);
 
         return new AppContext(
+                projectConfigStore,
                 sessionManager,
                 authService,
                 planRepository,
@@ -57,6 +62,26 @@ public class AppContext {
                 assetStore,
                 pdfPageRenderingService
         );
+    }
+
+    public FirebaseProjectConfigStore getProjectConfigStore() {
+        return projectConfigStore;
+    }
+
+    public boolean hasUsableProjectConfig() {
+        try {
+            return projectConfigStore.load().isPresent();
+        } catch (RuntimeException exception) {
+            return false;
+        }
+    }
+
+    public String getStartupFxmlPath() {
+        return hasUsableProjectConfig() ? "/fxml/login.fxml" : "/fxml/firebase-config.fxml";
+    }
+
+    public String getStartupTitle() {
+        return hasUsableProjectConfig() ? "PartPlan - Sign In" : "PartPlan - Firebase Setup";
     }
 
     public SessionManager getSessionManager() {

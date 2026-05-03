@@ -40,4 +40,8 @@ public class UserSession {
     public Instant getExpiresAt() {
         return expiresAt;
     }
+
+    public boolean isExpired() {
+        return expiresAt != null && expiresAt.isBefore(Instant.now());
+    }
 }

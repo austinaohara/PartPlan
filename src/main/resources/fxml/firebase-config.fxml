@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.ColumnConstraints?>
+<?import javafx.scene.layout.GridPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.VBox?>
+
+<BorderPane fx:id="rootPane" prefHeight="700.0" prefWidth="1100.0" stylesheets="@../styles/main.css" xmlns="http://javafx.com/javafx/20.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="FirebaseSetupController">
+    <top>
+        <VBox spacing="10.0" styleClass="top-bar">
+            <padding>
+                <Insets bottom="20.0" left="28.0" right="28.0" top="28.0" />
+            </padding>
+            <Label styleClass="screen-title" text="PartPlan" />
+            <Label styleClass="welcome-subtitle" text="Set the Firebase project for this workspace before users can sign in." />
+        </VBox>
+    </top>
+
+    <center>
+        <HBox alignment="CENTER" spacing="24.0" styleClass="welcome-shell">
+            <padding>
+                <Insets bottom="36.0" left="36.0" right="36.0" top="36.0" />
+            </padding>
+
+            <VBox maxWidth="500.0" prefWidth="500.0" spacing="18.0" styleClass="welcome-card">
+                <Label styleClass="welcome-card-title" text="Firebase Project Settings" />
+                <Label styleClass="editor-copy" text="Use the web-app configuration values from Firebase Project Settings." wrapText="true" />
+
+                <GridPane hgap="12.0" vgap="10.0">
+                    <columnConstraints>
+                        <ColumnConstraints percentWidth="100.0" />
+                    </columnConstraints>
+
+                    <Label styleClass="field-label" text="API Key" GridPane.rowIndex="0" />
+                    <TextField fx:id="apiKeyField" promptText="AIza..." GridPane.rowIndex="1" />
+
+                    <Label styleClass="field-label" text="Project ID" GridPane.rowIndex="2" />
+                    <TextField fx:id="projectIdField" promptText="your-project-id" GridPane.rowIndex="3" />
+
+                    <Label styleClass="field-label" text="App ID" GridPane.rowIndex="4" />
+                    <TextField fx:id="appIdField" promptText="1:1234567890:web:..." GridPane.rowIndex="5" />
+
+                    <Label styleClass="field-label" text="Storage Bucket" GridPane.rowIndex="6" />
+                    <TextField fx:id="storageBucketField" promptText="your-project.firebasestorage.app" GridPane.rowIndex="7" />
+
+                    <Label styleClass="field-label" text="Auth Domain (Optional)" GridPane.rowIndex="8" />
+                    <TextField fx:id="authDomainField" promptText="your-project.firebaseapp.com" GridPane.rowIndex="9" />
+                </GridPane>
+
+                <HBox spacing="10.0">
+                    <Button maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#onSaveAndContinue" styleClass="primary-button welcome-card-button" text="Save and Continue" HBox.hgrow="ALWAYS" />
+                    <Button fx:id="continueButton" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#onOpenLogin" styleClass="secondary-button welcome-card-button" text="Open Sign In" HBox.hgrow="ALWAYS" />
+                </HBox>
+
+                <Label fx:id="statusLabel" styleClass="editor-copy" text="Enter the Firebase web-app settings for this project." wrapText="true" />
+            </VBox>
+
+            <VBox maxWidth="320.0" prefWidth="320.0" spacing="18.0" styleClass="welcome-card">
+                <Label styleClass="welcome-card-title" text="Local Storage" />
+                <Label styleClass="editor-copy" text="PartPlan stores the Firebase project config and saved session in a project-local folder." wrapText="true" />
+                <Label styleClass="field-label" text="Folder" />
+                <Label fx:id="storagePathLabel" styleClass="field-value" text=".partplan" wrapText="true" />
+                <Region VBox.vgrow="ALWAYS" />
+                <Label styleClass="editor-copy" text="If these files are missing or unreadable, this setup screen is shown before login." wrapText="true" />
+            </VBox>
+        </HBox>
+    </center>
+</BorderPane>

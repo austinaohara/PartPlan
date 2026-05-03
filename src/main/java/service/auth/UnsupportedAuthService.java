@@ -11,12 +11,22 @@ public class UnsupportedAuthService implements AuthService {
     }
 
     @Override
+    public boolean isConfigured() {
+        return false;
+    }
+
+    @Override
     public UserSession signIn(String email, String password) {
         throw new UnsupportedOperationException("Authentication is not implemented yet.");
     }
 
     @Override
     public UserSession signUp(String email, String password) {
+        throw new UnsupportedOperationException("Authentication is not implemented yet.");
+    }
+
+    @Override
+    public UserSession refreshSession(UserSession session) {
         throw new UnsupportedOperationException("Authentication is not implemented yet.");
     }
 
