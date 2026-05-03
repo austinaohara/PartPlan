@@ -8,6 +8,8 @@ import model.InspectionPlan;
 import service.repository.LotRepository;
 import service.repository.PlanRepository;
 
+import java.util.List;
+
 public class InspectionLotBrowserViewModel {
     private final PlanRepository planRepository;
     private final LotRepository lotRepository;
@@ -17,7 +19,6 @@ public class InspectionLotBrowserViewModel {
     public InspectionLotBrowserViewModel(PlanRepository planRepository, LotRepository lotRepository) {
         this.planRepository = planRepository;
         this.lotRepository = lotRepository;
-        refresh();
     }
 
     public ObservableList<InspectionPlan> getSavedPlans() {
@@ -29,8 +30,7 @@ public class InspectionLotBrowserViewModel {
     }
 
     public void refresh() {
-        savedPlans.setAll(planRepository.loadCompletePlans());
-        savedLots.setAll(lotRepository.loadLotSummaries());
+        applyBrowserData(loadBrowserData());
     }
 
     public InspectionPlan findLatestUpversionTarget(InspectionLotSummary selectedLot) {
@@ -38,7 +38,7 @@ public class InspectionLotBrowserViewModel {
             return null;
         }
 
-        return planRepository.loadCompletePlans().stream()
+        return savedPlans.stream()
                 .filter(plan -> selectedLot.getPlanFamilyId().equals(plan.getFamilyId()))
                 .filter(plan -> plan.getVersion() > selectedLot.getPlanVersion())
                 .max(java.util.Comparator.comparingInt(InspectionPlan::getVersion))
@@ -46,17 +46,27 @@ public class InspectionLotBrowserViewModel {
     }
 
     public InspectionLot createLot(InspectionPlan selectedPlan, String proposedLotName, int proposedLotSize) {
+        InspectionLot createdLot = createLotInRepository(selectedPlan, proposedLotName, proposedLotSize);
+        applyBrowserData(loadBrowserData());
+        return createdLot;
+    }
+
+    public InspectionLot createLotInRepository(InspectionPlan selectedPlan, String proposedLotName, int proposedLotSize) {
         if (selectedPlan == null) {
             return null;
         }
 
         InspectionPlan fullPlan = planRepository.loadPlan(selectedPlan.getId());
-        InspectionLot createdLot = lotRepository.createLot(proposedLotName, fullPlan, proposedLotSize);
-        refresh();
-        return createdLot;
+        return lotRepository.createLot(proposedLotName, fullPlan, proposedLotSize);
     }
 
     public InspectionLot upversionLot(InspectionLotSummary selectedLot) {
+        InspectionLot updatedLot = upversionLotInRepository(selectedLot);
+        applyBrowserData(loadBrowserData());
+        return updatedLot;
+    }
+
+    public InspectionLot upversionLotInRepository(InspectionLotSummary selectedLot) {
         if (selectedLot == null) {
             return null;
         }
@@ -67,17 +77,40 @@ public class InspectionLotBrowserViewModel {
         }
 
         InspectionPlan fullTargetPlan = planRepository.loadPlan(targetPlan.getId());
-        InspectionLot updatedLot = lotRepository.upversionLot(selectedLot.getId(), fullTargetPlan);
-        refresh();
-        return updatedLot;
+        return lotRepository.upversionLot(selectedLot.getId(), fullTargetPlan);
     }
 
     public void deleteLot(InspectionLotSummary selectedLot) {
+        deleteLotInRepository(selectedLot);
+        applyBrowserData(loadBrowserData());
+    }
+
+    public void deleteLotInRepository(InspectionLotSummary selectedLot) {
         if (selectedLot == null) {
             return;
         }
 
         lotRepository.deleteLot(selectedLot.getId());
-        refresh();
+    }
+
+    public BrowserData loadBrowserData() {
+        return new BrowserData(
+                List.copyOf(planRepository.loadCompletePlans()),
+                List.copyOf(lotRepository.loadLotSummaries())
+        );
+    }
+
+    public void applyBrowserData(BrowserData browserData) {
+        if (browserData == null) {
+            savedPlans.clear();
+            savedLots.clear();
+            return;
+        }
+
+        savedPlans.setAll(browserData.savedPlans());
+        savedLots.setAll(browserData.savedLots());
+    }
+
+    public record BrowserData(List<InspectionPlan> savedPlans, List<InspectionLotSummary> savedLots) {
     }
 }

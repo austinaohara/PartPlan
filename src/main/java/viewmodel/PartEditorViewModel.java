@@ -14,6 +14,7 @@ import model.PartBubbleDefinition;
 import model.PartRecord;
 import service.repository.LotRepository;
 import service.repository.PlanRepository;
+import service.util.ModelCopies;
 
 import java.util.List;
 
@@ -33,13 +34,16 @@ public class PartEditorViewModel {
     private final StringProperty lotSummary = new SimpleStringProperty(NO_LOT_SELECTED);
     private final StringProperty currentLotName = new SimpleStringProperty("");
     private final StringProperty currentPlanName = new SimpleStringProperty(NO_PLAN_SELECTED);
+    private final StringProperty saveState = new SimpleStringProperty("");
     private final BooleanProperty lotLoaded = new SimpleBooleanProperty(false);
     private final BooleanProperty upversionAvailable = new SimpleBooleanProperty(false);
     private final BooleanProperty unsavedChanges = new SimpleBooleanProperty(false);
+    private final BooleanProperty saveInProgress = new SimpleBooleanProperty(false);
     private final StringProperty upversionTargetLabel = new SimpleStringProperty(NO_UPVERSION_AVAILABLE);
 
     private InspectionLot currentLot;
     private InspectionPlan latestUpversionTarget;
+    private List<InspectionPlan> availableCompletePlans = List.of();
 
     public PartEditorViewModel(LotRepository lotRepository, PlanRepository planRepository) {
         this.lotRepository = lotRepository;
@@ -103,20 +107,20 @@ public class PartEditorViewModel {
         return unsavedChanges;
     }
 
+    public BooleanProperty saveInProgressProperty() {
+        return saveInProgress;
+    }
+
+    public StringProperty saveStateProperty() {
+        return saveState;
+    }
+
     public StringProperty upversionTargetLabelProperty() {
         return upversionTargetLabel;
     }
 
     public void loadLot(String lotId) {
-        if (lotId == null || lotId.isBlank()) {
-            return;
-        }
-
-        currentLot = lotRepository.loadLot(lotId);
-        currentPartNumber.set(1);
-        lotLoaded.set(true);
-        refreshAll();
-        unsavedChanges.set(false);
+        applyLoadedLot(loadLotData(lotId));
     }
 
     public void saveCurrentLotName(String proposedName) {
@@ -200,7 +204,73 @@ public class PartEditorViewModel {
         unsavedChanges.set(false);
     }
 
+    public InspectionLot beginSaveSnapshot() {
+        if (currentLot == null) {
+            throw new IllegalStateException("No inspection lot is loaded.");
+        }
+
+        InspectionLot snapshot = ModelCopies.copyLot(currentLot);
+        unsavedChanges.set(false);
+        saveInProgress.set(true);
+        saveState.set("Saving...");
+        return snapshot;
+    }
+
+    public void persistLotSnapshot(InspectionLot snapshot) {
+        lotRepository.saveLotStructure(snapshot);
+    }
+
+    public void finishSaveSuccess(InspectionLot snapshot) {
+        saveInProgress.set(false);
+        if (currentLot != null && currentLot.getId().equals(snapshot.getId()) && !unsavedChanges.get()) {
+            currentLot.setUpdatedAt(snapshot.getUpdatedAt());
+            refreshAll();
+            saveState.set("Saved");
+            return;
+        }
+
+        if (unsavedChanges.get()) {
+            saveState.set("Unsaved changes");
+        }
+    }
+
+    public void finishSaveFailure(String lotId) {
+        saveInProgress.set(false);
+        if (currentLot != null && currentLot.getId().equals(lotId)) {
+            unsavedChanges.set(true);
+            saveState.set("Unsaved changes");
+        }
+    }
+
     public InspectionLot upversionCurrentLot() {
+        InspectionLot updatedLot = upversionCurrentLotInRepository();
+        applyUpversionedLot(updatedLot);
+        return currentLot;
+    }
+
+    public LoadedLotData loadLotData(String lotId) {
+        if (lotId == null || lotId.isBlank()) {
+            return new LoadedLotData(null, availableCompletePlans);
+        }
+
+        return new LoadedLotData(
+                lotRepository.loadLot(lotId),
+                planRepository.loadCompletePlans()
+        );
+    }
+
+    public void applyLoadedLot(LoadedLotData loadedLotData) {
+        currentLot = loadedLotData == null ? null : loadedLotData.lot();
+        availableCompletePlans = loadedLotData == null || loadedLotData.completePlans() == null
+                ? List.of()
+                : List.copyOf(loadedLotData.completePlans());
+        currentPartNumber.set(1);
+        lotLoaded.set(currentLot != null);
+        refreshAll();
+        unsavedChanges.set(false);
+    }
+
+    public InspectionLot upversionCurrentLotInRepository() {
         if (currentLot == null) {
             return null;
         }
@@ -209,10 +279,13 @@ public class PartEditorViewModel {
         }
 
         InspectionPlan fullTargetPlan = planRepository.loadPlan(latestUpversionTarget.getId());
-        currentLot = lotRepository.upversionLot(currentLot.getId(), fullTargetPlan);
+        return lotRepository.upversionLot(currentLot.getId(), fullTargetPlan);
+    }
+
+    public void applyUpversionedLot(InspectionLot updatedLot) {
+        currentLot = updatedLot;
         refreshAll();
         unsavedChanges.set(false);
-        return currentLot;
     }
 
     public String getCurrentLotId() {
@@ -237,6 +310,11 @@ public class PartEditorViewModel {
         refreshUpversionState();
         refreshCurrentPartRows();
         refreshText();
+        if (currentLot == null) {
+            unsavedChanges.set(false);
+            saveInProgress.set(false);
+            saveState.set("");
+        }
     }
 
     private void refreshCurrentPartRows() {
@@ -305,7 +383,7 @@ public class PartEditorViewModel {
             return;
         }
 
-        latestUpversionTarget = planRepository.loadCompletePlans().stream()
+        latestUpversionTarget = availableCompletePlans.stream()
                 .filter(plan -> currentLot.getPlanFamilyId().equals(plan.getFamilyId()))
                 .filter(plan -> plan.getVersion() > currentLot.getPlanVersion())
                 .max(java.util.Comparator.comparingInt(InspectionPlan::getVersion))
@@ -315,6 +393,9 @@ public class PartEditorViewModel {
         upversionTargetLabel.set(latestUpversionTarget == null
                 ? NO_UPVERSION_AVAILABLE
                 : formatPlanReference(latestUpversionTarget));
+    }
+
+    public record LoadedLotData(InspectionLot lot, List<InspectionPlan> completePlans) {
     }
 
     private String formatPlanReference(InspectionPlan plan) {
@@ -334,6 +415,7 @@ public class PartEditorViewModel {
     private void markDirty() {
         if (currentLot != null) {
             unsavedChanges.set(true);
+            saveState.set("Unsaved changes");
         }
     }
 }

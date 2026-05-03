@@ -14,13 +14,17 @@ import service.util.ModelCopies;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
 public class FirestorePlanRepository implements PlanRepository {
@@ -105,7 +109,7 @@ public class FirestorePlanRepository implements PlanRepository {
 
         int nextVersion = nextCompletedVersion(plan.getFamilyId());
         plan.markComplete(Math.max(nextVersion, plan.getVersion()), LocalDateTime.now());
-        firestore.upsertDocument(versionDocumentPath(plan.getFamilyId(), plan.getId()), versionFields(plan));
+        upsertDocumentIfChanged(versionDocumentPath(plan.getFamilyId(), plan.getId()), versionFields(plan));
         updateFamilySummary(plan.getFamilyId());
         return ModelCopies.copyPlan(plan);
     }
@@ -172,7 +176,7 @@ public class FirestorePlanRepository implements PlanRepository {
         String planId = plan.getId();
 
         upsertFamilyDocument(plan);
-        firestore.upsertDocument(versionDocumentPath(familyId, planId), versionFields(plan));
+        upsertDocumentIfChanged(versionDocumentPath(familyId, planId), versionFields(plan));
         syncPages(plan);
         syncBubbles(plan);
     }
@@ -181,7 +185,10 @@ public class FirestorePlanRepository implements PlanRepository {
         List<InspectionPlan> familyVersions = new ArrayList<>(loadFamilyVersions(plan.getFamilyId()));
         familyVersions.removeIf(existing -> existing.getId().equals(plan.getId()));
         familyVersions.add(ModelCopies.copyPlan(plan));
-        firestore.upsertDocument(familyDocumentPath(plan.getFamilyId()), familyFields(plan.getFamilyId(), familyVersions));
+        upsertDocumentIfChanged(
+                familyDocumentPath(plan.getFamilyId()),
+                familyFields(plan.getFamilyId(), familyVersions)
+        );
     }
 
     private void updateFamilySummary(String familyId) {
@@ -190,7 +197,7 @@ public class FirestorePlanRepository implements PlanRepository {
             firestore.deleteDocument(familyDocumentPath(familyId));
             return;
         }
-        firestore.upsertDocument(familyDocumentPath(familyId), familyFields(familyId, familyVersions));
+        upsertDocumentIfChanged(familyDocumentPath(familyId), familyFields(familyId, familyVersions));
     }
 
     private Map<String, Object> familyFields(String familyId, List<InspectionPlan> versions) {
@@ -250,8 +257,8 @@ public class FirestorePlanRepository implements PlanRepository {
         }
 
         for (PlanPage page : plan.getPages()) {
-            existingPages.remove(page.getId());
-            syncPage(plan, page);
+            FirestoreRestClient.FirestoreDocument existingPage = existingPages.remove(page.getId());
+            syncPage(plan, page, existingPage);
         }
 
         for (String removedPageId : existingPages.keySet()) {
@@ -259,7 +266,20 @@ public class FirestorePlanRepository implements PlanRepository {
         }
     }
 
-    private void syncPage(InspectionPlan plan, PlanPage page) {
+    private void syncPage(
+            InspectionPlan plan,
+            PlanPage page,
+            FirestoreRestClient.FirestoreDocument existingPageDocument
+    ) {
+        byte[] bytes = null;
+        String contentHash = "";
+        long byteSize = 0L;
+        if (page.getDrawing() != null && page.getDrawing().getStoredPath() != null && !page.getDrawing().getStoredPath().isBlank()) {
+            bytes = readPageBytes(page);
+            byteSize = bytes.length;
+            contentHash = sha256(bytes);
+        }
+
         Map<String, Object> fields = new LinkedHashMap<>();
         fields.put("pageId", page.getId());
         fields.put("name", page.getName());
@@ -267,14 +287,22 @@ public class FirestorePlanRepository implements PlanRepository {
         fields.put("fileName", page.getDrawing() == null ? "" : page.getDrawing().getFileName());
         fields.put("fileType", page.getDrawing() == null ? "" : page.getDrawing().getFileType());
         fields.put("storagePath", chunkCollectionPath(plan.getFamilyId(), plan.getId(), page.getId()));
-        firestore.upsertDocument(pageDocumentPath(plan.getFamilyId(), plan.getId(), page.getId()), fields);
+        fields.put("byteSize", byteSize);
+        fields.put("contentHash", contentHash);
+        String documentPath = pageDocumentPath(plan.getFamilyId(), plan.getId(), page.getId());
+        if (existingPageDocument == null || !fieldsEqual(fields, existingPageDocument.fields())) {
+            firestore.upsertDocument(documentPath, fields);
+        }
 
         if (page.getDrawing() == null || page.getDrawing().getStoredPath() == null || page.getDrawing().getStoredPath().isBlank()) {
             firestore.deleteCollection(chunkCollectionPath(plan.getFamilyId(), plan.getId(), page.getId()));
             return;
         }
 
-        byte[] bytes = readPageBytes(page);
+        if (existingPageDocument != null && fieldsEqual(fields, existingPageDocument.fields())) {
+            return;
+        }
+
         syncPageChunks(plan.getFamilyId(), plan.getId(), page.getId(), bytes);
     }
 
@@ -326,8 +354,11 @@ public class FirestorePlanRepository implements PlanRepository {
         }
 
         for (Bubble bubble : plan.getBubbles()) {
-            existing.remove(bubble.getId());
-            firestore.upsertDocument(collectionPath + "/" + bubble.getId(), bubbleFields(bubble));
+            FirestoreRestClient.FirestoreDocument existingBubble = existing.remove(bubble.getId());
+            Map<String, Object> fields = bubbleFields(bubble);
+            if (existingBubble == null || !fieldsEqual(fields, existingBubble.fields())) {
+                firestore.upsertDocument(collectionPath + "/" + bubble.getId(), fields);
+            }
         }
 
         for (String removedBubbleId : existing.keySet()) {
@@ -536,6 +567,103 @@ public class FirestorePlanRepository implements PlanRepository {
 
     private String bubbleCollectionPath(String familyId, String planId) {
         return versionDocumentPath(familyId, planId) + "/bubbles";
+    }
+
+    private void upsertDocumentIfChanged(String documentPath, Map<String, Object> fields) {
+        FirestoreRestClient.FirestoreDocument existing = firestore.getDocument(documentPath).orElse(null);
+        if (existing != null && fieldsEqual(fields, existing.fields())) {
+            return;
+        }
+        firestore.upsertDocument(documentPath, fields);
+    }
+
+    private boolean fieldsEqual(Map<String, Object> left, Map<String, Object> right) {
+        Map<String, Object> normalizedLeft = normalizeMap(left);
+        Map<String, Object> normalizedRight = normalizeMap(right);
+        if (normalizedLeft.size() != normalizedRight.size()) {
+            return false;
+        }
+
+        for (Map.Entry<String, Object> entry : normalizedLeft.entrySet()) {
+            if (!normalizedRight.containsKey(entry.getKey())) {
+                return false;
+            }
+            if (!valuesEqual(entry.getValue(), normalizedRight.get(entry.getKey()))) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private Map<String, Object> normalizeMap(Map<String, Object> source) {
+        Map<String, Object> normalized = new LinkedHashMap<>();
+        if (source == null) {
+            return normalized;
+        }
+
+        for (Map.Entry<String, Object> entry : source.entrySet()) {
+            if (entry.getValue() != null) {
+                normalized.put(entry.getKey(), entry.getValue());
+            }
+        }
+        return normalized;
+    }
+
+    private boolean valuesEqual(Object left, Object right) {
+        if (left == right) {
+            return true;
+        }
+        if (left == null || right == null) {
+            return false;
+        }
+        if (left instanceof Number leftNumber && right instanceof Number rightNumber) {
+            boolean floating = left instanceof Float || left instanceof Double
+                    || right instanceof Float || right instanceof Double;
+            return floating
+                    ? Double.compare(leftNumber.doubleValue(), rightNumber.doubleValue()) == 0
+                    : leftNumber.longValue() == rightNumber.longValue();
+        }
+        if (left instanceof byte[] leftBytes && right instanceof byte[] rightBytes) {
+            return Arrays.equals(leftBytes, rightBytes);
+        }
+        if (left instanceof Map<?, ?> leftMap && right instanceof Map<?, ?> rightMap) {
+            return fieldsEqual(castMap(leftMap), castMap(rightMap));
+        }
+        if (left instanceof Iterable<?> leftIterable && right instanceof Iterable<?> rightIterable) {
+            return iterableValuesEqual(leftIterable, rightIterable);
+        }
+        return Objects.equals(left, right);
+    }
+
+    private boolean iterableValuesEqual(Iterable<?> left, Iterable<?> right) {
+        java.util.Iterator<?> leftIterator = left.iterator();
+        java.util.Iterator<?> rightIterator = right.iterator();
+        while (leftIterator.hasNext() && rightIterator.hasNext()) {
+            if (!valuesEqual(leftIterator.next(), rightIterator.next())) {
+                return false;
+            }
+        }
+        return !leftIterator.hasNext() && !rightIterator.hasNext();
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> castMap(Map<?, ?> map) {
+        Map<String, Object> cast = new LinkedHashMap<>();
+        for (Map.Entry<?, ?> entry : map.entrySet()) {
+            if (entry.getKey() != null) {
+                cast.put(String.valueOf(entry.getKey()), entry.getValue());
+            }
+        }
+        return cast;
+    }
+
+    private String sha256(byte[] bytes) {
+        try {
+            byte[] digest = MessageDigest.getInstance("SHA-256").digest(bytes);
+            return java.util.HexFormat.of().formatHex(digest);
+        } catch (NoSuchAlgorithmException exception) {
+            throw new IllegalStateException("SHA-256 is not available.", exception);
+        }
     }
 
     private String stringValue(Map<String, Object> fields, String key, String fallback) {

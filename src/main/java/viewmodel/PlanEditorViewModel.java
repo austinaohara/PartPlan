@@ -18,6 +18,7 @@ import service.PdfPageRenderingService;
 import service.asset.AssetStore;
 import service.repository.LotRepository;
 import service.repository.PlanRepository;
+import service.util.ModelCopies;
 
 import java.io.File;
 import java.nio.file.Path;
@@ -44,10 +45,12 @@ public class PlanEditorViewModel {
     private final StringProperty drawingFileName = new SimpleStringProperty("No drawing selected");
     private final StringProperty drawingPath = new SimpleStringProperty("");
     private final StringProperty pageName = new SimpleStringProperty("");
+    private final StringProperty saveState = new SimpleStringProperty("");
     private final BooleanProperty drawingLoaded = new SimpleBooleanProperty(false);
     private final BooleanProperty currentPlanEditable = new SimpleBooleanProperty(true);
     private final BooleanProperty currentPlanComplete = new SimpleBooleanProperty(false);
     private final BooleanProperty unsavedChanges = new SimpleBooleanProperty(false);
+    private final BooleanProperty saveInProgress = new SimpleBooleanProperty(false);
 
     public PlanEditorViewModel(
             PlanRepository storageService,
@@ -60,13 +63,13 @@ public class PlanEditorViewModel {
         this.assetStore = Objects.requireNonNull(assetStore, "assetStore must not be null");
         this.pdfPageRenderingService = Objects.requireNonNull(pdfPageRenderingService, "pdfPageRenderingService must not be null");
         createNewPlan();
-        refreshSavedPlans();
     }
 
     public void createNewPlan() {
         InspectionPlan plan = new InspectionPlan(DEFAULT_PLAN_NAME);
         loadPlan(plan);
         unsavedChanges.set(true);
+        saveState.set("Unsaved changes");
     }
 
     public void renamePlan(String newName) {
@@ -137,27 +140,18 @@ public class PlanEditorViewModel {
 
     public void saveCurrentPlan() {
         persistCurrentPlanState();
-        refreshSavedPlans();
     }
 
     public void completeCurrentPlan() {
-        InspectionPlan plan = requireCurrentPlan();
-        ensureCurrentPlanEditable();
-        storageService.savePlan(plan);
-        InspectionPlan completedPlan = storageService.completePlan(plan.getId());
-        loadPlan(completedPlan);
-        refreshSavedPlans();
+        InspectionPlan completedPlan = completeCurrentPlanInRepository();
+        applyLoadedPlan(completedPlan);
+        addOrUpdateSavedPlan(completedPlan);
     }
 
     public void createRevisionFromCurrentPlan() {
-        InspectionPlan plan = requireCurrentPlan();
-        if (!plan.isComplete()) {
-            throw new IllegalStateException("Only complete plans can create a revision.");
-        }
-
-        InspectionPlan revision = storageService.createRevision(plan.getId());
-        loadPlan(revision);
-        refreshSavedPlans();
+        InspectionPlan revision = createRevisionFromCurrentPlanInRepository();
+        applyLoadedPlan(revision);
+        addOrUpdateSavedPlan(revision);
     }
 
     public void openPlan(InspectionPlan selectedPlan) {
@@ -165,35 +159,95 @@ public class PlanEditorViewModel {
             return;
         }
 
-        InspectionPlan loadedPlan = storageService.loadPlan(selectedPlan.getId());
-        loadPlan(loadedPlan);
-        refreshSavedPlans();
+        InspectionPlan loadedPlan = loadPlanFromRepository(selectedPlan.getId());
+        applyLoadedPlan(loadedPlan);
+        addOrUpdateSavedPlan(loadedPlan);
     }
 
     public void deletePlan(InspectionPlan selectedPlan) {
         if (selectedPlan == null) {
             return;
         }
-        lotRepository.deleteLotsForPlan(selectedPlan.getId());
-        storageService.deletePlan(selectedPlan.getId());
-        refreshSavedPlans();
-
-        InspectionPlan plan = currentPlan.get();
-        if (plan != null && plan.getId().equals(selectedPlan.getId())) {
-            createNewPlan();
-        }
+        deletePlanInRepository(selectedPlan.getId());
+        applyDeletedPlan(selectedPlan.getId());
     }
 
     public List<InspectionLotSummary> getAffectedLotsForPlan(InspectionPlan selectedPlan) {
         if (selectedPlan == null) {
             return List.of();
         }
-        return lotRepository.loadLotSummariesForPlan(selectedPlan.getId());
+        return loadAffectedLotsForPlan(selectedPlan.getId());
     }
 
     public void refreshSavedPlans() {
-        List<InspectionPlan> plans = storageService.loadPlans();
-        savedPlans.setAll(plans);
+        applySavedPlans(loadSavedPlansFromRepository());
+    }
+
+    public List<InspectionPlan> loadSavedPlansFromRepository() {
+        return storageService.loadPlans();
+    }
+
+    public void applySavedPlans(List<InspectionPlan> plans) {
+        List<InspectionPlan> copies = plans == null
+                ? List.of()
+                : plans.stream()
+                .map(ModelCopies::copyPlan)
+                .toList();
+        savedPlans.setAll(copies);
+        savedPlans.sort(java.util.Comparator.comparing(InspectionPlan::getUpdatedAt).reversed());
+    }
+
+    public InspectionPlan loadPlanFromRepository(String planId) {
+        return storageService.loadPlan(planId);
+    }
+
+    public InspectionPlan completeCurrentPlanInRepository() {
+        InspectionPlan plan = requireCurrentPlan();
+        ensureCurrentPlanEditable();
+        if (unsavedChanges.get()) {
+            storageService.savePlan(ModelCopies.copyPlan(plan));
+        }
+        return storageService.completePlan(plan.getId());
+    }
+
+    public InspectionPlan createRevisionFromCurrentPlanInRepository() {
+        InspectionPlan plan = requireCurrentPlan();
+        if (!plan.isComplete()) {
+            throw new IllegalStateException("Only complete plans can create a revision.");
+        }
+        return storageService.createRevision(plan.getId());
+    }
+
+    public void applyLoadedPlan(InspectionPlan plan) {
+        loadPlan(plan);
+    }
+
+    public void addOrUpdateSavedPlan(InspectionPlan plan) {
+        upsertSavedPlan(plan);
+    }
+
+    public void deletePlanInRepository(String planId) {
+        if (planId == null || planId.isBlank()) {
+            return;
+        }
+        lotRepository.deleteLotsForPlan(planId);
+        storageService.deletePlan(planId);
+    }
+
+    public void applyDeletedPlan(String planId) {
+        removeSavedPlan(planId);
+
+        InspectionPlan plan = currentPlan.get();
+        if (plan != null && plan.getId().equals(planId)) {
+            createNewPlan();
+        }
+    }
+
+    public List<InspectionLotSummary> loadAffectedLotsForPlan(String planId) {
+        if (planId == null || planId.isBlank()) {
+            return List.of();
+        }
+        return lotRepository.loadLotSummariesForPlan(planId);
     }
     public boolean hasDrawing() {
         return drawingLoaded.get();
@@ -272,6 +326,10 @@ public class PlanEditorViewModel {
         return pageName;
     }
 
+    public StringProperty saveStateProperty() {
+        return saveState;
+    }
+
     public boolean isDrawingLoaded() {
         return drawingLoaded.get();
     }
@@ -302,6 +360,50 @@ public class PlanEditorViewModel {
 
     public boolean hasUnsavedChanges() {
         return unsavedChanges.get();
+    }
+
+    public BooleanProperty saveInProgressProperty() {
+        return saveInProgress;
+    }
+
+    public InspectionPlan beginSaveSnapshot() {
+        ensureCurrentPlanEditable();
+        InspectionPlan snapshot = ModelCopies.copyPlan(requireCurrentPlan());
+        unsavedChanges.set(false);
+        saveInProgress.set(true);
+        saveState.set("Saving...");
+        return snapshot;
+    }
+
+    public void persistPlanSnapshot(InspectionPlan snapshot) {
+        storageService.savePlan(snapshot);
+    }
+
+    public void finishSaveSuccess(InspectionPlan snapshot) {
+        saveInProgress.set(false);
+        upsertSavedPlan(snapshot);
+
+        InspectionPlan livePlan = currentPlan.get();
+        if (livePlan != null && livePlan.getId().equals(snapshot.getId()) && !unsavedChanges.get()) {
+            livePlan.setCreatedAt(snapshot.getCreatedAt());
+            livePlan.setUpdatedAt(snapshot.getUpdatedAt());
+            refreshCurrentPlanMetadata(livePlan);
+            saveState.set("Saved");
+            return;
+        }
+
+        if (unsavedChanges.get()) {
+            saveState.set("Unsaved changes");
+        }
+    }
+
+    public void finishSaveFailure(String planId) {
+        saveInProgress.set(false);
+        InspectionPlan livePlan = currentPlan.get();
+        if (livePlan != null && livePlan.getId().equals(planId) && livePlan.isPending()) {
+            unsavedChanges.set(true);
+            saveState.set("Unsaved changes");
+        }
     }
 
     public Bubble placeBubble(double x, double y) {
@@ -487,6 +589,8 @@ public class PlanEditorViewModel {
         refreshCurrentPlanMetadata(plan);
         planPages.setAll(plan.getPages());
         unsavedChanges.set(false);
+        saveInProgress.set(false);
+        saveState.set("");
 
         if (planPages.isEmpty()) {
             clearDrawingState();
@@ -561,11 +665,11 @@ public class PlanEditorViewModel {
         storageService.savePlan(plan);
         unsavedChanges.set(false);
         refreshCurrentPlanMetadata(plan);
+        addOrUpdateSavedPlan(plan);
         planPages.setAll(plan.getPages());
 
         if (planPages.isEmpty()) {
             clearDrawingState();
-            refreshSavedPlans();
             return;
         }
 
@@ -587,14 +691,34 @@ public class PlanEditorViewModel {
                 .findFirst()
                 .orElse(null);
         selectedBubble.set(matchingBubble);
-        refreshSavedPlans();
     }
 
     private void markDirty() {
         InspectionPlan plan = currentPlan.get();
         if (plan != null && plan.isPending()) {
             unsavedChanges.set(true);
+            saveState.set("Unsaved changes");
         }
+    }
+
+    private void upsertSavedPlan(InspectionPlan plan) {
+        InspectionPlan copy = ModelCopies.copyPlan(plan);
+        for (int index = 0; index < savedPlans.size(); index++) {
+            if (savedPlans.get(index).getId().equals(copy.getId())) {
+                savedPlans.set(index, copy);
+                savedPlans.sort(java.util.Comparator.comparing(InspectionPlan::getUpdatedAt).reversed());
+                return;
+            }
+        }
+        savedPlans.add(copy);
+        savedPlans.sort(java.util.Comparator.comparing(InspectionPlan::getUpdatedAt).reversed());
+    }
+
+    private void removeSavedPlan(String planId) {
+        if (planId == null || planId.isBlank()) {
+            return;
+        }
+        savedPlans.removeIf(plan -> planId.equals(plan.getId()));
     }
 
     private void refreshPageBubbles() {

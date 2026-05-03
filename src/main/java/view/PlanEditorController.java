@@ -1,7 +1,10 @@
 package view;
 
 import app.AppContext;
+import app.BackgroundTaskRunner;
 import javafx.application.Platform;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.collections.ListChangeListener;
 import javafx.collections.transformation.FilteredList;
 import javafx.collections.transformation.SortedList;
@@ -59,6 +62,7 @@ public class PlanEditorController {
     private static final double PANEL_MAX_WIDTH = 600.0;
 
     private final PlanEditorViewModel viewModel;
+    private final BooleanProperty repositoryBusy = new SimpleBooleanProperty(false);
     private double zoomLevel = DEFAULT_ZOOM;
     private final InspectionExportService exportService = new InspectionExportService();
 
@@ -192,6 +196,7 @@ public class PlanEditorController {
 
     @FXML
     private void initialize() {
+        root.disableProperty().bind(repositoryBusy);
         planNameField.setText(displayPlanName(viewModel.getPlanName()));
         planStatusValueLabel.textProperty().bind(viewModel.planStatusProperty());
         planVersionValueLabel.textProperty().bind(viewModel.planVersionProperty());
@@ -199,12 +204,16 @@ public class PlanEditorController {
         drawingPathLabel.textProperty().bind(viewModel.drawingPathProperty());
         emptyStateLabel.visibleProperty().bind(viewModel.drawingLoadedProperty().not());
         emptyStateLabel.managedProperty().bind(emptyStateLabel.visibleProperty());
-        planNameField.disableProperty().bind(viewModel.currentPlanEditableProperty().not());
-        savePlanButton.disableProperty().bind(viewModel.currentPlanEditableProperty().not().or(viewModel.unsavedChangesProperty().not()));
-        addPageButton.disableProperty().bind(viewModel.currentPlanEditableProperty().not());
-        completePlanButton.disableProperty().bind(viewModel.currentPlanEditableProperty().not());
-        createRevisionButton.disableProperty().bind(viewModel.currentPlanCompleteProperty().not());
-        planUnsavedLabel.visibleProperty().bind(viewModel.unsavedChangesProperty());
+        planNameField.disableProperty().bind(viewModel.currentPlanEditableProperty().not().or(repositoryBusy));
+        savePlanButton.disableProperty().bind(viewModel.currentPlanEditableProperty().not()
+                .or(viewModel.unsavedChangesProperty().not())
+                .or(viewModel.saveInProgressProperty())
+                .or(repositoryBusy));
+        addPageButton.disableProperty().bind(viewModel.currentPlanEditableProperty().not().or(repositoryBusy));
+        completePlanButton.disableProperty().bind(viewModel.currentPlanEditableProperty().not().or(repositoryBusy));
+        createRevisionButton.disableProperty().bind(viewModel.currentPlanCompleteProperty().not().or(repositoryBusy));
+        planUnsavedLabel.textProperty().bind(viewModel.saveStateProperty());
+        planUnsavedLabel.visibleProperty().bind(viewModel.saveStateProperty().isNotEmpty());
         planUnsavedLabel.managedProperty().bind(planUnsavedLabel.visibleProperty());
         drawingScrollPane.setVisible(false);
         drawingScrollPane.setManaged(false);
@@ -234,7 +243,9 @@ public class PlanEditorController {
         refreshBubbleEditor(null);
 
         savedPlansListView.setItems(viewModel.getSavedPlans());
-        deletePlanButton.disableProperty().bind(savedPlansListView.getSelectionModel().selectedItemProperty().isNull());
+        savedPlansListView.setDisable(true);
+        savedPlansListView.setPlaceholder(new Label("Loading saved plans..."));
+        deletePlanButton.disableProperty().bind(savedPlansListView.getSelectionModel().selectedItemProperty().isNull().or(repositoryBusy));
         savedPlansListView.setCellFactory(listView -> new ListCell<>() {
             protected void updateItem(InspectionPlan item, boolean empty) {
                 super.updateItem(item, empty);
@@ -319,6 +330,7 @@ public class PlanEditorController {
 
         setupResizeHandle(leftResizeHandle, leftPanel, true);
         setupResizeHandle(rightResizeHandle, rightPanel, false);
+        refreshSavedPlansAsync();
     }
 
     // ── Resize ───────────────────────────────────────────────────────────────
@@ -385,43 +397,79 @@ public class PlanEditorController {
             return;
         }
         onPlanNameChanged();
-        viewModel.saveCurrentPlan();
-        planNameField.setText(displayPlanName(viewModel.getPlanName()));
-        loadDrawingPreview(viewModel.getDrawingPath());
-        selectCurrentPageIfPresent();
-        selectCurrentPlanIfPresent();
-        showInformation("Plan saved to Firebase.");
+        InspectionPlan snapshot;
+        try {
+            snapshot = viewModel.beginSaveSnapshot();
+        } catch (IllegalStateException exception) {
+            showInformation(exception.getMessage());
+            return;
+        }
+
+        savePlanButton.setText("Saving...");
+        repositoryBusy.set(true);
+        BackgroundTaskRunner.run("plan-save", () -> {
+            viewModel.persistPlanSnapshot(snapshot);
+            return snapshot;
+        }, savedPlan -> {
+            repositoryBusy.set(false);
+            viewModel.finishSaveSuccess(savedPlan);
+            savePlanButton.setText("Save Draft");
+            selectCurrentPlanIfPresent();
+        }, failure -> {
+            repositoryBusy.set(false);
+            viewModel.finishSaveFailure(snapshot.getId());
+            savePlanButton.setText("Save Draft");
+            showInformation(failure == null || failure.getMessage() == null
+                    ? "Unable to save the plan."
+                    : failure.getMessage());
+        });
     }
 
     @FXML
     private void onCompletePlan() {
         try {
             onPlanNameChanged();
-            viewModel.completeCurrentPlan();
-            planNameField.setText(displayPlanName(viewModel.getPlanName()));
-            selectCurrentPageIfPresent();
-            loadDrawingPreview(viewModel.getDrawingPath());
-            resetViewport();
-            selectCurrentPlanIfPresent();
-            showInformation("Plan marked complete as " + viewModel.planVersionProperty().get() + ".");
         } catch (IllegalStateException exception) {
             showInformation(exception.getMessage());
+            return;
         }
+
+        repositoryBusy.set(true);
+        BackgroundTaskRunner.run("plan-complete", viewModel::completeCurrentPlanInRepository, completedPlan -> {
+            repositoryBusy.set(false);
+            viewModel.applyLoadedPlan(completedPlan);
+            viewModel.addOrUpdateSavedPlan(completedPlan);
+            refreshLoadedPlanView();
+            showInformation("Plan marked complete as " + viewModel.planVersionProperty().get() + ".");
+        }, failure -> {
+            repositoryBusy.set(false);
+            showInformation(failure == null || failure.getMessage() == null
+                    ? "Unable to complete the plan."
+                    : failure.getMessage());
+        });
     }
 
     @FXML
     private void onCreateRevision() {
         try {
-            viewModel.createRevisionFromCurrentPlan();
-            planNameField.setText(displayPlanName(viewModel.getPlanName()));
-            selectCurrentPageIfPresent();
-            loadDrawingPreview(viewModel.getDrawingPath());
-            resetViewport();
-            selectCurrentPlanIfPresent();
-            showInformation("Pending revision opened.");
         } catch (IllegalStateException exception) {
             showInformation(exception.getMessage());
+            return;
         }
+
+        repositoryBusy.set(true);
+        BackgroundTaskRunner.run("plan-revision", viewModel::createRevisionFromCurrentPlanInRepository, revision -> {
+            repositoryBusy.set(false);
+            viewModel.applyLoadedPlan(revision);
+            viewModel.addOrUpdateSavedPlan(revision);
+            refreshLoadedPlanView();
+            showInformation("Pending revision opened.");
+        }, failure -> {
+            repositoryBusy.set(false);
+            showInformation(failure == null || failure.getMessage() == null
+                    ? "Unable to create a revision."
+                    : failure.getMessage());
+        });
     }
 
     @FXML
@@ -431,12 +479,19 @@ public class PlanEditorController {
             showInformation("Select a saved plan first.");
             return;
         }
-        viewModel.openPlan(selectedPlan);
-        planNameField.setText(displayPlanName(viewModel.getPlanName()));
-        selectCurrentPageIfPresent();
-        loadDrawingPreview(viewModel.getDrawingPath());
-        resetViewport();
-        selectCurrentPlanIfPresent();
+
+        repositoryBusy.set(true);
+        BackgroundTaskRunner.run("plan-open", () -> viewModel.loadPlanFromRepository(selectedPlan.getId()), loadedPlan -> {
+            repositoryBusy.set(false);
+            viewModel.applyLoadedPlan(loadedPlan);
+            viewModel.addOrUpdateSavedPlan(loadedPlan);
+            refreshLoadedPlanView();
+        }, failure -> {
+            repositoryBusy.set(false);
+            showInformation(failure == null || failure.getMessage() == null
+                    ? "Unable to open the selected plan."
+                    : failure.getMessage());
+        });
     }
 
     @FXML
@@ -446,22 +501,42 @@ public class PlanEditorController {
             showInformation("Select a saved plan first.");
             return;
         }
-        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
-        alert.setTitle("Delete Plan");
-        alert.setHeaderText("Delete selected plan?");
-        alert.setContentText(buildDeletePlanMessage(selectedPlan));
-        Optional<ButtonType> result = alert.showAndWait();
-        if (result.isEmpty() || result.get() != ButtonType.OK) return;
-        try {
-            viewModel.deletePlan(selectedPlan);
-        } catch (IllegalStateException exception) {
-            showInformation(exception.getMessage());
-            return;
-        }
-        planNameField.setText(displayPlanName(viewModel.getPlanName()));
-        selectCurrentPageIfPresent();
-        loadDrawingPreview(viewModel.getDrawingPath());
-        resetViewport();
+
+        repositoryBusy.set(true);
+        BackgroundTaskRunner.run("plan-delete-prepare",
+                () -> new DeletePlanPreparation(selectedPlan, viewModel.loadAffectedLotsForPlan(selectedPlan.getId())),
+                preparation -> {
+                    repositoryBusy.set(false);
+                    Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+                    alert.setTitle("Delete Plan");
+                    alert.setHeaderText("Delete selected plan?");
+                    alert.setContentText(buildDeletePlanMessage(preparation.plan(), preparation.affectedLots()));
+                    Optional<ButtonType> result = alert.showAndWait();
+                    if (result.isEmpty() || result.get() != ButtonType.OK) {
+                        return;
+                    }
+
+                    repositoryBusy.set(true);
+                    BackgroundTaskRunner.run("plan-delete", () -> {
+                        viewModel.deletePlanInRepository(preparation.plan().getId());
+                        return preparation.plan().getId();
+                    }, deletedPlanId -> {
+                        repositoryBusy.set(false);
+                        viewModel.applyDeletedPlan(deletedPlanId);
+                        refreshLoadedPlanView();
+                    }, failure -> {
+                        repositoryBusy.set(false);
+                        showInformation(failure == null || failure.getMessage() == null
+                                ? "Unable to delete the selected plan."
+                                : failure.getMessage());
+                    });
+                },
+                failure -> {
+                    repositoryBusy.set(false);
+                    showInformation(failure == null || failure.getMessage() == null
+                            ? "Unable to load the affected inspection lots."
+                            : failure.getMessage());
+                });
     }
 
     @FXML
@@ -1392,9 +1467,34 @@ public class PlanEditorController {
         return name + " (" + statusText + ", " + versionText + ")";
     }
 
-    private String buildDeletePlanMessage(InspectionPlan plan) {
+    private void refreshSavedPlansAsync() {
+        repositoryBusy.set(true);
+        BackgroundTaskRunner.run("plan-list-load", viewModel::loadSavedPlansFromRepository, plans -> {
+            repositoryBusy.set(false);
+            viewModel.applySavedPlans(plans);
+            savedPlansListView.setDisable(false);
+            savedPlansListView.setPlaceholder(new Label("No saved plans yet."));
+            selectCurrentPlanIfPresent();
+        }, failure -> {
+            repositoryBusy.set(false);
+            savedPlansListView.setDisable(false);
+            savedPlansListView.setPlaceholder(new Label("Unable to load saved plans."));
+            showInformation(failure == null || failure.getMessage() == null
+                    ? "Unable to load saved plans."
+                    : failure.getMessage());
+        });
+    }
+
+    private void refreshLoadedPlanView() {
+        planNameField.setText(displayPlanName(viewModel.getPlanName()));
+        selectCurrentPageIfPresent();
+        loadDrawingPreview(viewModel.getDrawingPath());
+        resetViewport();
+        selectCurrentPlanIfPresent();
+    }
+
+    private String buildDeletePlanMessage(InspectionPlan plan, List<InspectionLotSummary> affectedLots) {
         String name = plan.getName() == null || plan.getName().isBlank() ? "Untitled Plan" : plan.getName().trim();
-        List<InspectionLotSummary> affectedLots = viewModel.getAffectedLotsForPlan(plan);
         if (affectedLots.isEmpty()) {
             return name;
         }
@@ -1432,5 +1532,8 @@ public class PlanEditorController {
         nominalValueField.setEditable(editable);
         lowerToleranceField.setEditable(editable);
         upperToleranceField.setEditable(editable);
+    }
+
+    private record DeletePlanPreparation(InspectionPlan plan, List<InspectionLotSummary> affectedLots) {
     }
 }

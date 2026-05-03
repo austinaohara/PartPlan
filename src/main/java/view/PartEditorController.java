@@ -1,6 +1,9 @@
 package view;
 
 import app.AppContext;
+import app.BackgroundTaskRunner;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.event.ActionEvent;
@@ -20,6 +23,7 @@ import javafx.scene.control.TabPane;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
 import javafx.scene.control.cell.TextFieldTableCell;
+import javafx.scene.layout.BorderPane;
 import javafx.scene.text.TextAlignment;
 import javafx.util.StringConverter;
 import model.InspectionLot;
@@ -35,6 +39,7 @@ public class PartEditorController {
     private static final int MAX_LOT_SIZE = 1000;
 
     private final PartEditorViewModel viewModel;
+    private final BooleanProperty repositoryBusy = new SimpleBooleanProperty(false);
     private boolean syncingLotSize;
 
     public PartEditorController(AppContext appContext) {
@@ -44,6 +49,8 @@ public class PartEditorController {
         );
     }
 
+    @FXML
+    private BorderPane root;
     @FXML
     private TextField lotNameField;
     @FXML
@@ -83,6 +90,7 @@ public class PartEditorController {
 
     @FXML
     private void initialize() {
+        root.disableProperty().bind(repositoryBusy);
         configureLotNameField();
         configureLotSizeSpinner();
         configurePartSelector();
@@ -95,10 +103,19 @@ public class PartEditorController {
     }
 
     public void loadLot(String lotId) {
-        viewModel.loadLot(lotId);
-        rebuildMasterColumns();
-        syncLoadedLotState();
-        syncPartSelection();
+        repositoryBusy.set(true);
+        BackgroundTaskRunner.run("lot-load", () -> viewModel.loadLotData(lotId), loadedLotData -> {
+            repositoryBusy.set(false);
+            viewModel.applyLoadedLot(loadedLotData);
+            rebuildMasterColumns();
+            syncLoadedLotState();
+            syncPartSelection();
+        }, failure -> {
+            repositoryBusy.set(false);
+            showInformation(failure == null || failure.getMessage() == null
+                    ? "Unable to load the inspection lot."
+                    : failure.getMessage());
+        });
     }
 
     @FXML
@@ -131,11 +148,34 @@ public class PartEditorController {
         }
 
         onLotNameCommitted();
-        viewModel.saveCurrentLot();
-        syncLoadedLotState();
-        syncPartSelection();
-        rebuildMasterColumns();
-        showInformation("Inspection lot saved to Firebase.");
+        InspectionLot snapshot;
+        try {
+            snapshot = viewModel.beginSaveSnapshot();
+        } catch (IllegalStateException exception) {
+            showInformation(exception.getMessage());
+            return;
+        }
+
+        saveLotButton.setText("Saving...");
+        repositoryBusy.set(true);
+        BackgroundTaskRunner.run("lot-save", () -> {
+            viewModel.persistLotSnapshot(snapshot);
+            return snapshot;
+        }, savedLot -> {
+            repositoryBusy.set(false);
+            viewModel.finishSaveSuccess(savedLot);
+            saveLotButton.setText("Save Lot");
+            syncLoadedLotState();
+            syncPartSelection();
+            rebuildMasterColumns();
+        }, failure -> {
+            repositoryBusy.set(false);
+            viewModel.finishSaveFailure(snapshot.getId());
+            saveLotButton.setText("Save Lot");
+            showInformation(failure == null || failure.getMessage() == null
+                    ? "Unable to save the inspection lot."
+                    : failure.getMessage());
+        });
     }
 
     @FXML
@@ -167,17 +207,22 @@ public class PartEditorController {
             return;
         }
 
-        try {
-            InspectionLot updatedLot = viewModel.upversionCurrentLot();
+        repositoryBusy.set(true);
+        BackgroundTaskRunner.run("lot-upversion", viewModel::upversionCurrentLotInRepository, updatedLot -> {
+            repositoryBusy.set(false);
+            viewModel.applyUpversionedLot(updatedLot);
             rebuildMasterColumns();
             syncLoadedLotState();
             syncPartSelection();
             if (updatedLot != null) {
                 showInformation("Inspection lot moved to " + updatedLot.getPlanName() + " v" + updatedLot.getPlanVersion() + ".");
             }
-        } catch (IllegalStateException exception) {
-            showInformation(exception.getMessage());
-        }
+        }, failure -> {
+            repositoryBusy.set(false);
+            showInformation(failure == null || failure.getMessage() == null
+                    ? "Unable to upversion the inspection lot."
+                    : failure.getMessage());
+        });
     }
 
     private void configureLotNameField() {
@@ -294,14 +339,17 @@ public class PartEditorController {
         lotNameField.disableProperty().bind(viewModel.lotLoadedProperty().not());
         lotSizeSpinner.disableProperty().bind(viewModel.lotLoadedProperty().not());
         partSelectorComboBox.disableProperty().bind(viewModel.lotLoadedProperty().not());
-        saveLotButton.disableProperty().bind(viewModel.lotLoadedProperty().not().or(viewModel.unsavedChangesProperty().not()));
+        saveLotButton.disableProperty().bind(viewModel.lotLoadedProperty().not()
+                .or(viewModel.unsavedChangesProperty().not())
+                .or(viewModel.saveInProgressProperty()));
         upversionLotButton.disableProperty().bind(viewModel.lotLoadedProperty().not().or(viewModel.upversionAvailableProperty().not()));
         previousPartButton.disableProperty().bind(viewModel.lotLoadedProperty().not()
                 .or(viewModel.currentPartNumberProperty().lessThanOrEqualTo(1)));
         nextPartButton.disableProperty().bind(viewModel.lotLoadedProperty().not()
                 .or(viewModel.currentPartNumberProperty().greaterThanOrEqualTo(viewModel.lotSizeProperty())));
         editorTabPane.disableProperty().bind(viewModel.lotLoadedProperty().not());
-        lotUnsavedLabel.visibleProperty().bind(viewModel.unsavedChangesProperty());
+        lotUnsavedLabel.textProperty().bind(viewModel.saveStateProperty());
+        lotUnsavedLabel.visibleProperty().bind(viewModel.saveStateProperty().isNotEmpty());
         lotUnsavedLabel.managedProperty().bind(lotUnsavedLabel.visibleProperty());
 
         viewModel.currentPartNumberProperty().addListener((observable, oldValue, newValue) -> syncPartSelection());
