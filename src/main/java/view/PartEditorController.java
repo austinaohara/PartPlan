@@ -3,6 +3,7 @@ package view;
 import app.AppContext;
 import app.BackgroundTaskRunner;
 import app.UnsavedChangesDialogs;
+import app.UserFacingErrorMessages;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.ReadOnlyObjectWrapper;
@@ -136,9 +137,7 @@ public class PartEditorController {
             syncPartSelection();
         }, failure -> {
             repositoryBusy.set(false);
-            showInformation(failure == null || failure.getMessage() == null
-                    ? "Unable to load the inspection lot."
-                    : failure.getMessage());
+            showFailure(failure, "Unable to load the inspection lot.");
         });
     }
 
@@ -215,9 +214,7 @@ public class PartEditorController {
             repositoryBusy.set(false);
             viewModel.finishSaveFailure(snapshot.getId());
             saveLotButton.setText("Save Lot");
-            showInformation(failure == null || failure.getMessage() == null
-                    ? "Unable to save the inspection lot."
-                    : failure.getMessage());
+            showFailure(failure, "Unable to save the inspection lot.");
         });
     }
 
@@ -263,9 +260,7 @@ public class PartEditorController {
                 }
             }, failure -> {
                 repositoryBusy.set(false);
-                showInformation(failure == null || failure.getMessage() == null
-                        ? "Unable to upversion the inspection lot."
-                        : failure.getMessage());
+                showFailure(failure, "Unable to upversion the inspection lot.");
             });
         });
     }
@@ -547,6 +542,14 @@ public class PartEditorController {
         alert.setTitle("Part Editor");
         alert.setHeaderText(null);
         alert.setContentText(message);
+        alert.showAndWait();
+    }
+
+    private void showFailure(Throwable failure, String fallbackMessage) {
+        javafx.scene.control.Alert alert = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.ERROR);
+        alert.setTitle("Part Editor");
+        alert.setHeaderText("Action failed");
+        alert.setContentText(UserFacingErrorMessages.format(failure, fallbackMessage));
         alert.showAndWait();
     }
 

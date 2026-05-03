@@ -2,6 +2,7 @@ package view;
 
 import app.AppContext;
 import app.BackgroundTaskRunner;
+import app.UserFacingErrorMessages;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.ReadOnlyObjectWrapper;
@@ -160,9 +161,7 @@ public class InspectionLotBrowserController {
             }
         }, failure -> {
             repositoryBusy.set(false);
-            showInformation(failure == null || failure.getMessage() == null
-                    ? "Unable to upversion the inspection lot."
-                    : failure.getMessage());
+            showFailure(failure, "Unable to upversion the inspection lot.");
         });
     }
 
@@ -198,9 +197,7 @@ public class InspectionLotBrowserController {
             }
         }, failure -> {
             repositoryBusy.set(false);
-            showInformation(failure == null || failure.getMessage() == null
-                    ? "Unable to create the inspection lot."
-                    : failure.getMessage());
+            showFailure(failure, "Unable to create the inspection lot.");
         });
     }
 
@@ -361,9 +358,7 @@ public class InspectionLotBrowserController {
             updateSavedLotCount();
         }, failure -> {
             repositoryBusy.set(false);
-            showInformation(failure == null || failure.getMessage() == null
-                    ? "Unable to delete the inspection lot."
-                    : failure.getMessage());
+            showFailure(failure, "Unable to delete the inspection lot.");
         });
     }
 
@@ -397,6 +392,14 @@ public class InspectionLotBrowserController {
         alert.showAndWait();
     }
 
+    private void showFailure(Throwable failure, String fallbackMessage) {
+        Alert alert = new Alert(Alert.AlertType.ERROR);
+        alert.setTitle("Inspection Lots");
+        alert.setHeaderText("Action failed");
+        alert.setContentText(UserFacingErrorMessages.format(failure, fallbackMessage));
+        alert.showAndWait();
+    }
+
     private void updateUpversionActionState() {
         InspectionLotSummary selectedLot = savedLotsTableView.getSelectionModel().getSelectedItem();
         upversionLotButton.setDisable(selectedLot == null || viewModel.findLatestUpversionTarget(selectedLot) == null);
@@ -416,9 +419,7 @@ public class InspectionLotBrowserController {
         }, failure -> {
             repositoryBusy.set(false);
             savedLotsTableView.setPlaceholder(new Label("Unable to load inspection lots."));
-            showInformation(failure == null || failure.getMessage() == null
-                    ? "Unable to load inspection lots."
-                    : failure.getMessage());
+            showFailure(failure, "Unable to load inspection lots.");
         });
     }
 

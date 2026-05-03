@@ -1,5 +1,6 @@
 import app.AppContext;
 import app.AppStoragePaths;
+import app.UserFacingErrorMessages;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
@@ -75,7 +76,7 @@ public class FirebaseSetupController {
             continueButton.setDisable(false);
             AppNavigator.swapRoot(rootPane, "/fxml/login.fxml", "PartPlan - Sign In");
         } catch (RuntimeException | IOException exception) {
-            setStatus(exception.getMessage(), true);
+            setStatus(UserFacingErrorMessages.format(exception, "Unable to save the Firebase settings."), true);
         }
     }
 

@@ -3,6 +3,7 @@ package view;
 import app.AppContext;
 import app.BackgroundTaskRunner;
 import app.UnsavedChangesDialogs;
+import app.UserFacingErrorMessages;
 import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
@@ -446,9 +447,7 @@ public class PlanEditorController {
             repositoryBusy.set(false);
             viewModel.finishSaveFailure(snapshot.getId());
             savePlanButton.setText("Save Draft");
-            showInformation(failure == null || failure.getMessage() == null
-                    ? "Unable to save the plan."
-                    : failure.getMessage());
+            showFailure(failure, "Unable to save the plan.");
         });
     }
 
@@ -470,9 +469,7 @@ public class PlanEditorController {
             showInformation("Plan marked complete as " + viewModel.planVersionProperty().get() + ".");
         }, failure -> {
             repositoryBusy.set(false);
-            showInformation(failure == null || failure.getMessage() == null
-                    ? "Unable to complete the plan."
-                    : failure.getMessage());
+            showFailure(failure, "Unable to complete the plan.");
         });
     }
 
@@ -487,9 +484,7 @@ public class PlanEditorController {
             showInformation("Pending revision opened.");
         }, failure -> {
             repositoryBusy.set(false);
-            showInformation(failure == null || failure.getMessage() == null
-                    ? "Unable to create a revision."
-                    : failure.getMessage());
+            showFailure(failure, "Unable to create a revision.");
         });
     }
 
@@ -509,9 +504,7 @@ public class PlanEditorController {
                 refreshLoadedPlanView();
             }, failure -> {
                 repositoryBusy.set(false);
-                showInformation(failure == null || failure.getMessage() == null
-                        ? "Unable to open the selected plan."
-                        : failure.getMessage());
+                showFailure(failure, "Unable to open the selected plan.");
             });
         });
     }
@@ -559,16 +552,12 @@ public class PlanEditorController {
                         refreshLoadedPlanView();
                     }, failure -> {
                         repositoryBusy.set(false);
-                        showInformation(failure == null || failure.getMessage() == null
-                                ? "Unable to delete the selected plan."
-                                : failure.getMessage());
+                        showFailure(failure, "Unable to delete the selected plan.");
                     });
                 },
                 failure -> {
                     repositoryBusy.set(false);
-                    showInformation(failure == null || failure.getMessage() == null
-                            ? "Unable to load the affected inspection lots."
-                            : failure.getMessage());
+                    showFailure(failure, "Unable to load the affected inspection lots.");
                 });
     }
 
@@ -930,6 +919,14 @@ public class PlanEditorController {
         alert.setTitle("PartPlan");
         alert.setHeaderText(null);
         alert.setContentText(message);
+        alert.showAndWait();
+    }
+
+    private void showFailure(Throwable failure, String fallbackMessage) {
+        Alert alert = new Alert(Alert.AlertType.ERROR);
+        alert.setTitle("PartPlan");
+        alert.setHeaderText("Action failed");
+        alert.setContentText(UserFacingErrorMessages.format(failure, fallbackMessage));
         alert.showAndWait();
     }
 
@@ -1518,9 +1515,7 @@ public class PlanEditorController {
             repositoryBusy.set(false);
             savedPlansListView.setDisable(false);
             savedPlansListView.setPlaceholder(new Label("Unable to load saved plans."));
-            showInformation(failure == null || failure.getMessage() == null
-                    ? "Unable to load saved plans."
-                    : failure.getMessage());
+            showFailure(failure, "Unable to load saved plans.");
         });
     }
 

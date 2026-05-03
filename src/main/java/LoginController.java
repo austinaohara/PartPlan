@@ -1,4 +1,5 @@
 import app.AppContext;
+import app.UserFacingErrorMessages;
 import javafx.application.Platform;
 import javafx.concurrent.Task;
 import javafx.fxml.FXML;
@@ -9,7 +10,6 @@ import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.BorderPane;
 import service.auth.AuthService;
-import service.auth.AuthenticationException;
 import service.config.FirebaseProjectConfig;
 import service.config.FirebaseProjectConfigStore;
 import service.session.SessionManager;
@@ -125,14 +125,7 @@ public class LoginController {
         task.setOnFailed(event -> {
             Throwable exception = task.getException();
             authService.signOut();
-            if (exception instanceof AuthenticationException authenticationException
-                    && authenticationException.getMessage() != null) {
-                setStatus(authenticationException.getMessage(), true);
-            } else if (exception != null && exception.getMessage() != null) {
-                setStatus(exception.getMessage(), true);
-            } else {
-                setStatus("Unable to complete the Firebase sign-in flow.", true);
-            }
+            setStatus(UserFacingErrorMessages.format(exception, "Unable to complete the Firebase sign-in flow."), true);
             setBusy(false, null);
         });
 
