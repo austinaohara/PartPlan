@@ -9,16 +9,12 @@ import javafx.beans.property.StringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import model.Bubble;
-import model.InspectionLotSummary;
 import model.InspectionPlan;
 import model.InspectionType;
 import model.PlanDrawing;
 import model.PlanPage;
 import service.PdfPageRenderingService;
-import service.asset.ImportWorkspace;
-import service.repository.LotRepository;
-import service.repository.PlanRepository;
-import service.util.ModelCopies;
+import service.PlanStorageService;
 
 import java.io.File;
 import java.nio.file.Path;
@@ -29,10 +25,8 @@ import java.util.Objects;
 public class PlanEditorViewModel {
     private static final String DEFAULT_PLAN_NAME = "New Inspection Plan";
 
-    private final PlanRepository storageService;
-    private final LotRepository lotRepository;
-    private final ImportWorkspace assetStore;
-    private final PdfPageRenderingService pdfPageRenderingService;
+    private final PlanStorageService storageService = new PlanStorageService();
+    private final PdfPageRenderingService pdfPageRenderingService = new PdfPageRenderingService();
     private final ObjectProperty<InspectionPlan> currentPlan = new SimpleObjectProperty<>();
     private final ObjectProperty<PlanPage> selectedPage = new SimpleObjectProperty<>();
     private final ObjectProperty<Bubble> selectedBubble = new SimpleObjectProperty<>();
@@ -40,29 +34,14 @@ public class PlanEditorViewModel {
     private final ObservableList<PlanPage> planPages = FXCollections.observableArrayList();
     private final ObservableList<Bubble> pageBubbles = FXCollections.observableArrayList();
     private final StringProperty planName = new SimpleStringProperty();
-    private final StringProperty planStatus = new SimpleStringProperty("Pending");
-    private final StringProperty planVersion = new SimpleStringProperty("Draft");
     private final StringProperty drawingFileName = new SimpleStringProperty("No drawing selected");
     private final StringProperty drawingPath = new SimpleStringProperty("");
     private final StringProperty pageName = new SimpleStringProperty("");
-    private final StringProperty saveState = new SimpleStringProperty("");
     private final BooleanProperty drawingLoaded = new SimpleBooleanProperty(false);
-    private final BooleanProperty currentPlanEditable = new SimpleBooleanProperty(true);
-    private final BooleanProperty currentPlanComplete = new SimpleBooleanProperty(false);
-    private final BooleanProperty unsavedChanges = new SimpleBooleanProperty(false);
-    private final BooleanProperty saveInProgress = new SimpleBooleanProperty(false);
 
-    public PlanEditorViewModel(
-            PlanRepository storageService,
-            LotRepository lotRepository,
-            ImportWorkspace assetStore,
-            PdfPageRenderingService pdfPageRenderingService
-    ) {
-        this.storageService = Objects.requireNonNull(storageService, "storageService must not be null");
-        this.lotRepository = Objects.requireNonNull(lotRepository, "lotRepository must not be null");
-        this.assetStore = Objects.requireNonNull(assetStore, "assetStore must not be null");
-        this.pdfPageRenderingService = Objects.requireNonNull(pdfPageRenderingService, "pdfPageRenderingService must not be null");
+    public PlanEditorViewModel() {
         createNewPlan();
+        refreshSavedPlans();
     }
 
     public void createNewPlan() {
@@ -71,17 +50,14 @@ public class PlanEditorViewModel {
     }
 
     public void renamePlan(String newName) {
-        ensureCurrentPlanEditable();
         InspectionPlan plan = requireCurrentPlan();
         String sanitizedName = sanitizePlanName(newName);
         plan.rename(sanitizedName);
         planName.set(plan.getName());
-        markDirty();
     }
 
     public void importDrawing(File drawingFile) {
         Objects.requireNonNull(drawingFile, "drawingFile must not be null");
-        ensureCurrentPlanEditable();
 
         InspectionPlan plan = requireCurrentPlan();
         if (isPdf(drawingFile)) {
@@ -93,7 +69,13 @@ public class PlanEditorViewModel {
     }
 
     private void importPdfPages(InspectionPlan plan, File pdfFile) {
-        Path outputDirectory = assetStore.createImportDirectory(plan.getId(), stripExtension(pdfFile.getName()));
+        Path outputDirectory = Path.of(
+                System.getProperty("user.home"),
+                ".partplan",
+                "imports",
+                plan.getId(),
+                stripExtension(pdfFile.getName()) + "-" + System.nanoTime()
+        );
         List<File> renderedPages = pdfPageRenderingService.renderPdfPages(pdfFile, outputDirectory);
         PlanPage firstImportedPage = null;
         for (File renderedPage : renderedPages) {
@@ -119,7 +101,6 @@ public class PlanEditorViewModel {
         plan.addPage(page);
         planPages.setAll(plan.getPages());
         selectPage(page);
-        markDirty();
         return page;
     }
 
@@ -136,71 +117,36 @@ public class PlanEditorViewModel {
         refreshPageBubbles();
     }
 
-    public List<InspectionPlan> loadSavedPlansFromRepository() {
-        return storageService.loadPlans();
+    public void saveCurrentPlan() {
+        persistCurrentPlanState();
+        refreshSavedPlans();
     }
-
-    public void applySavedPlans(List<InspectionPlan> plans) {
-        List<InspectionPlan> copies = plans == null
-                ? List.of()
-                : plans.stream()
-                .map(ModelCopies::copyPlan)
-                .toList();
-        savedPlans.setAll(copies);
-        savedPlans.sort(java.util.Comparator.comparing(InspectionPlan::getUpdatedAt).reversed());
-    }
-
-    public InspectionPlan loadPlanFromRepository(String planId) {
-        return storageService.loadPlan(planId);
-    }
-
-    public InspectionPlan completeCurrentPlanInRepository() {
-        InspectionPlan plan = requireCurrentPlan();
-        ensureCurrentPlanEditable();
-        if (unsavedChanges.get()) {
-            storageService.savePlan(ModelCopies.copyPlan(plan));
-        }
-        return storageService.completePlan(plan.getId());
-    }
-
-    public InspectionPlan createRevisionFromCurrentPlanInRepository() {
-        InspectionPlan plan = requireCurrentPlan();
-        if (!plan.isComplete()) {
-            throw new IllegalStateException("Only complete plans can create a revision.");
-        }
-        return storageService.createRevision(plan.getId());
-    }
-
-    public void applyLoadedPlan(InspectionPlan plan) {
-        loadPlan(plan);
-    }
-
-    public void addOrUpdateSavedPlan(InspectionPlan plan) {
-        upsertSavedPlan(plan);
-    }
-
-    public void deletePlanInRepository(String planId) {
-        if (planId == null || planId.isBlank()) {
+    public void openPlan(InspectionPlan selectedPlan) {
+        if (selectedPlan == null) {
             return;
         }
-        lotRepository.deleteLotsForPlan(planId);
-        storageService.deletePlan(planId);
+
+        InspectionPlan loadedPlan = storageService.loadPlan(selectedPlan.getId());
+        loadPlan(loadedPlan);
+        refreshSavedPlans();
     }
 
-    public void applyDeletedPlan(String planId) {
-        removeSavedPlan(planId);
+    public void deletePlan(InspectionPlan selectedPlan) {
+        if (selectedPlan == null) {
+            return;
+        }
+        storageService.deletePlan(selectedPlan.getId());
+        refreshSavedPlans();
 
         InspectionPlan plan = currentPlan.get();
-        if (plan != null && plan.getId().equals(planId)) {
+        if (plan != null && plan.getId().equals(selectedPlan.getId())) {
             createNewPlan();
         }
     }
 
-    public List<InspectionLotSummary> loadAffectedLotsForPlan(String planId) {
-        if (planId == null || planId.isBlank()) {
-            return List.of();
-        }
-        return lotRepository.loadLotSummariesForPlan(planId);
+    public void refreshSavedPlans() {
+        List<InspectionPlan> plans = storageService.loadPlans();
+        savedPlans.setAll(plans);
     }
     public boolean hasDrawing() {
         return drawingLoaded.get();
@@ -247,14 +193,6 @@ public class PlanEditorViewModel {
         return planName;
     }
 
-    public StringProperty planStatusProperty() {
-        return planStatus;
-    }
-
-    public StringProperty planVersionProperty() {
-        return planVersion;
-    }
-
     public String getDrawingFileName() {
         return drawingFileName.get();
     }
@@ -279,84 +217,12 @@ public class PlanEditorViewModel {
         return pageName;
     }
 
-    public StringProperty saveStateProperty() {
-        return saveState;
-    }
-
     public boolean isDrawingLoaded() {
         return drawingLoaded.get();
     }
 
     public BooleanProperty drawingLoadedProperty() {
         return drawingLoaded;
-    }
-
-    public BooleanProperty currentPlanEditableProperty() {
-        return currentPlanEditable;
-    }
-
-    public boolean isCurrentPlanEditable() {
-        return currentPlanEditable.get();
-    }
-
-    public BooleanProperty currentPlanCompleteProperty() {
-        return currentPlanComplete;
-    }
-
-    public boolean isCurrentPlanComplete() {
-        return currentPlanComplete.get();
-    }
-
-    public BooleanProperty unsavedChangesProperty() {
-        return unsavedChanges;
-    }
-
-    public boolean hasUnsavedChanges() {
-        return unsavedChanges.get();
-    }
-
-    public BooleanProperty saveInProgressProperty() {
-        return saveInProgress;
-    }
-
-    public InspectionPlan beginSaveSnapshot() {
-        ensureCurrentPlanEditable();
-        InspectionPlan snapshot = ModelCopies.copyPlan(requireCurrentPlan());
-        unsavedChanges.set(false);
-        saveInProgress.set(true);
-        saveState.set("Saving...");
-        return snapshot;
-    }
-
-    public void persistPlanSnapshot(InspectionPlan snapshot) {
-        storageService.savePlan(snapshot);
-    }
-
-    public void finishSaveSuccess(InspectionPlan snapshot) {
-        saveInProgress.set(false);
-        upsertSavedPlan(snapshot);
-
-        InspectionPlan livePlan = currentPlan.get();
-        if (livePlan != null && livePlan.getId().equals(snapshot.getId()) && !unsavedChanges.get()) {
-            livePlan.setCreatedAt(snapshot.getCreatedAt());
-            livePlan.setUpdatedAt(snapshot.getUpdatedAt());
-            refreshCurrentPlanMetadata(livePlan);
-            saveState.set("Saved");
-            return;
-        }
-
-        if (unsavedChanges.get()) {
-            saveState.set("Unsaved changes");
-        }
-    }
-
-    public void finishSaveFailure(String planId) {
-        saveInProgress.set(false);
-        InspectionPlan livePlan = currentPlan.get();
-        if (livePlan != null && livePlan.getId().equals(planId) && livePlan.isPending()) {
-            unsavedChanges.set(true);
-            saveState.set("Unsaved changes");
-        }
     }
 
     public Bubble placeBubble(double x, double y) {
@@ -377,7 +243,6 @@ public class PlanEditorViewModel {
             Double upperTolerance,
             String note
     ) {
-        ensureCurrentPlanEditable();
         InspectionPlan plan = requireCurrentPlan();
         PlanPage page = selectedPage.get();
         if (page == null) {
@@ -419,7 +284,6 @@ public class PlanEditorViewModel {
             String upperToleranceText,
             String note
     ) {
-        ensureCurrentPlanEditable();
         Bubble bubble = selectedBubble.get();
         if (bubble == null) {
             return;
@@ -438,11 +302,10 @@ public class PlanEditorViewModel {
         bubble.setUpperTolerance(parseNullableDouble(upperToleranceText));
         bubble.setNote(valueOrEmpty(note));
         refreshPageBubbles();
-        markDirty();
+        persistPlanSilently();
     }
 
     public void moveBubble(Bubble bubble, double x, double y) {
-        ensureCurrentPlanEditable();
         if (bubble == null) {
             return;
         }
@@ -450,16 +313,13 @@ public class PlanEditorViewModel {
         bubble.setX(x);
         bubble.setY(y);
         refreshPageBubbles();
-        markDirty();
     }
 
     public void persistBubbleLayout() {
-        ensureCurrentPlanEditable();
-        markDirty();
+        persistPlanSilently();
     }
 
     public Bubble copySelectedBubble() {
-        ensureCurrentPlanEditable();
         Bubble source = selectedBubble.get();
         if (source == null) {
             return null;
@@ -497,12 +357,11 @@ public class PlanEditorViewModel {
         plan.addBubble(copy);
         refreshPageBubbles();
         selectedBubble.set(copy);
-        markDirty();
+        persistPlanSilently();
         return copy;
     }
 
     public void deleteSelectedBubble() {
-        ensureCurrentPlanEditable();
         Bubble bubble = selectedBubble.get();
         if (bubble == null) {
             return;
@@ -512,11 +371,10 @@ public class PlanEditorViewModel {
         plan.removeBubble(bubble);
         selectedBubble.set(null);
         refreshPageBubbles();
-        markDirty();
+        persistPlanSilently();
     }
 
     public void applyBubbleDefaults(double diameter, String color) {
-        ensureCurrentPlanEditable();
         InspectionPlan plan = requireCurrentPlan();
         double radius = diameter / 2.0;
         String normalizedColor = color == null || color.isBlank() ? "#E53935" : color.trim();
@@ -531,7 +389,7 @@ public class PlanEditorViewModel {
         }
 
         refreshPageBubbles();
-        markDirty();
+        persistPlanSilently();
     }
 
     private void loadPlan(InspectionPlan plan) {
@@ -539,11 +397,7 @@ public class PlanEditorViewModel {
         currentPlan.set(plan);
         selectedBubble.set(null);
         planName.set(plan.getName());
-        refreshCurrentPlanMetadata(plan);
         planPages.setAll(plan.getPages());
-        unsavedChanges.set(false);
-        saveInProgress.set(false);
-        saveState.set("");
 
         if (planPages.isEmpty()) {
             clearDrawingState();
@@ -601,32 +455,43 @@ public class PlanEditorViewModel {
         drawingLoaded.set(false);
     }
 
-    private void markDirty() {
-        InspectionPlan plan = currentPlan.get();
-        if (plan != null && plan.isPending()) {
-            unsavedChanges.set(true);
-            saveState.set("Unsaved changes");
-        }
+    private void persistCurrentPlanState() {
+        persistPlanSilently();
     }
 
-    private void upsertSavedPlan(InspectionPlan plan) {
-        InspectionPlan copy = ModelCopies.copyPlan(plan);
-        for (int index = 0; index < savedPlans.size(); index++) {
-            if (savedPlans.get(index).getId().equals(copy.getId())) {
-                savedPlans.set(index, copy);
-                savedPlans.sort(java.util.Comparator.comparing(InspectionPlan::getUpdatedAt).reversed());
-                return;
-            }
-        }
-        savedPlans.add(copy);
-        savedPlans.sort(java.util.Comparator.comparing(InspectionPlan::getUpdatedAt).reversed());
-    }
+    private void persistPlanSilently() {
+        InspectionPlan plan = requireCurrentPlan();
+        PlanPage currentPage = selectedPage.get();
+        Bubble currentBubble = selectedBubble.get();
 
-    private void removeSavedPlan(String planId) {
-        if (planId == null || planId.isBlank()) {
+        storageService.savePlan(plan);
+        planPages.setAll(plan.getPages());
+
+        if (planPages.isEmpty()) {
+            clearDrawingState();
+            refreshSavedPlans();
             return;
         }
-        savedPlans.removeIf(plan -> planId.equals(plan.getId()));
+
+        PlanPage matchingPage = currentPage == null
+                ? planPages.getFirst()
+                : planPages.stream()
+                .filter(page -> page.getId().equals(currentPage.getId()))
+                .findFirst()
+                .orElse(planPages.getFirst());
+        selectedPage.set(matchingPage);
+        pageName.set(matchingPage.getName());
+        updateDrawingState(matchingPage.getDrawing());
+        refreshPageBubbles();
+
+        Bubble matchingBubble = currentBubble == null
+                ? null
+                : plan.getBubbles().stream()
+                .filter(bubble -> bubble.getId().equals(currentBubble.getId()))
+                .findFirst()
+                .orElse(null);
+        selectedBubble.set(matchingBubble);
+        refreshSavedPlans();
     }
 
     private void refreshPageBubbles() {
@@ -673,19 +538,5 @@ public class PlanEditorViewModel {
 
     private String valueOrEmpty(String value) {
         return value == null ? "" : value.trim();
-    }
-
-    private void refreshCurrentPlanMetadata(InspectionPlan plan) {
-        planStatus.set(plan == null ? "Pending" : plan.getStatus().name().charAt(0) + plan.getStatus().name().substring(1).toLowerCase(Locale.ROOT));
-        planVersion.set(plan == null || plan.getVersion() <= 0 ? "Draft" : "v" + plan.getVersion());
-        currentPlanEditable.set(plan != null && plan.isEditable());
-        currentPlanComplete.set(plan != null && plan.isComplete());
-    }
-
-    private void ensureCurrentPlanEditable() {
-        InspectionPlan plan = requireCurrentPlan();
-        if (!plan.isEditable()) {
-            throw new IllegalStateException("Complete plans are read-only. Create a revision to make changes.");
-        }
     }
 }
