@@ -14,7 +14,7 @@
 <?import javafx.scene.layout.Region?>
 <?import javafx.scene.layout.VBox?>
 
-<BorderPane prefHeight="700.0" prefWidth="1100.0" stylesheets="@../styles/main.css" xmlns="http://javafx.com/javafx/20.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="view.InspectionLotBrowserController">
+<BorderPane fx:id="root" prefHeight="700.0" prefWidth="1100.0" stylesheets="@../styles/main.css" xmlns="http://javafx.com/javafx/20.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="view.InspectionLotBrowserController">
     <top>
         <VBox spacing="12.0" styleClass="top-bar">
             <padding>
@@ -26,7 +26,7 @@
                 <Button mnemonicParsing="false" onAction="#onRefreshData" styleClass="secondary-button" text="Refresh" />
                 <Button mnemonicParsing="false" onAction="#onReturnToHub" styleClass="secondary-button" text="Return to Hub" />
             </HBox>
-            <Label styleClass="browser-copy" text="Open an existing inspection lot or create a new lot from a saved inspection plan." wrapText="true" />
+            <Label styleClass="browser-copy" text="Open an existing inspection lot or create a new lot from a completed inspection plan version." wrapText="true" />
         </VBox>
     </top>
 
@@ -58,6 +58,7 @@
                     </columns>
                 </TableView>
                 <HBox alignment="CENTER_RIGHT" spacing="10.0">
+                    <Button fx:id="upversionLotButton" mnemonicParsing="false" onAction="#onUpversionLot" styleClass="secondary-button" text="Upversion Lot" />
                     <Button fx:id="deleteLotButton" mnemonicParsing="false" onAction="#onDeleteLot" styleClass="danger-button" text="Delete Lot" />
                     <Button fx:id="openLotButton" mnemonicParsing="false" onAction="#onOpenLot" styleClass="primary-button" text="Open Selected Lot" />
                 </HBox>
@@ -68,9 +69,9 @@
                     <Insets bottom="24.0" left="24.0" right="24.0" top="24.0" />
                 </padding>
                 <Label styleClass="panel-title" text="Create New Lot" />
-                <Label styleClass="editor-copy" text="Choose a saved inspection plan, set the lot name and lot size, then open the new lot in the part editor." wrapText="true" />
-                <Label styleClass="field-label" text="Saved Plan" />
-                <ComboBox fx:id="planSelectorComboBox" prefWidth="292.0" promptText="Select saved plan" />
+                <Label styleClass="editor-copy" text="Choose a completed plan version, set the lot name and lot size, then open the new lot in the part editor." wrapText="true" />
+                <Label styleClass="field-label" text="Completed Plan" />
+                <ComboBox fx:id="planSelectorComboBox" prefWidth="292.0" promptText="Select completed plan" />
                 <Label styleClass="field-label" text="Lot Name" />
                 <TextField fx:id="lotNameField" prefWidth="292.0" promptText="Inspection lot name" />
                 <Label styleClass="field-label" text="Lot Size" />

@@ -1,6 +1,12 @@
 package view;
 
+import app.AppContext;
+import app.BackgroundTaskRunner;
+import app.UnsavedChangesDialogs;
+import app.UserFacingErrorMessages;
 import javafx.application.Platform;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.collections.ListChangeListener;
 import javafx.collections.transformation.FilteredList;
 import javafx.collections.transformation.SortedList;
@@ -25,10 +31,12 @@ import javafx.scene.shape.Circle;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.scene.text.Text;
+import javafx.stage.Window;
+import javafx.stage.WindowEvent;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
-import javafx.stage.Window;
 import model.InspectionPlan;
+import model.InspectionLotSummary;
 import model.Bubble;
 import model.InspectionType;
 import model.PlanPage;
@@ -45,6 +53,7 @@ import javafx.geometry.Point2D;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Comparator;
+import java.util.function.Consumer;
 import java.util.List;
 import java.util.Optional;
 
@@ -58,7 +67,8 @@ public class PlanEditorController {
     private static final double PANEL_MIN_WIDTH = 150.0;
     private static final double PANEL_MAX_WIDTH = 600.0;
 
-    private final PlanEditorViewModel viewModel = new PlanEditorViewModel();
+    private final PlanEditorViewModel viewModel;
+    private final BooleanProperty repositoryBusy = new SimpleBooleanProperty(false);
     private double zoomLevel = DEFAULT_ZOOM;
     private final InspectionExportService exportService = new InspectionExportService();
     private Window guardedWindow;
@@ -96,6 +106,12 @@ public class PlanEditorController {
     private Parent root;
     @FXML
     private TextField planNameField;
+    @FXML
+    private Label planStatusValueLabel;
+    @FXML
+    private Label planVersionValueLabel;
+    @FXML
+    private Label planUnsavedLabel;
     @FXML
     private Label drawingFileNameLabel;
     @FXML
@@ -151,6 +167,8 @@ public class PlanEditorController {
     @FXML
     private VBox rightResizeHandle;
     @FXML
+    private VBox bubbleEditorPane;
+    @FXML
     private Label bubbleModeLabel;
     @FXML
     private Label bubbleHintLabel;
@@ -191,7 +209,6 @@ public class PlanEditorController {
     private double dragStartWidth;
     private Bubble draggingBubble;
     private boolean bubbleDragged;
-    private boolean suppressNextOverlayClick;
     private boolean drawingPannableBeforeBubbleDrag = true;
     private boolean syncingBubbleSelection;
     private FilteredList<Bubble> filteredBubbles;
@@ -212,7 +229,10 @@ public class PlanEditorController {
 
     @FXML
     private void initialize() {
+        root.disableProperty().bind(repositoryBusy);
         planNameField.setText(displayPlanName(viewModel.getPlanName()));
+        planStatusValueLabel.textProperty().bind(viewModel.planStatusProperty());
+        planVersionValueLabel.textProperty().bind(viewModel.planVersionProperty());
         drawingFileNameLabel.textProperty().bind(viewModel.drawingFileNameProperty());
         drawingPathLabel.textProperty().bind(viewModel.drawingPathProperty());
         emptyStateLabel.visibleProperty().bind(viewModel.drawingLoadedProperty().not());
@@ -243,7 +263,10 @@ public class PlanEditorController {
         bubbleOverlayPane.setOnMouseClicked(this::handleDrawingClick);
         bubbleOverlayPane.setOnMouseDragged(this::handleBubbleOverlayDrag);
         bubbleOverlayPane.setOnMouseReleased(this::handleBubbleOverlayRelease);
-        root.sceneProperty().addListener((observable, oldScene, newScene) -> registerShortcuts(newScene));
+        root.sceneProperty().addListener((observable, oldScene, newScene) -> {
+            registerShortcuts(newScene);
+            registerWindowCloseGuard(newScene);
+        });
         drawingScrollPane.addEventFilter(ScrollEvent.SCROLL, this::handleScrollZoom);
         viewModel.getPageBubbles().addListener((ListChangeListener<Bubble>) change -> renderBubbles());
         viewModel.selectedBubbleProperty().addListener((observable, oldBubble, newBubble) -> {
@@ -256,9 +279,13 @@ public class PlanEditorController {
         useDefaultDiameterCheckBox.selectedProperty().addListener((observable, oldValue, newValue) -> updateDefaultControlLocks());
         useDefaultColorCheckBox.selectedProperty().addListener((observable, oldValue, newValue) -> updateDefaultControlLocks());
         inspectionTypeComboBox.valueProperty().addListener((observable, oldValue, newValue) -> updateInspectionTypeControls());
+        viewModel.currentPlanEditableProperty().addListener((observable, oldValue, newValue) -> refreshBubbleEditor(viewModel.getSelectedBubble()));
         refreshBubbleEditor(null);
 
         savedPlansListView.setItems(viewModel.getSavedPlans());
+        savedPlansListView.setDisable(true);
+        savedPlansListView.setPlaceholder(new Label("Loading saved plans..."));
+        deletePlanButton.disableProperty().bind(savedPlansListView.getSelectionModel().selectedItemProperty().isNull().or(repositoryBusy));
         savedPlansListView.setCellFactory(listView -> new ListCell<>() {
             protected void updateItem(InspectionPlan item, boolean empty) {
                 super.updateItem(item, empty);
@@ -266,7 +293,7 @@ public class PlanEditorController {
                     setText(null);
                     return;
                 }
-                setText(item.getName());
+                setText(formatPlanListEntry(item));
             }
         });
         planPagesListView.setItems(viewModel.getPlanPages());
@@ -299,9 +326,6 @@ public class PlanEditorController {
             bubbleSearchField.clear();
             syncSelectedPage(newPage);
         });
-        viewModel.getSavedPlans().addListener(
-                (ListChangeListener<InspectionPlan>) change -> selectCurrentPlanIfPresent());
-
         // Bubble list (feature #51 + #52 + #61 sort)
         filteredBubbles = new FilteredList<>(viewModel.getPageBubbles(), b -> true);
         sortedBubbles = new SortedList<>(filteredBubbles);
@@ -331,9 +355,6 @@ public class PlanEditorController {
         bubbleListView.getSelectionModel().selectedItemProperty()
                 .addListener((obs, oldBubble, newBubble) -> {
                     if (syncingBubbleSelection) return;
-                    if (draggingBubble != null && newBubble == null) {
-                        return;
-                    }
                     viewModel.selectBubble(newBubble);
                 });
         bubbleSearchField.textProperty().addListener((obs, oldText, newText) -> {
@@ -349,6 +370,7 @@ public class PlanEditorController {
 
         setupResizeHandle(leftResizeHandle, leftPanel, true);
         setupResizeHandle(rightResizeHandle, rightPanel, false);
+        refreshSavedPlansAsync();
     }
 
     // ── Resize ───────────────────────────────────────────────────────────────
@@ -400,23 +422,84 @@ public class PlanEditorController {
 
     @FXML
     private void onNewPlan() {
-        viewModel.createNewPlan();
-        planNameField.setText(displayPlanName(viewModel.getPlanName()));
-        planPagesListView.getSelectionModel().clearSelection();
-        clearDrawingPreview();
-        resetViewport();
-        savedPlansListView.getSelectionModel().clearSelection();
+        requestProceedWithPotentialUnsavedChanges("start a new plan", true, this::applyNewPlanView);
     }
 
     @FXML
     private void onSavePlan() {
+        saveCurrentPlanAsync(null);
+    }
+
+    private void saveCurrentPlanAsync(Runnable onSuccessContinuation) {
+        if (!viewModel.isCurrentPlanEditable()) {
+            showInformation("Complete plans are read-only. Create a revision to make changes.");
+            return;
+        }
         onPlanNameChanged();
-        viewModel.saveCurrentPlan();
-        planNameField.setText(displayPlanName(viewModel.getPlanName()));
-        loadDrawingPreview(viewModel.getDrawingPath());
-        selectCurrentPageIfPresent();
-        selectCurrentPlanIfPresent();
-        showInformation("Plan saved locally as JSON.");
+        InspectionPlan snapshot;
+        try {
+            snapshot = viewModel.beginSaveSnapshot();
+        } catch (IllegalStateException exception) {
+            showInformation(exception.getMessage());
+            return;
+        }
+
+        savePlanButton.setText("Saving...");
+        repositoryBusy.set(true);
+        BackgroundTaskRunner.run("plan-save", () -> {
+            viewModel.persistPlanSnapshot(snapshot);
+            return snapshot;
+        }, savedPlan -> {
+            repositoryBusy.set(false);
+            viewModel.finishSaveSuccess(savedPlan);
+            savePlanButton.setText("Save Draft");
+            selectCurrentPlanIfPresent();
+            if (onSuccessContinuation != null) {
+                onSuccessContinuation.run();
+            }
+        }, failure -> {
+            repositoryBusy.set(false);
+            viewModel.finishSaveFailure(snapshot.getId());
+            savePlanButton.setText("Save Draft");
+            showFailure(failure, "Unable to save the plan.");
+        });
+    }
+
+    @FXML
+    private void onCompletePlan() {
+        try {
+            onPlanNameChanged();
+        } catch (IllegalStateException exception) {
+            showInformation(exception.getMessage());
+            return;
+        }
+
+        repositoryBusy.set(true);
+        BackgroundTaskRunner.run("plan-complete", viewModel::completeCurrentPlanInRepository, completedPlan -> {
+            repositoryBusy.set(false);
+            viewModel.applyLoadedPlan(completedPlan);
+            viewModel.addOrUpdateSavedPlan(completedPlan);
+            refreshLoadedPlanView();
+            showInformation("Plan marked complete as " + viewModel.planVersionProperty().get() + ".");
+        }, failure -> {
+            repositoryBusy.set(false);
+            showFailure(failure, "Unable to complete the plan.");
+        });
+    }
+
+    @FXML
+    private void onCreateRevision() {
+        repositoryBusy.set(true);
+        BackgroundTaskRunner.run("plan-revision", viewModel::createRevisionFromCurrentPlanInRepository, revision -> {
+            repositoryBusy.set(false);
+            viewModel.applyLoadedPlan(revision);
+            viewModel.addOrUpdateSavedPlan(revision);
+            refreshLoadedPlanView();
+            showInformation("Pending revision opened.");
+        }, failure -> {
+            repositoryBusy.set(false);
+            showFailure(failure, "Unable to create a revision.");
+        });
     }
 
     @FXML
@@ -440,23 +523,6 @@ public class PlanEditorController {
             return;
         }
 
-        int existingBubbleCount = viewModel.currentPageBubbleCount();
-        boolean replaceExistingBubbles = existingBubbleCount > 0;
-        if (replaceExistingBubbles) {
-            Alert alert = new Alert(Alert.AlertType.WARNING);
-            alert.setTitle("Replace Existing Balloons");
-            alert.setHeaderText("Existing balloons will be replaced");
-            alert.setContentText("This page already has " + existingBubbleCount
-                    + " balloon" + (existingBubbleCount == 1 ? "" : "s")
-                    + ". Auto-balloon will remove them and replace them with the AI result if candidates are found.");
-            ButtonType replaceButton = new ButtonType("Replace");
-            alert.getButtonTypes().setAll(replaceButton, ButtonType.CANCEL);
-            Optional<ButtonType> decision = alert.showAndWait();
-            if (decision.isEmpty() || decision.get() != replaceButton) {
-                return;
-            }
-        }
-
         repositoryBusy.set(true);
         autoBalloonButton.setText("Detecting...");
         BackgroundTaskRunner.run("plan-auto-balloon",
@@ -464,9 +530,6 @@ public class PlanEditorController {
                 candidates -> {
                     repositoryBusy.set(false);
                     autoBalloonButton.setText("Auto-Balloon Page");
-                    if (replaceExistingBubbles && candidates != null && !candidates.isEmpty()) {
-                        viewModel.clearSelectedPageBubbles();
-                    }
                     int addedCount = viewModel.applyAutoBalloonCandidates(candidates, imageWidth, imageHeight);
                     renderBubbles();
                     syncBubbleListSelection(viewModel.getSelectedBubble());
@@ -493,11 +556,9 @@ public class PlanEditorController {
                 autoBalloonSettingsStage = new Stage();
                 autoBalloonSettingsStage.setTitle("PartPlan - OpenAI Settings");
                 autoBalloonSettingsStage.setScene(new Scene(settingsRoot));
-                autoBalloonSettingsStage.setResizable(false);
                 if (root.getScene() != null) {
                     autoBalloonSettingsStage.initOwner(root.getScene().getWindow());
                 }
-                autoBalloonSettingsStage.sizeToScene();
                 autoBalloonSettingsStage.show();
             } else {
                 autoBalloonSettingsStage.toFront();
@@ -514,12 +575,18 @@ public class PlanEditorController {
             showInformation("Select a saved plan first.");
             return;
         }
-        viewModel.openPlan(selectedPlan);
-        planNameField.setText(displayPlanName(viewModel.getPlanName()));
-        selectCurrentPageIfPresent();
-        loadDrawingPreview(viewModel.getDrawingPath());
-        resetViewport();
-        selectCurrentPlanIfPresent();
+        requestProceedWithPotentialUnsavedChanges("open another plan", true, () -> {
+            repositoryBusy.set(true);
+            BackgroundTaskRunner.run("plan-open", () -> viewModel.loadPlanFromRepository(selectedPlan.getId()), loadedPlan -> {
+                repositoryBusy.set(false);
+                viewModel.applyLoadedPlan(loadedPlan);
+                viewModel.addOrUpdateSavedPlan(loadedPlan);
+                refreshLoadedPlanView();
+            }, failure -> {
+                repositoryBusy.set(false);
+                showFailure(failure, "Unable to open the selected plan.");
+            });
+        });
     }
 
     @FXML
@@ -529,26 +596,67 @@ public class PlanEditorController {
             showInformation("Select a saved plan first.");
             return;
         }
-        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
-        alert.setTitle("Delete Plan");
-        alert.setHeaderText("Delete selected plan?");
-        alert.setContentText(selectedPlan.getName());
-        Optional<ButtonType> result = alert.showAndWait();
-        if (result.isEmpty() || result.get() != ButtonType.OK) return;
-        viewModel.deletePlan(selectedPlan);
-        planNameField.setText(displayPlanName(viewModel.getPlanName()));
-        selectCurrentPageIfPresent();
-        loadDrawingPreview(viewModel.getDrawingPath());
-        resetViewport();
+        InspectionPlan currentPlan = viewModel.getCurrentPlan();
+        if (currentPlan != null
+                && selectedPlan.getId().equals(currentPlan.getId())
+                && viewModel.hasUnsavedChanges()) {
+            requestProceedWithPotentialUnsavedChanges("delete the current plan", true, () -> proceedDeletePlan(selectedPlan));
+            return;
+        }
+
+        proceedDeletePlan(selectedPlan);
+    }
+
+    private void proceedDeletePlan(InspectionPlan selectedPlan) {
+        repositoryBusy.set(true);
+        BackgroundTaskRunner.run("plan-delete-prepare",
+                () -> new DeletePlanPreparation(selectedPlan, viewModel.loadAffectedLotsForPlan(selectedPlan.getId())),
+                preparation -> {
+                    repositoryBusy.set(false);
+                    Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+                    alert.setTitle("Delete Plan");
+                    alert.setHeaderText("Delete selected plan?");
+                    alert.setContentText(buildDeletePlanMessage(preparation.plan(), preparation.affectedLots()));
+                    Optional<ButtonType> result = alert.showAndWait();
+                    if (result.isEmpty() || result.get() != ButtonType.OK) {
+                        return;
+                    }
+
+                    repositoryBusy.set(true);
+                    BackgroundTaskRunner.run("plan-delete", () -> {
+                        viewModel.deletePlanInRepository(preparation.plan().getId());
+                        return preparation.plan().getId();
+                    }, deletedPlanId -> {
+                        repositoryBusy.set(false);
+                        viewModel.applyDeletedPlan(deletedPlanId);
+                        refreshLoadedPlanView();
+                    }, failure -> {
+                        repositoryBusy.set(false);
+                        showFailure(failure, "Unable to delete the selected plan.");
+                    });
+                },
+                failure -> {
+                    repositoryBusy.set(false);
+                    showFailure(failure, "Unable to load the affected inspection lots.");
+                });
     }
 
     @FXML
     private void onReturnToHub(ActionEvent event) throws IOException {
-        AppNavigator.swapRoot((Node) event.getSource(), "/fxml/welcome.fxml", "PartPlan");
+        requestProceedWithPotentialUnsavedChanges("return to the hub", true, () -> {
+            try {
+                AppNavigator.swapRoot((Node) event.getSource(), "/fxml/welcome.fxml", "PartPlan");
+            } catch (IOException exception) {
+                throw new IllegalStateException("Unable to return to the hub.", exception);
+            }
+        });
     }
 
     @FXML
     private void onPlanNameChanged() {
+        if (!viewModel.isCurrentPlanEditable()) {
+            return;
+        }
         viewModel.renamePlan(planNameField.getText());
         String displayName = displayPlanName(viewModel.getPlanName());
         if (!planNameField.getText().equals(displayName)) {
@@ -559,6 +667,10 @@ public class PlanEditorController {
 
     @FXML
     private void onImportDrawing() {
+        if (!viewModel.isCurrentPlanEditable()) {
+            showInformation("Complete plans are read-only. Create a revision to make changes.");
+            return;
+        }
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("Select Drawing Page");
         fileChooser.getExtensionFilters().addAll(
@@ -578,6 +690,10 @@ public class PlanEditorController {
 
     @FXML
     private void onSaveBubble() {
+        if (!viewModel.isCurrentPlanEditable()) {
+            showInformation("Complete plans are read-only. Create a revision to make changes.");
+            return;
+        }
         try {
             double radius = parseBubbleRadius();
             String color = normalizeBubbleColor();
@@ -629,6 +745,10 @@ public class PlanEditorController {
 
     @FXML
     private void onCopyBubble() {
+        if (!viewModel.isCurrentPlanEditable()) {
+            showInformation("Complete plans are read-only. Create a revision to make changes.");
+            return;
+        }
         if (viewModel.getSelectedBubble() == null) {
             showInformation("Select a bubble first to copy it.");
             return;
@@ -638,6 +758,10 @@ public class PlanEditorController {
 
     @FXML
     private void onDeleteBubble() {
+        if (!viewModel.isCurrentPlanEditable()) {
+            showInformation("Complete plans are read-only. Create a revision to make changes.");
+            return;
+        }
         if (viewModel.getSelectedBubble() == null) {
             return;
         }
@@ -878,6 +1002,14 @@ public class PlanEditorController {
         alert.showAndWait();
     }
 
+    private void showFailure(Throwable failure, String fallbackMessage) {
+        Alert alert = new Alert(Alert.AlertType.ERROR);
+        alert.setTitle("PartPlan");
+        alert.setHeaderText("Action failed");
+        alert.setContentText(UserFacingErrorMessages.format(failure, fallbackMessage));
+        alert.showAndWait();
+    }
+
     private void fitImageToViewport() {
         if (drawingImageView.getImage() == null) {
             return;
@@ -981,8 +1113,8 @@ public class PlanEditorController {
         if (drawingImageView.getImage() == null || viewModel.getSelectedPage() == null) {
             return;
         }
-        if (suppressNextOverlayClick) {
-            suppressNextOverlayClick = false;
+
+        if (event.isShiftDown() && !viewModel.isCurrentPlanEditable()) {
             event.consume();
             return;
         }
@@ -1056,15 +1188,22 @@ public class PlanEditorController {
                 if (mouseEvent.isShiftDown()) {
                     return;
                 }
+                viewModel.selectBubble(bubble);
+                if (!viewModel.isCurrentPlanEditable()) {
+                    mouseEvent.consume();
+                    return;
+                }
                 draggingBubble = bubble;
                 bubbleDragged = false;
                 drawingPannableBeforeBubbleDrag = drawingScrollPane.isPannable();
                 drawingScrollPane.setPannable(false);
-                viewModel.selectBubble(bubble);
                 circle.toFront();
                 mouseEvent.consume();
             });
             circle.setOnMouseDragged(mouseEvent -> {
+                if (!viewModel.isCurrentPlanEditable()) {
+                    return;
+                }
                 if (draggingBubble == null || !draggingBubble.getId().equals(bubble.getId())) {
                     return;
                 }
@@ -1072,6 +1211,9 @@ public class PlanEditorController {
                 mouseEvent.consume();
             });
             circle.setOnMouseReleased(mouseEvent -> {
+                if (!viewModel.isCurrentPlanEditable()) {
+                    return;
+                }
                 if (draggingBubble == null || !draggingBubble.getId().equals(bubble.getId())) {
                     return;
                 }
@@ -1157,6 +1299,7 @@ public class PlanEditorController {
     }
 
     private void refreshBubbleEditor(Bubble selectedBubble) {
+        boolean editable = viewModel.isCurrentPlanEditable();
         if (selectedBubble == null) {
             bubbleModeLabel.setText("Default Bubble Settings");
             bubbleHintLabel.setText("Shift + Click to place a bubble. Ctrl + C to copy.");
@@ -1169,6 +1312,7 @@ public class PlanEditorController {
             bubbleDiameterField.setText(formatNumber(defaultBubbleDiameter));
             bubbleNumberField.clear();
             bubbleNumberField.setDisable(true);
+            bubbleNumberField.setEditable(false);
             bubbleColorField.setText(defaultBubbleColor);
             updatingBubbleDefaultsUi = false;
             characteristicField.setText(defaultCharacteristic);
@@ -1177,6 +1321,7 @@ public class PlanEditorController {
             lowerToleranceField.setText(defaultLowerTolerance);
             upperToleranceField.setText(defaultUpperTolerance);
             bubbleNoteArea.setText(defaultNote);
+            setBubbleEditorEditable(editable);
             updateDefaultControlLocks();
             updateInspectionTypeControls();
             return;
@@ -1185,8 +1330,8 @@ public class PlanEditorController {
         bubbleModeLabel.setText("Selected Bubble");
         bubbleHintLabel.setText("Bubble " + selectedBubble.getLabel() + String.format(" at %.1f, %.1f", selectedBubble.getX(), selectedBubble.getY()));
         saveBubbleButton.setText("Save Bubble");
-        deleteBubbleButton.setDisable(false);
-        copyBubbleButton.setDisable(false); // when a bubble is selected
+        deleteBubbleButton.setDisable(!editable);
+        copyBubbleButton.setDisable(!editable); // when a bubble is selected
         updatingBubbleDefaultsUi = true;
         useDefaultDiameterCheckBox.setSelected(selectedBubble.isUseDefaultDiameter());
         useDefaultColorCheckBox.setSelected(selectedBubble.isUseDefaultColor());
@@ -1194,7 +1339,8 @@ public class PlanEditorController {
                 ? formatNumber(defaultBubbleDiameter)
                 : formatNumber(selectedBubble.getRadius() * 2.0));
         bubbleNumberField.setText(String.valueOf(selectedBubble.getSequenceNumber()));
-        bubbleNumberField.setDisable(false);
+        bubbleNumberField.setDisable(!editable);
+        bubbleNumberField.setEditable(editable);
         bubbleColorField.setText(useDefaultColorCheckBox.isSelected()
                 ? defaultBubbleColor
                 : selectedBubble.getColor());
@@ -1205,6 +1351,7 @@ public class PlanEditorController {
         lowerToleranceField.setText(formatNullableNumber(selectedBubble.getLowerTolerance()));
         upperToleranceField.setText(formatNullableNumber(selectedBubble.getUpperTolerance()));
         bubbleNoteArea.setText(selectedBubble.getNote());
+        setBubbleEditorEditable(editable);
         updateDefaultControlLocks();
         updateInspectionTypeControls();
     }
@@ -1245,16 +1392,17 @@ public class PlanEditorController {
     private void updateInspectionTypeControls() {
         InspectionType inspectionType = inspectionTypeComboBox.getValue();
         boolean passFail = inspectionType == InspectionType.PASS_FAIL;
+        boolean editable = viewModel.isCurrentPlanEditable();
 
-        if (passFail) {
+        if (passFail && editable) {
             nominalValueField.clear();
             lowerToleranceField.clear();
             upperToleranceField.clear();
         }
 
-        nominalValueField.setDisable(passFail);
-        lowerToleranceField.setDisable(passFail);
-        upperToleranceField.setDisable(passFail);
+        nominalValueField.setDisable(!editable || passFail);
+        lowerToleranceField.setDisable(!editable || passFail);
+        upperToleranceField.setDisable(!editable || passFail);
     }
 
     private void updateDefaultControlLocks() {
@@ -1263,10 +1411,14 @@ public class PlanEditorController {
         }
 
         Bubble selectedBubble = viewModel.getSelectedBubble();
+        boolean editable = viewModel.isCurrentPlanEditable();
+        useDefaultDiameterCheckBox.setDisable(!editable);
+        useDefaultColorCheckBox.setDisable(!editable);
+        inspectionTypeComboBox.setDisable(!editable);
 
         if (selectedBubble == null) {
-            bubbleDiameterField.setDisable(false);
-            bubbleColorField.setDisable(false);
+            bubbleDiameterField.setDisable(!editable);
+            bubbleColorField.setDisable(!editable);
             return;
         }
 
@@ -1274,7 +1426,7 @@ public class PlanEditorController {
             bubbleDiameterField.setText(formatNumber(defaultBubbleDiameter));
             bubbleDiameterField.setDisable(true);
         } else {
-            bubbleDiameterField.setDisable(false);
+            bubbleDiameterField.setDisable(!editable);
             if (selectedBubble.isUseDefaultDiameter()) {
                 bubbleDiameterField.setText(formatNumber(selectedBubble.getRadius() * 2.0));
             }
@@ -1284,7 +1436,7 @@ public class PlanEditorController {
             bubbleColorField.setText(defaultBubbleColor);
             bubbleColorField.setDisable(true);
         } else {
-            bubbleColorField.setDisable(false);
+            bubbleColorField.setDisable(!editable);
             if (selectedBubble.isUseDefaultColor()) {
                 bubbleColorField.setText(selectedBubble.getColor());
             }
@@ -1380,17 +1532,24 @@ public class PlanEditorController {
     }
 
     private void handleActiveBubbleDrag(double sceneX, double sceneY) {
+        if (!viewModel.isCurrentPlanEditable()) {
+            return;
+        }
         if (draggingBubble == null) {
             return;
         }
 
         Point2D overlayPoint = bubbleOverlayPane.sceneToLocal(sceneX, sceneY);
         updateBubblePosition(draggingBubble, overlayPoint.getX(), overlayPoint.getY());
-        viewModel.selectBubble(draggingBubble);
         bubbleDragged = true;
     }
 
     private void finishActiveBubbleDrag(double sceneX, double sceneY) {
+        if (!viewModel.isCurrentPlanEditable()) {
+            draggingBubble = null;
+            bubbleDragged = false;
+            return;
+        }
         if (draggingBubble == null) {
             return;
         }
@@ -1399,8 +1558,6 @@ public class PlanEditorController {
             Point2D overlayPoint = bubbleOverlayPane.sceneToLocal(sceneX, sceneY);
             updateBubblePosition(draggingBubble, overlayPoint.getX(), overlayPoint.getY());
             viewModel.persistBubbleLayout();
-            viewModel.selectBubble(draggingBubble);
-            suppressNextOverlayClick = true;
         }
 
         drawingScrollPane.setPannable(drawingPannableBeforeBubbleDrag);
@@ -1417,5 +1574,151 @@ public class PlanEditorController {
         double clampedY = Math.max(radius, Math.min(overlayY, imageHeight - radius));
 
         viewModel.moveBubble(bubble, clampedX / scale, clampedY / scale);
+    }
+
+    private String formatPlanListEntry(InspectionPlan plan) {
+        String name = plan.getName() == null || plan.getName().isBlank() ? "Untitled Plan" : plan.getName().trim();
+        String versionText = plan.getVersion() <= 0 ? "Draft" : "v" + plan.getVersion();
+        String statusText = plan.isComplete() ? "Complete" : "Pending";
+        return name + " (" + statusText + ", " + versionText + ")";
+    }
+
+    private void refreshSavedPlansAsync() {
+        repositoryBusy.set(true);
+        BackgroundTaskRunner.run("plan-list-load", viewModel::loadSavedPlansFromRepository, plans -> {
+            repositoryBusy.set(false);
+            viewModel.applySavedPlans(plans);
+            savedPlansListView.setDisable(false);
+            savedPlansListView.setPlaceholder(new Label("No saved plans yet."));
+            selectCurrentPlanIfPresent();
+        }, failure -> {
+            repositoryBusy.set(false);
+            savedPlansListView.setDisable(false);
+            savedPlansListView.setPlaceholder(new Label("Unable to load saved plans."));
+            showFailure(failure, "Unable to load saved plans.");
+        });
+    }
+
+    private void refreshLoadedPlanView() {
+        planNameField.setText(displayPlanName(viewModel.getPlanName()));
+        selectCurrentPageIfPresent();
+        loadDrawingPreview(viewModel.getDrawingPath());
+        resetViewport();
+        selectCurrentPlanIfPresent();
+    }
+
+    private void applyNewPlanView() {
+        viewModel.createNewPlan();
+        planNameField.setText(displayPlanName(viewModel.getPlanName()));
+        planPagesListView.getSelectionModel().clearSelection();
+        clearDrawingPreview();
+        resetViewport();
+        savedPlansListView.getSelectionModel().clearSelection();
+    }
+
+    private void requestProceedWithPotentialUnsavedChanges(String actionLabel, boolean showBusyMessage, Runnable continuation) {
+        if (repositoryBusy.get()) {
+            if (showBusyMessage) {
+                showInformation("Please wait for the current database operation to finish.");
+            }
+            return;
+        }
+        if (!viewModel.hasUnsavedChanges()) {
+            continuation.run();
+            return;
+        }
+
+        switch (UnsavedChangesDialogs.promptToSaveDiscardOrCancel("plan", actionLabel)) {
+            case SAVE -> saveCurrentPlanAsync(continuation);
+            case DISCARD -> continuation.run();
+            case CANCEL -> {
+            }
+        }
+    }
+
+    private void registerWindowCloseGuard(Scene scene) {
+        if (guardedWindow != null) {
+            guardedWindow.removeEventFilter(WindowEvent.WINDOW_CLOSE_REQUEST, closeRequestHandler);
+            guardedWindow = null;
+        }
+        if (scene == null) {
+            return;
+        }
+
+        Consumer<Window> installer = window -> {
+            if (window == null || window == guardedWindow) {
+                return;
+            }
+            guardedWindow = window;
+            guardedWindow.addEventFilter(WindowEvent.WINDOW_CLOSE_REQUEST, closeRequestHandler);
+        };
+
+        installer.accept(scene.getWindow());
+        scene.windowProperty().addListener((observable, oldWindow, newWindow) -> {
+            if (oldWindow != null && oldWindow != guardedWindow) {
+                oldWindow.removeEventFilter(WindowEvent.WINDOW_CLOSE_REQUEST, closeRequestHandler);
+            }
+            if (oldWindow != null && oldWindow == guardedWindow) {
+                oldWindow.removeEventFilter(WindowEvent.WINDOW_CLOSE_REQUEST, closeRequestHandler);
+                guardedWindow = null;
+            }
+            installer.accept(newWindow);
+        });
+    }
+
+    private void closeWindowAfterSaveOrDiscard() {
+        if (guardedWindow == null) {
+            return;
+        }
+        allowWindowClose = true;
+        if (guardedWindow instanceof Stage stage) {
+            stage.close();
+            return;
+        }
+        guardedWindow.hide();
+    }
+
+    private String buildDeletePlanMessage(InspectionPlan plan, List<InspectionLotSummary> affectedLots) {
+        String name = plan.getName() == null || plan.getName().isBlank() ? "Untitled Plan" : plan.getName().trim();
+        if (affectedLots.isEmpty()) {
+            return name;
+        }
+
+        List<String> lotNames = affectedLots.stream()
+                .limit(5)
+                .map(InspectionLotSummary::getName)
+                .toList();
+        String lotList = String.join("\n- ", lotNames);
+        String suffix = affectedLots.size() > lotNames.size()
+                ? "\n- and %d more".formatted(affectedLots.size() - lotNames.size())
+                : "";
+
+        return """
+                %s
+
+                This will also delete %d inspection %s for this exact plan version:
+                - %s%s
+                """.formatted(
+                name,
+                affectedLots.size(),
+                affectedLots.size() == 1 ? "lot" : "lots",
+                lotList,
+                suffix
+        );
+    }
+
+    private void setBubbleEditorEditable(boolean editable) {
+        saveBubbleButton.setDisable(!editable);
+        characteristicField.setEditable(editable);
+        bubbleNoteArea.setEditable(editable);
+        bubbleDiameterField.setEditable(editable);
+        bubbleNumberField.setEditable(editable);
+        bubbleColorField.setEditable(editable);
+        nominalValueField.setEditable(editable);
+        lowerToleranceField.setEditable(editable);
+        upperToleranceField.setEditable(editable);
+    }
+
+    private record DeletePlanPreparation(InspectionPlan plan, List<InspectionLotSummary> affectedLots) {
     }
 }
