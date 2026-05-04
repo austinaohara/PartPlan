@@ -20,11 +20,16 @@ import javafx.scene.control.Spinner;
 import javafx.scene.control.SpinnerValueFactory;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
+import javafx.scene.control.TablePosition;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TabPane;
 import javafx.scene.control.TextField;
+import javafx.scene.control.TextInputControl;
 import javafx.scene.control.Tooltip;
+import javafx.scene.control.SelectionMode;
 import javafx.scene.control.cell.TextFieldTableCell;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.text.TextAlignment;
 import javafx.stage.Window;
@@ -325,6 +330,7 @@ public class PartEditorController {
         partTableView.setEditable(true);
         partTableView.setPlaceholder(new Label("Create or open an inspection lot to begin entering part measurements."));
         partTableView.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+        configureTableCellSelection(partTableView);
 
         partSequenceColumn.setCellValueFactory(data -> data.getValue().sequenceNumberProperty().asObject());
         partRequirementColumn.setCellValueFactory(data -> data.getValue().requirementProperty());
@@ -362,7 +368,7 @@ public class PartEditorController {
             PartBubbleRowViewModel row = event.getRowValue();
             viewModel.updateCurrentPartMeasurement(row.getBubbleId(), event.getNewValue());
             masterTableView.refresh();
-            selectBubbleRow(row.getBubbleId());
+            selectBubbleCell(row.getBubbleId(), partMeasurementColumn);
         });
 
         partCommentColumn.setCellValueFactory(data -> data.getValue().commentValueProperty());
@@ -373,7 +379,7 @@ public class PartEditorController {
             row.setCommentValue(updatedComment);
             viewModel.updateCurrentPartComment(row.getBubbleId(), updatedComment);
             masterTableView.refresh();
-            selectBubbleRow(row.getBubbleId());
+            selectBubbleCell(row.getBubbleId(), partCommentColumn);
         });
     }
 
@@ -382,6 +388,7 @@ public class PartEditorController {
         masterTableView.setEditable(true);
         masterTableView.setPlaceholder(new Label("Create or open an inspection lot to enter or review saved measurements."));
         masterTableView.setColumnResizePolicy(TableView.UNCONSTRAINED_RESIZE_POLICY);
+        configureTableCellSelection(masterTableView);
     }
 
     private void bindViewModel() {
@@ -434,10 +441,16 @@ public class PartEditorController {
                 viewModel.updatePartMeasurement(event.getRowValue(), bubble.getId(), event.getNewValue());
                 partTableView.refresh();
                 masterTableView.refresh();
+                selectTableCell(masterTableView, event.getTablePosition().getRow(), event.getTableColumn());
             });
             bubbleColumn.setMinWidth(120.0);
             bubbleColumn.setPrefWidth(140.0);
             masterTableView.getColumns().add(bubbleColumn);
+        }
+
+        if (!viewModel.getParts().isEmpty() && masterTableView.getColumns().size() > 1
+                && masterTableView.getSelectionModel().getSelectedCells().isEmpty()) {
+            selectTableCell(masterTableView, 0, masterTableView.getColumns().get(1));
         }
     }
 
@@ -468,8 +481,8 @@ public class PartEditorController {
 
         if (viewModel.getCurrentPartRows().isEmpty()) {
             partTableView.getSelectionModel().clearSelection();
-        } else if (partTableView.getSelectionModel().getSelectedItem() == null) {
-            partTableView.getSelectionModel().selectFirst();
+        } else if (partTableView.getSelectionModel().getSelectedCells().isEmpty()) {
+            selectTableCell(partTableView, 0, partMeasurementColumn);
         }
     }
 
@@ -557,21 +570,64 @@ public class PartEditorController {
         );
     }
 
-    private void selectBubbleRow(String bubbleId) {
+    private void selectBubbleCell(String bubbleId, TableColumn<PartBubbleRowViewModel, ?> column) {
         if (bubbleId == null || bubbleId.isBlank()) {
             partTableView.getSelectionModel().clearSelection();
             return;
         }
 
-        for (PartBubbleRowViewModel row : viewModel.getCurrentPartRows()) {
+        for (int index = 0; index < viewModel.getCurrentPartRows().size(); index++) {
+            PartBubbleRowViewModel row = viewModel.getCurrentPartRows().get(index);
             if (bubbleId.equals(row.getBubbleId())) {
-                partTableView.getSelectionModel().select(row);
-                partTableView.scrollTo(row);
+                selectTableCell(partTableView, index, column);
                 return;
             }
         }
 
         partTableView.getSelectionModel().clearSelection();
+    }
+
+    private <S> void configureTableCellSelection(TableView<S> tableView) {
+        tableView.getSelectionModel().setCellSelectionEnabled(true);
+        tableView.getSelectionModel().setSelectionMode(SelectionMode.SINGLE);
+        tableView.addEventFilter(KeyEvent.KEY_PRESSED, event -> handleTableKeyPressed(tableView, event));
+    }
+
+    private <S> void handleTableKeyPressed(TableView<S> tableView, KeyEvent event) {
+        if (event.getTarget() instanceof TextInputControl) {
+            return;
+        }
+
+        if (event.getCode() == KeyCode.ENTER || event.getCode() == KeyCode.F2) {
+            editFocusedCell(tableView);
+            event.consume();
+        }
+    }
+
+    private <S> void editFocusedCell(TableView<S> tableView) {
+        TablePosition<S, ?> focusedCell = tableView.getFocusModel().getFocusedCell();
+        if (focusedCell == null || focusedCell.getRow() < 0) {
+            return;
+        }
+
+        TableColumn<S, ?> column = focusedCell.getTableColumn();
+        if (column == null || !tableView.isEditable() || !column.isEditable()) {
+            return;
+        }
+
+        selectTableCell(tableView, focusedCell.getRow(), column);
+        tableView.edit(focusedCell.getRow(), column);
+    }
+
+    private <S> void selectTableCell(TableView<S> tableView, int rowIndex, TableColumn<S, ?> column) {
+        if (tableView == null || column == null || rowIndex < 0 || rowIndex >= tableView.getItems().size()) {
+            return;
+        }
+
+        tableView.requestFocus();
+        tableView.getSelectionModel().clearAndSelect(rowIndex, column);
+        tableView.getFocusModel().focus(rowIndex, column);
+        tableView.scrollTo(rowIndex);
     }
 
     private void showInformation(String message) {
