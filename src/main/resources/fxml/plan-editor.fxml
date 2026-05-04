@@ -31,12 +31,10 @@
             <HBox alignment="CENTER_LEFT" spacing="12.0">
                 <Button mnemonicParsing="false" onAction="#onReturnToHub" styleClass="secondary-button" text="Return to Hub" />
                 <Button mnemonicParsing="false" onAction="#onNewPlan" styleClass="secondary-button" text="New Plan" />
-                <Button fx:id="savePlanButton" mnemonicParsing="false" onAction="#onSavePlan" styleClass="primary-button" text="Save Draft" />
+                <Button mnemonicParsing="false" onAction="#onSavePlan" styleClass="primary-button" text="Save Plan" />
                 <Button mnemonicParsing="false" onAction="#onOpenPlan" styleClass="secondary-button" text="Open Plan" />
-                <Button fx:id="deletePlanButton" mnemonicParsing="false" onAction="#onDeletePlan" styleClass="secondary-button" text="Delete Plan" />
-                <Button fx:id="completePlanButton" mnemonicParsing="false" onAction="#onCompletePlan" styleClass="primary-button" text="Complete Plan" />
-                <Button fx:id="createRevisionButton" mnemonicParsing="false" onAction="#onCreateRevision" styleClass="secondary-button" text="Create Revision" />
-                <Button fx:id="addPageButton" mnemonicParsing="false" onAction="#onImportDrawing" styleClass="primary-button" text="Add Page" />
+                <Button mnemonicParsing="false" onAction="#onDeletePlan" styleClass="secondary-button" text="Delete Plan" />
+                <Button mnemonicParsing="false" onAction="#onImportDrawing" styleClass="primary-button" text="Add Page" />
                 <MenuButton mnemonicParsing="false" text="Export" styleClass="secondary-button">
                     <items>
                         <MenuItem mnemonicParsing="false" text="Export as CSV" onAction="#onExportCsv"/>
@@ -46,11 +44,6 @@
                 <Separator orientation="VERTICAL" prefHeight="28.0" />
                 <Label styleClass="field-label" text="Plan Name" />
                 <TextField fx:id="planNameField" onAction="#onPlanNameChanged" onKeyReleased="#onPlanNameChanged" prefWidth="280.0" promptText="New Inspection Plan" />
-                <Label styleClass="field-label" text="Status" />
-                <Label fx:id="planStatusValueLabel" styleClass="field-value" text="Pending" />
-                <Label styleClass="field-label" text="Version" />
-                <Label fx:id="planVersionValueLabel" styleClass="field-value" text="Draft" />
-                <Label fx:id="planUnsavedLabel" managed="false" styleClass="toolbar-pill" text="Unsaved changes" visible="false" />
                 <Button mnemonicParsing="false" onAction="#OnOpenDataEditor" styleClass="secondary-button" text="Open in Data Editor" />
             </HBox>
         </VBox>
@@ -135,7 +128,7 @@
                     <Button onAction="#onToggleRightPanel" styleClass="tool-window-close-btn" text="X" />
                     <Label styleClass="tool-window-title" text="Bubble Data" HBox.hgrow="ALWAYS" />
                 </HBox>
-                <VBox fx:id="bubbleEditorPane" spacing="10.0" VBox.vgrow="ALWAYS">
+                <VBox spacing="10.0" VBox.vgrow="ALWAYS">
                     <padding>
                         <Insets bottom="16.0" left="16.0" right="16.0" top="12.0" />
                     </padding>

@@ -5,20 +5,17 @@ import javafx.collections.ObservableList;
 import model.InspectionLot;
 import model.InspectionLotSummary;
 import model.InspectionPlan;
-import service.repository.LotRepository;
-import service.repository.PlanRepository;
-
-import java.util.List;
+import service.InspectionLotDatabaseService;
+import service.PlanStorageService;
 
 public class InspectionLotBrowserViewModel {
-    private final PlanRepository planRepository;
-    private final LotRepository lotRepository;
+    private final PlanStorageService planStorageService = new PlanStorageService();
+    private final InspectionLotDatabaseService lotDatabaseService = new InspectionLotDatabaseService();
     private final ObservableList<InspectionPlan> savedPlans = FXCollections.observableArrayList();
     private final ObservableList<InspectionLotSummary> savedLots = FXCollections.observableArrayList();
 
-    public InspectionLotBrowserViewModel(PlanRepository planRepository, LotRepository lotRepository) {
-        this.planRepository = planRepository;
-        this.lotRepository = lotRepository;
+    public InspectionLotBrowserViewModel() {
+        refresh();
     }
 
     public ObservableList<InspectionPlan> getSavedPlans() {
@@ -29,67 +26,28 @@ public class InspectionLotBrowserViewModel {
         return savedLots;
     }
 
-    public InspectionPlan findLatestUpversionTarget(InspectionLotSummary selectedLot) {
-        if (selectedLot == null) {
-            return null;
-        }
-
-        return savedPlans.stream()
-                .filter(plan -> selectedLot.getPlanFamilyId().equals(plan.getFamilyId()))
-                .filter(plan -> plan.getVersion() > selectedLot.getPlanVersion())
-                .max(java.util.Comparator.comparingInt(InspectionPlan::getVersion))
-                .orElse(null);
+    public void refresh() {
+        savedPlans.setAll(planStorageService.loadPlans());
+        savedLots.setAll(lotDatabaseService.loadLotSummaries());
     }
 
-    public InspectionLot createLotInRepository(InspectionPlan selectedPlan, String proposedLotName, int proposedLotSize) {
+    public InspectionLot createLot(InspectionPlan selectedPlan, String proposedLotName, int proposedLotSize) {
         if (selectedPlan == null) {
             return null;
         }
 
-        InspectionPlan fullPlan = planRepository.loadPlan(selectedPlan.getId());
-        return lotRepository.createLot(proposedLotName, fullPlan, proposedLotSize);
+        InspectionPlan fullPlan = planStorageService.loadPlan(selectedPlan.getId());
+        InspectionLot createdLot = lotDatabaseService.createLot(proposedLotName, fullPlan, proposedLotSize);
+        refresh();
+        return createdLot;
     }
 
-    public InspectionLot upversionLotInRepository(InspectionLotSummary selectedLot) {
-        if (selectedLot == null) {
-            return null;
-        }
-
-        InspectionPlan targetPlan = findLatestUpversionTarget(selectedLot);
-        if (targetPlan == null) {
-            throw new IllegalStateException("No newer completed plan version is available for this inspection lot.");
-        }
-
-        InspectionPlan fullTargetPlan = planRepository.loadPlan(targetPlan.getId());
-        return lotRepository.upversionLot(selectedLot.getId(), fullTargetPlan);
-    }
-
-    public void deleteLotInRepository(InspectionLotSummary selectedLot) {
+    public void deleteLot(InspectionLotSummary selectedLot) {
         if (selectedLot == null) {
             return;
         }
 
-        lotRepository.deleteLot(selectedLot.getId());
-    }
-
-    public BrowserData loadBrowserData() {
-        return new BrowserData(
-                List.copyOf(planRepository.loadCompletePlans()),
-                List.copyOf(lotRepository.loadLotSummaries())
-        );
-    }
-
-    public void applyBrowserData(BrowserData browserData) {
-        if (browserData == null) {
-            savedPlans.clear();
-            savedLots.clear();
-            return;
-        }
-
-        savedPlans.setAll(browserData.savedPlans());
-        savedLots.setAll(browserData.savedLots());
-    }
-
-    public record BrowserData(List<InspectionPlan> savedPlans, List<InspectionLotSummary> savedLots) {
+        lotDatabaseService.deleteLot(selectedLot.getId());
+        refresh();
     }
 }
