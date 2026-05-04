@@ -100,6 +100,8 @@ public class PartEditorController {
     @FXML
     private TableColumn<PartBubbleRowViewModel, String> partMeasurementColumn;
     @FXML
+    private TableColumn<PartBubbleRowViewModel, String> partCommentColumn;
+    @FXML
     private TableView<PartRecord> masterTableView;
     @FXML
     private TabPane editorTabPane;
@@ -360,6 +362,18 @@ public class PartEditorController {
             PartBubbleRowViewModel row = event.getRowValue();
             viewModel.updateCurrentPartMeasurement(row.getBubbleId(), event.getNewValue());
             masterTableView.refresh();
+            selectBubbleRow(row.getBubbleId());
+        });
+
+        partCommentColumn.setCellValueFactory(data -> data.getValue().commentValueProperty());
+        partCommentColumn.setCellFactory(TextFieldTableCell.forTableColumn());
+        partCommentColumn.setOnEditCommit(event -> {
+            PartBubbleRowViewModel row = event.getRowValue();
+            String updatedComment = event.getNewValue() == null ? "" : event.getNewValue();
+            row.setCommentValue(updatedComment);
+            viewModel.updateCurrentPartComment(row.getBubbleId(), updatedComment);
+            masterTableView.refresh();
+            selectBubbleRow(row.getBubbleId());
         });
     }
 
@@ -451,6 +465,12 @@ public class PartEditorController {
         } finally {
             syncingLotSize = false;
         }
+
+        if (viewModel.getCurrentPartRows().isEmpty()) {
+            partTableView.getSelectionModel().clearSelection();
+        } else if (partTableView.getSelectionModel().getSelectedItem() == null) {
+            partTableView.getSelectionModel().selectFirst();
+        }
     }
 
     private void commitLotSizeEditor() {
@@ -527,7 +547,7 @@ public class PartEditorController {
                 Current plan: %s v%d
                 New plan: %s v%d
 
-                Measurements are preserved for matching bubble IDs. New bubbles will start blank, and removed bubbles will be dropped from the lot.
+                Measurements and comments are preserved for matching bubble IDs. New bubbles will start blank, and removed bubbles will be dropped from the lot.
                 """.formatted(
                 lot.getName(),
                 lot.getPlanName(),
@@ -535,6 +555,23 @@ public class PartEditorController {
                 targetPlan.getName(),
                 targetPlan.getVersion()
         );
+    }
+
+    private void selectBubbleRow(String bubbleId) {
+        if (bubbleId == null || bubbleId.isBlank()) {
+            partTableView.getSelectionModel().clearSelection();
+            return;
+        }
+
+        for (PartBubbleRowViewModel row : viewModel.getCurrentPartRows()) {
+            if (bubbleId.equals(row.getBubbleId())) {
+                partTableView.getSelectionModel().select(row);
+                partTableView.scrollTo(row);
+                return;
+            }
+        }
+
+        partTableView.getSelectionModel().clearSelection();
     }
 
     private void showInformation(String message) {

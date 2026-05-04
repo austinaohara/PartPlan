@@ -193,14 +193,17 @@ public class FirestoreLotRepository implements LotRepository {
 
     private Map<String, Object> partFields(PartRecord part, List<String> bubbleIds) {
         Map<String, Object> measurements = new LinkedHashMap<>();
+        Map<String, Object> comments = new LinkedHashMap<>();
         for (String bubbleId : bubbleIds) {
             measurements.put(bubbleId, part.getMeasurement(bubbleId));
+            comments.put(bubbleId, part.getComment(bubbleId));
         }
 
         Map<String, Object> fields = new LinkedHashMap<>();
         fields.put("partId", part.getId());
         fields.put("partNumber", part.getPartNumber());
         fields.put("measurements", measurements);
+        fields.put("comments", comments);
         return fields;
     }
 
@@ -241,8 +244,10 @@ public class FirestoreLotRepository implements LotRepository {
                     intValue(fields, "partNumber", 1)
             );
             Map<String, Object> measurements = mapValue(fields.get("measurements"));
+            Map<String, Object> comments = mapValue(fields.get("comments"));
             for (PartBubbleDefinition bubble : bubbles) {
                 part.setMeasurement(bubble.getId(), stringValue(measurements, bubble.getId(), ""));
+                part.setComment(bubble.getId(), stringValue(comments, bubble.getId(), ""));
             }
             parts.add(part);
         }
@@ -280,6 +285,7 @@ public class FirestoreLotRepository implements LotRepository {
                     : new PartRecord(sourcePart.getId(), sourcePart.getPartNumber());
             for (String bubbleId : bubbleIds) {
                 storedPart.setMeasurement(bubbleId, sourcePart == null ? "" : sourcePart.getMeasurement(bubbleId));
+                storedPart.setComment(bubbleId, sourcePart == null ? "" : sourcePart.getComment(bubbleId));
             }
             copiedParts.add(storedPart);
         }

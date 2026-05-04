@@ -174,6 +174,15 @@ public class PartEditorViewModel {
         updatePartMeasurement(currentPart, bubbleId, value);
     }
 
+    public void updateCurrentPartComment(String bubbleId, String value) {
+        if (currentLot == null) {
+            return;
+        }
+
+        PartRecord currentPart = currentLot.getPart(currentPartNumber.get() - 1);
+        updatePartComment(currentPart, bubbleId, value);
+    }
+
     public void updatePartMeasurement(PartRecord part, String bubbleId, String value) {
         if (currentLot == null || part == null) {
             return;
@@ -188,6 +197,15 @@ public class PartEditorViewModel {
         if (refreshSelectedPart) {
             refreshCurrentPartRows();
         }
+    }
+
+    public void updatePartComment(PartRecord part, String bubbleId, String value) {
+        if (currentLot == null || part == null) {
+            return;
+        }
+
+        part.setComment(bubbleId, value);
+        markDirty();
     }
 
     public InspectionLot beginSaveSnapshot() {
@@ -318,7 +336,8 @@ public class PartEditorViewModel {
                         bubble.getLowerTolerance(),
                         bubble.getUpperTolerance(),
                         bubble.getNote(),
-                        currentPart.getMeasurement(bubble.getId())
+                        currentPart.getMeasurement(bubble.getId()),
+                        currentPart.getComment(bubble.getId())
                 ))
                 .toList());
     }
@@ -330,7 +349,7 @@ public class PartEditorViewModel {
             return;
         }
 
-        currentPartTitle.set("Measurements for Part " + currentPartNumber.get() + " of " + currentLot.getLotSize());
+        currentPartTitle.set("Inspection Results for Part " + currentPartNumber.get() + " of " + currentLot.getLotSize());
         int bubbleCount = currentLot.getBubbles().size();
         lotSummary.set("%d %s | %d %s".formatted(
                 currentLot.getLotSize(),

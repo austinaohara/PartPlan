@@ -188,11 +188,17 @@ Suggested fields:
 
 - `partNumber`
 - `measurements`
+- `comments`
 
 `measurements` is a map:
 
 - key = `bubbleId`
 - value = measurement string
+
+`comments` is a map:
+
+- key = `bubbleId`
+- value = inspector-entered comment string
 
 No duplicated stored bubble definition collection under the lot.
 Bubble definitions are always derived from the referenced completed plan version.
@@ -272,10 +278,11 @@ When upversioning a lot:
 
 1. load the target plan version
 2. derive the target bubble definitions from that plan
-3. preserve existing measurements where `bubbleId` still exists
+3. preserve existing measurements and comments where `bubbleId` still exists
 4. create blank measurements for new `bubbleId`s
-5. drop measurements for removed `bubbleId`s
-6. update the lot’s `planId`, `planVersion`, and `planName`
+5. create blank comments for new `bubbleId`s
+6. drop measurements and comments for removed `bubbleId`s
+7. update the lot’s `planId`, `planVersion`, and `planName`
 
 This is exactly why the bubble’s stable internal `id` matters.
 

@@ -376,7 +376,7 @@ public class InspectionLotBrowserController {
                 Current plan: %s
                 New plan: %s
 
-                Measurements are preserved for matching bubble IDs. New bubbles will start blank, and removed bubbles will be dropped from the lot.
+                Measurements and comments are preserved for matching bubble IDs. New bubbles will start blank, and removed bubbles will be dropped from the lot.
                 """.formatted(
                 lot.getName(),
                 formatPlanReference(lot.getPlanName(), lot.getPlanVersion()),

@@ -162,6 +162,7 @@ public final class ModelCopies {
         PartRecord copy = new PartRecord(part.getId(), part.getPartNumber());
         for (PartBubbleDefinition bubble : bubbles) {
             copy.setMeasurement(bubble.getId(), part.getMeasurement(bubble.getId()));
+            copy.setComment(bubble.getId(), part.getComment(bubble.getId()));
         }
         return copy;
     }
