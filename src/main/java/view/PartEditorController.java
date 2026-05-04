@@ -4,6 +4,7 @@ import app.AppContext;
 import app.BackgroundTaskRunner;
 import app.UnsavedChangesDialogs;
 import app.UserFacingErrorMessages;
+import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.ReadOnlyObjectWrapper;
@@ -598,6 +599,12 @@ public class PartEditorController {
             return;
         }
 
+        if (isInlineEditCharacter(event)) {
+            startTypingInFocusedCell(tableView, event.getText());
+            event.consume();
+            return;
+        }
+
         if (event.getCode() == KeyCode.ENTER || event.getCode() == KeyCode.F2) {
             editFocusedCell(tableView);
             event.consume();
@@ -617,6 +624,50 @@ public class PartEditorController {
 
         selectTableCell(tableView, focusedCell.getRow(), column);
         tableView.edit(focusedCell.getRow(), column);
+    }
+
+    private <S> void startTypingInFocusedCell(TableView<S> tableView, String typedText) {
+        TablePosition<S, ?> focusedCell = tableView.getFocusModel().getFocusedCell();
+        if (focusedCell == null || focusedCell.getRow() < 0) {
+            return;
+        }
+
+        TableColumn<S, ?> column = focusedCell.getTableColumn();
+        if (column == null || !tableView.isEditable() || !column.isEditable()) {
+            return;
+        }
+
+        String replacementText = typedText == null ? "" : typedText;
+        selectTableCell(tableView, focusedCell.getRow(), column);
+        tableView.edit(focusedCell.getRow(), column);
+
+        Platform.runLater(() -> {
+            if (tableView.getScene() == null) {
+                return;
+            }
+            if (tableView.getScene().getFocusOwner() instanceof TextInputControl input) {
+                input.setText(replacementText);
+                input.positionCaret(input.getText().length());
+            }
+        });
+    }
+
+    private boolean isInlineEditCharacter(KeyEvent event) {
+        if (event.getCode() == KeyCode.TAB
+                || event.getCode() == KeyCode.ESCAPE
+                || event.getCode() == KeyCode.ENTER
+                || event.getCode() == KeyCode.F2) {
+            return false;
+        }
+        if (event.isControlDown() || event.isAltDown() || event.isMetaDown()) {
+            return false;
+        }
+        String text = event.getText();
+        if (text == null || text.isEmpty()) {
+            return false;
+        }
+        char character = text.charAt(0);
+        return !Character.isISOControl(character);
     }
 
     private <S> void selectTableCell(TableView<S> tableView, int rowIndex, TableColumn<S, ?> column) {

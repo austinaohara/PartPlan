@@ -59,6 +59,15 @@
     -fx-background-radius: 10px;
 }
 
+.table-view .text-field {
+    -fx-background-color: transparent;
+    -fx-background-radius: 0;
+    -fx-border-color: transparent;
+    -fx-border-radius: 0;
+    -fx-padding: 0 4px 0 4px;
+    -fx-font-size: 13px;
+}
+
 .button {
     -fx-background-radius: 10px;
     -fx-padding: 10px 16px;
