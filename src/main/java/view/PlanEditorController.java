@@ -296,6 +296,13 @@ public class PlanEditorController {
 
         setupResizeHandle(leftResizeHandle, leftPanel, true);
         setupResizeHandle(rightResizeHandle, rightPanel, false);
+
+        // #85 — Prevent invalid numeric input
+        applyPositiveDecimalFilter(bubbleDiameterField);
+        applyPositiveIntegerFilter(bubbleNumberField);
+        applyDecimalFilter(nominalValueField);
+        applyDecimalFilter(lowerToleranceField);
+        applyDecimalFilter(upperToleranceField);
     }
 
     // ── Resize ───────────────────────────────────────────────────────────────
@@ -732,8 +739,41 @@ public class PlanEditorController {
         }
     }
 
-    // Returns true if it's safe to proceed (no unsaved changes, or the user chose to discard).
-    // Shows a confirmation dialog only when there are unsaved changes.
+    // #85 - Numeric input filters
+    // Allows only digits and a single decimal point. Rejects empty or zero-only values
+    // that would make diameter nonsensical — those are caught on save.
+    // Allows a leading minus sign on the tolerance fields via applyDecimalFilter instead.
+    private void applyPositiveDecimalFilter(TextField field) {
+        field.textProperty().addListener((obs, oldVal, newVal) -> {
+            if (newVal == null) return;
+            // Allow: digits, one dot, leading minus NOT allowed
+            if (!newVal.matches("\\d*\\.?\\d*")) {
+                field.setText(oldVal);
+            }
+        });
+    }
+    // Allows only positive integers (digits only, no dot, no minus)/.
+    private void applyPositiveIntegerFilter(TextField field) {
+        field.textProperty().addListener((obs, oldVal, newVal) -> {
+            if (newVal == null) return;
+            if (!newVal.matches("\\d*")) {
+                field.setText(oldVal);
+            }
+        });
+    }
+    // Allows a signed decimal: optional leading minus, digits, one dot.
+    // Used for nominal value and tolerances which can be negative.
+    private void applyDecimalFilter(TextField field) {
+        field.textProperty().addListener((obs, oldVal, newVal) -> {
+            if (newVal == null) return;
+            // Allow empty, "-", digits, ".", and combinations like "-3.14"
+            if (!newVal.matches("-?\\d*\\.?\\d*")) {
+                field.setText(oldVal);
+            }
+        });
+    }
+     // Returns true if it's safe to proceed (no unsaved changes, or the user chose to discard).
+     // Shows a confirmation dialog only when there are unsaved changes.
     private boolean confirmDiscardChanges() {
         if (!viewModel.hasUnsavedChanges()) return true;
 
