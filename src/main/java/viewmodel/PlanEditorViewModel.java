@@ -39,6 +39,7 @@ public class PlanEditorViewModel {
     private final StringProperty pageName = new SimpleStringProperty("");
     private final BooleanProperty drawingLoaded = new SimpleBooleanProperty(false);
     private final BooleanProperty unsavedChanges = new SimpleBooleanProperty(false);
+    private final ObjectProperty<String> saveError = new SimpleObjectProperty<>(null);
 
     public PlanEditorViewModel() {
         createNewPlan();
@@ -121,9 +122,14 @@ public class PlanEditorViewModel {
     }
 
     public void saveCurrentPlan() {
-        persistCurrentPlanState();
-        refreshSavedPlans();
-        unsavedChanges.set(false);
+        try {
+            persistCurrentPlanState();
+            refreshSavedPlans();
+            unsavedChanges.set(false);
+            saveError.set(null);
+        } catch (Exception e) {
+            saveError.set("Failed to save the plan.\n\nReason: " + friendlyMessage(e));
+        }
     }
     public void openPlan(InspectionPlan selectedPlan) {
         if (selectedPlan == null) {
@@ -236,6 +242,14 @@ public class PlanEditorViewModel {
 
     public BooleanProperty unsavedChangesProperty() {
         return unsavedChanges;
+    }
+
+    public ObjectProperty<String> saveErrorProperty() {
+        return saveError;
+    }
+
+    public void clearSaveError() {
+        saveError.set(null);
     }
 
     public Bubble placeBubble(double x, double y) {
@@ -482,7 +496,14 @@ public class PlanEditorViewModel {
         PlanPage currentPage = selectedPage.get();
         Bubble currentBubble = selectedBubble.get();
 
-        storageService.savePlan(plan);
+        try {
+            storageService.savePlan(plan);
+            saveError.set(null);
+        } catch (Exception e) {
+            saveError.set("Auto-save failed.\n\nReason: " + friendlyMessage(e));
+            return;
+        }
+
         planPages.setAll(plan.getPages());
 
         if (planPages.isEmpty()) {
@@ -556,5 +577,17 @@ public class PlanEditorViewModel {
 
     private String valueOrEmpty(String value) {
         return value == null ? "" : value.trim();
+    }
+
+    // #86 Save error helpers
+    private String friendlyMessage(Exception e) {
+        Throwable cause = e.getCause() != null ? e.getCause() : e;
+        String msg = cause.getMessage();
+        if (msg == null || msg.isBlank()) return "An unexpected error occurred.";
+        if (msg.contains("No space left"))  return "Your disk is full. Free up space and try again.";
+        if (msg.contains("Permission denied") || msg.contains("Access is denied"))
+            return "Permission denied. Check that PartPlan has write access to your home folder.";
+        if (msg.contains("Read-only"))      return "The save location is read-only.";
+        return msg;
     }
 }

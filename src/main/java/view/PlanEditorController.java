@@ -303,9 +303,17 @@ public class PlanEditorController {
         applyDecimalFilter(nominalValueField);
         applyDecimalFilter(lowerToleranceField);
         applyDecimalFilter(upperToleranceField);
+
+        // #86 — Show user-friendly error messages when saving fails
+        viewModel.saveErrorProperty().addListener((obs, oldErr, newErr) -> {
+            if (newErr != null && !newErr.isBlank()) {
+                showSaveError(newErr);
+                viewModel.clearSaveError();
+            }
+        });
     }
 
-    // ── Resize ───────────────────────────────────────────────────────────────
+    // Resize
 
     private void setupResizeHandle(VBox handle, VBox panel, boolean isLeft) {
         handle.setOnMousePressed((MouseEvent e) -> {
@@ -326,7 +334,7 @@ public class PlanEditorController {
         });
     }
 
-    // ── Panel toggle ──────────────────────────────────────────────────────────
+    // Panel toggle
 
     @FXML
     private void onToggleLeftPanel() {
@@ -350,7 +358,7 @@ public class PlanEditorController {
         rightCollapsedTab.setManaged(!rightExpanded);
     }
 
-    // ── Existing handlers (unchanged) ─────────────────────────────────────────
+    // Existing handlers (unchanged)
 
     @FXML
     private void onNewPlan() {
@@ -367,11 +375,13 @@ public class PlanEditorController {
     private void onSavePlan() {
         onPlanNameChanged();
         viewModel.saveCurrentPlan();
-        planNameField.setText(displayPlanName(viewModel.getPlanName()));
-        loadDrawingPreview(viewModel.getDrawingPath());
-        selectCurrentPageIfPresent();
-        selectCurrentPlanIfPresent();
-        showInformation("Plan saved locally as JSON.");
+        if (viewModel.saveErrorProperty().get() == null) {
+            planNameField.setText(displayPlanName(viewModel.getPlanName()));
+            loadDrawingPreview(viewModel.getDrawingPath());
+            selectCurrentPageIfPresent();
+            selectCurrentPlanIfPresent();
+            showInformation("Plan saved locally as JSON.");
+        }
     }
 
     @FXML
@@ -739,7 +749,7 @@ public class PlanEditorController {
         }
     }
 
-    // #85 - Numeric input filters
+    // #85 Numeric input filters
     // Allows only digits and a single decimal point. Rejects empty or zero-only values
     // that would make diameter nonsensical — those are caught on save.
     // Allows a leading minus sign on the tolerance fields via applyDecimalFilter instead.
@@ -752,7 +762,8 @@ public class PlanEditorController {
             }
         });
     }
-    // Allows only positive integers (digits only, no dot, no minus)/.
+
+    // Allows only positive integers (digits only, no dot, no minus).
     private void applyPositiveIntegerFilter(TextField field) {
         field.textProperty().addListener((obs, oldVal, newVal) -> {
             if (newVal == null) return;
@@ -761,6 +772,7 @@ public class PlanEditorController {
             }
         });
     }
+
     // Allows a signed decimal: optional leading minus, digits, one dot.
     // Used for nominal value and tolerances which can be negative.
     private void applyDecimalFilter(TextField field) {
@@ -772,8 +784,9 @@ public class PlanEditorController {
             }
         });
     }
-     // Returns true if it's safe to proceed (no unsaved changes, or the user chose to discard).
-     // Shows a confirmation dialog only when there are unsaved changes.
+
+    // Returns true if it's safe to proceed (no unsaved changes, or the user chose to discard).
+    // Shows a confirmation dialog only when there are unsaved changes.
     private boolean confirmDiscardChanges() {
         if (!viewModel.hasUnsavedChanges()) return true;
 
@@ -795,6 +808,14 @@ public class PlanEditorController {
             onSavePlan();
         }
         return true;
+    }
+
+    private void showSaveError(String message) {
+        Alert alert = new Alert(Alert.AlertType.ERROR);
+        alert.setTitle("Save Failed");
+        alert.setHeaderText("PartPlan could not save your plan.");
+        alert.setContentText(message);
+        alert.showAndWait();
     }
 
     private void showInformation(String message) {
