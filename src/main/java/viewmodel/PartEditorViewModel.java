@@ -204,8 +204,15 @@ public class PartEditorViewModel {
             return;
         }
 
+        PartRecord currentPart = currentLot.getPart(currentPartNumber.get() - 1);
+        boolean refreshSelectedPart = currentPart != null && currentPart.getId().equals(part.getId());
+
         part.setComment(bubbleId, value);
         markDirty();
+
+        if (refreshSelectedPart) {
+            refreshCurrentPartRows();
+        }
     }
 
     public InspectionLot beginSaveSnapshot() {

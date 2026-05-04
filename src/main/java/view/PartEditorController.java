@@ -11,11 +11,17 @@ import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
+import javafx.geometry.Bounds;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Button;
 import javafx.scene.control.ContentDisplay;
+import javafx.scene.control.ContextMenu;
+import javafx.scene.control.CustomMenuItem;
 import javafx.scene.control.Label;
+import javafx.scene.control.MenuItem;
 import javafx.scene.control.OverrunStyle;
 import javafx.scene.control.Spinner;
 import javafx.scene.control.SpinnerValueFactory;
@@ -25,13 +31,19 @@ import javafx.scene.control.TablePosition;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TabPane;
 import javafx.scene.control.TextField;
+import javafx.scene.control.TextArea;
 import javafx.scene.control.TextInputControl;
 import javafx.scene.control.Tooltip;
 import javafx.scene.control.SelectionMode;
 import javafx.scene.control.cell.TextFieldTableCell;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
+import javafx.scene.input.MouseButton;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Region;
+import javafx.scene.layout.StackPane;
+import javafx.scene.layout.VBox;
 import javafx.scene.text.TextAlignment;
 import javafx.stage.Window;
 import javafx.stage.WindowEvent;
@@ -44,6 +56,8 @@ import viewmodel.PartBubbleRowViewModel;
 import viewmodel.PartEditorViewModel;
 
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.function.Consumer;
 
 public class PartEditorController {
@@ -51,6 +65,7 @@ public class PartEditorController {
 
     private final PartEditorViewModel viewModel;
     private final BooleanProperty repositoryBusy = new SimpleBooleanProperty(false);
+    private final Map<MasterCommentCellKey, MasterMeasurementTableCell> masterMeasurementCells = new HashMap<>();
     private boolean syncingLotSize;
     private Window guardedWindow;
     private boolean allowWindowClose;
@@ -435,9 +450,10 @@ public class PartEditorController {
             TableColumn<PartRecord, String> bubbleColumn = new TableColumn<>(bubble.getName());
             bubbleColumn.setCellValueFactory(data -> new ReadOnlyStringWrapper(data.getValue().getMeasurement(bubble.getId())));
             bubbleColumn.setEditable(true);
+            bubbleColumn.setUserData(bubble.getId());
             bubbleColumn.setGraphic(buildBubbleHeader(bubble));
             bubbleColumn.setText("");
-            bubbleColumn.setCellFactory(TextFieldTableCell.forTableColumn());
+            bubbleColumn.setCellFactory(column -> new MasterMeasurementTableCell(bubble.getId()));
             bubbleColumn.setOnEditCommit(event -> {
                 viewModel.updatePartMeasurement(event.getRowValue(), bubble.getId(), event.getNewValue());
                 partTableView.refresh();
@@ -588,6 +604,142 @@ public class PartEditorController {
         partTableView.getSelectionModel().clearSelection();
     }
 
+    private void openMasterCommentEditorForSelection() {
+        TablePosition<PartRecord, ?> focusedCell = masterTableView.getFocusModel().getFocusedCell();
+        if (focusedCell == null || focusedCell.getRow() < 0) {
+            return;
+        }
+
+        TableColumn<PartRecord, ?> column = focusedCell.getTableColumn();
+        String bubbleId = bubbleIdForColumn(column);
+        if (bubbleId == null || bubbleId.isBlank()) {
+            return;
+        }
+
+        PartRecord part = focusedCell.getRow() >= masterTableView.getItems().size()
+                ? null
+                : masterTableView.getItems().get(focusedCell.getRow());
+        if (part == null) {
+            return;
+        }
+
+        MasterMeasurementTableCell cell = masterMeasurementCells.get(new MasterCommentCellKey(part.getId(), bubbleId));
+        showMasterCommentEditor(cell, part, bubbleId);
+    }
+
+    private void showMasterCommentEditor(MasterMeasurementTableCell anchorCell, PartRecord part, String bubbleId) {
+        if (part == null || bubbleId == null || bubbleId.isBlank()) {
+            return;
+        }
+
+        TextArea commentArea = new TextArea(part.getComment(bubbleId));
+        commentArea.setPromptText("Add inspection comment");
+        commentArea.setWrapText(true);
+        commentArea.setPrefColumnCount(28);
+        commentArea.setPrefRowCount(4);
+
+        Button saveButton = new Button("Save");
+        saveButton.getStyleClass().add("primary-button");
+        Button clearButton = new Button("Clear");
+        Button cancelButton = new Button("Cancel");
+        clearButton.getStyleClass().add("copy-button");
+
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, javafx.scene.layout.Priority.ALWAYS);
+        HBox buttonRow = new HBox(8.0, saveButton, clearButton, spacer, cancelButton);
+        buttonRow.setAlignment(Pos.CENTER_LEFT);
+
+        VBox content = new VBox(10.0, new Label("Inspection Comment"), commentArea, buttonRow);
+        content.setPadding(new Insets(12.0));
+        content.setPrefWidth(320.0);
+
+        CustomMenuItem customMenuItem = new CustomMenuItem(content, false);
+        ContextMenu editorMenu = new ContextMenu(customMenuItem);
+
+        saveButton.setOnAction(event -> {
+            String updatedComment = commentArea.getText() == null ? "" : commentArea.getText().trim();
+            viewModel.updatePartComment(part, bubbleId, updatedComment);
+            partTableView.refresh();
+            masterTableView.refresh();
+            editorMenu.hide();
+            reselectMasterCommentCell(part, bubbleId);
+        });
+
+        clearButton.setOnAction(event -> {
+            viewModel.updatePartComment(part, bubbleId, "");
+            partTableView.refresh();
+            masterTableView.refresh();
+            editorMenu.hide();
+            reselectMasterCommentCell(part, bubbleId);
+        });
+
+        cancelButton.setOnAction(event -> editorMenu.hide());
+
+        Bounds anchorBounds = anchorCell == null ? null : anchorCell.localToScreen(anchorCell.getBoundsInLocal());
+        if (anchorBounds != null) {
+            editorMenu.show(anchorCell, anchorBounds.getMinX(), anchorBounds.getMaxY());
+        } else {
+            Bounds tableBounds = masterTableView.localToScreen(masterTableView.getBoundsInLocal());
+            if (tableBounds == null) {
+                return;
+            }
+            editorMenu.show(masterTableView, tableBounds.getMinX() + 24.0, tableBounds.getMinY() + 24.0);
+        }
+
+        Platform.runLater(commentArea::requestFocus);
+    }
+
+    private void showMasterCommentContextMenu(MasterMeasurementTableCell cell, PartRecord part, String bubbleId, double screenX, double screenY) {
+        if (cell == null || part == null || bubbleId == null || bubbleId.isBlank()) {
+            return;
+        }
+
+        ContextMenu menu = new ContextMenu();
+
+        MenuItem editCommentItem = new MenuItem("Edit Comment");
+        editCommentItem.setOnAction(event -> showMasterCommentEditor(cell, part, bubbleId));
+        menu.getItems().add(editCommentItem);
+
+        if (!part.getComment(bubbleId).isBlank()) {
+            MenuItem clearCommentItem = new MenuItem("Clear Comment");
+            clearCommentItem.setOnAction(event -> {
+                viewModel.updatePartComment(part, bubbleId, "");
+                partTableView.refresh();
+                masterTableView.refresh();
+                reselectMasterCommentCell(part, bubbleId);
+            });
+            menu.getItems().add(clearCommentItem);
+        }
+
+        menu.show(cell, screenX, screenY);
+    }
+
+    private void reselectMasterCommentCell(PartRecord part, String bubbleId) {
+        if (part == null || bubbleId == null || bubbleId.isBlank()) {
+            return;
+        }
+
+        int rowIndex = masterTableView.getItems().indexOf(part);
+        if (rowIndex < 0) {
+            return;
+        }
+
+        for (TableColumn<PartRecord, ?> column : masterTableView.getColumns()) {
+            if (bubbleId.equals(bubbleIdForColumn(column))) {
+                selectTableCell(masterTableView, rowIndex, column);
+                return;
+            }
+        }
+    }
+
+    private String bubbleIdForColumn(TableColumn<PartRecord, ?> column) {
+        if (column == null) {
+            return null;
+        }
+        Object userData = column.getUserData();
+        return userData instanceof String text && !text.isBlank() ? text : null;
+    }
+
     private <S> void configureTableCellSelection(TableView<S> tableView) {
         tableView.getSelectionModel().setCellSelectionEnabled(true);
         tableView.getSelectionModel().setSelectionMode(SelectionMode.SINGLE);
@@ -596,6 +748,15 @@ public class PartEditorController {
 
     private <S> void handleTableKeyPressed(TableView<S> tableView, KeyEvent event) {
         if (event.getTarget() instanceof TextInputControl) {
+            return;
+        }
+
+        if (tableView == masterTableView
+                && event.isControlDown()
+                && event.isShiftDown()
+                && event.getCode() == KeyCode.C) {
+            openMasterCommentEditorForSelection();
+            event.consume();
             return;
         }
 
@@ -668,6 +829,164 @@ public class PartEditorController {
         }
         char character = text.charAt(0);
         return !Character.isISOControl(character);
+    }
+
+    private Tooltip buildCommentTooltip(String comment) {
+        if (comment == null || comment.isBlank()) {
+            return null;
+        }
+
+        Tooltip tooltip = new Tooltip(comment);
+        tooltip.setWrapText(true);
+        tooltip.setMaxWidth(320.0);
+        return tooltip;
+    }
+
+    private final class MasterMeasurementTableCell extends TableCell<PartRecord, String> {
+        private final String bubbleId;
+        private final Label valueLabel = new Label();
+        private final Label commentMarker = new Label("*");
+        private final StackPane displayPane = new StackPane();
+        private TextField textField;
+        private MasterCommentCellKey registeredKey;
+
+        private MasterMeasurementTableCell(String bubbleId) {
+            this.bubbleId = bubbleId;
+
+            valueLabel.setMaxWidth(Double.MAX_VALUE);
+            commentMarker.getStyleClass().add("master-comment-marker");
+
+            displayPane.getChildren().addAll(valueLabel, commentMarker);
+            StackPane.setAlignment(valueLabel, Pos.CENTER_LEFT);
+            StackPane.setAlignment(commentMarker, Pos.TOP_RIGHT);
+            StackPane.setMargin(commentMarker, new Insets(2.0, 4.0, 0.0, 0.0));
+
+            setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
+            setEditable(true);
+
+            setOnMousePressed(event -> {
+                if (isEmpty()) {
+                    return;
+                }
+                selectTableCell(masterTableView, getIndex(), getTableColumn());
+                if (event.getButton() == MouseButton.PRIMARY && event.getClickCount() == 2 && getTableColumn().isEditable()) {
+                    startEdit();
+                    event.consume();
+                }
+            });
+
+            setOnContextMenuRequested(event -> {
+                if (isEmpty()) {
+                    return;
+                }
+                PartRecord part = getTableRow() == null ? null : getTableRow().getItem();
+                if (part == null) {
+                    return;
+                }
+                selectTableCell(masterTableView, getIndex(), getTableColumn());
+                showMasterCommentContextMenu(this, part, bubbleId, event.getScreenX(), event.getScreenY());
+                event.consume();
+            });
+        }
+
+        @Override
+        public void startEdit() {
+            if (isEmpty() || !getTableView().isEditable() || !getTableColumn().isEditable()) {
+                return;
+            }
+
+            super.startEdit();
+            if (textField == null) {
+                createTextField();
+            }
+            textField.setText(getItem() == null ? "" : getItem());
+            setGraphic(textField);
+            setText(null);
+            Platform.runLater(() -> {
+                textField.requestFocus();
+                textField.selectAll();
+            });
+        }
+
+        @Override
+        public void cancelEdit() {
+            super.cancelEdit();
+            updateDisplay();
+        }
+
+        @Override
+        protected void updateItem(String item, boolean empty) {
+            super.updateItem(item, empty);
+            registerCurrentCell();
+
+            if (empty) {
+                unregisterCell();
+                setText(null);
+                setGraphic(null);
+                setTooltip(null);
+                return;
+            }
+
+            if (isEditing()) {
+                if (textField != null) {
+                    textField.setText(item == null ? "" : item);
+                }
+                setGraphic(textField);
+                setText(null);
+                return;
+            }
+
+            updateDisplay();
+        }
+
+        private void updateDisplay() {
+            PartRecord part = getTableRow() == null ? null : getTableRow().getItem();
+            String comment = part == null ? "" : part.getComment(bubbleId);
+
+            valueLabel.setText(getItem() == null ? "" : getItem());
+            valueLabel.setPadding(new Insets(0.0, 12.0, 0.0, 0.0));
+            commentMarker.setVisible(comment != null && !comment.isBlank());
+            commentMarker.setManaged(commentMarker.isVisible());
+            setTooltip(buildCommentTooltip(comment));
+            setGraphic(displayPane);
+            setText(null);
+        }
+
+        private void createTextField() {
+            textField = new TextField(getItem() == null ? "" : getItem());
+            textField.setOnAction(event -> commitEdit(textField.getText()));
+            textField.focusedProperty().addListener((observable, oldValue, focused) -> {
+                if (!focused && isEditing()) {
+                    commitEdit(textField.getText());
+                }
+            });
+            textField.addEventFilter(KeyEvent.KEY_PRESSED, event -> {
+                if (event.getCode() == KeyCode.ESCAPE) {
+                    cancelEdit();
+                    event.consume();
+                }
+            });
+        }
+
+        private void registerCurrentCell() {
+            unregisterCell();
+            PartRecord part = getTableRow() == null ? null : getTableRow().getItem();
+            if (part == null || bubbleId == null || bubbleId.isBlank()) {
+                return;
+            }
+            registeredKey = new MasterCommentCellKey(part.getId(), bubbleId);
+            masterMeasurementCells.put(registeredKey, this);
+        }
+
+        private void unregisterCell() {
+            if (registeredKey != null) {
+                masterMeasurementCells.remove(registeredKey, this);
+                registeredKey = null;
+            }
+        }
+    }
+
+    private record MasterCommentCellKey(String partId, String bubbleId) {
     }
 
     private <S> void selectTableCell(TableView<S> tableView, int rowIndex, TableColumn<S, ?> column) {

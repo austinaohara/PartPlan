@@ -68,6 +68,12 @@
     -fx-font-size: 13px;
 }
 
+.master-comment-marker {
+    -fx-text-fill: #b38700;
+    -fx-font-size: 11px;
+    -fx-font-weight: 700;
+}
+
 .button {
     -fx-background-radius: 10px;
     -fx-padding: 10px 16px;
