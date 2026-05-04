@@ -1,5 +1,11 @@
 package view;
 
+import app.AppContext;
+import app.BackgroundTaskRunner;
+import app.UnsavedChangesDialogs;
+import app.UserFacingErrorMessages;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.event.ActionEvent;
@@ -19,21 +25,56 @@ import javafx.scene.control.TabPane;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
 import javafx.scene.control.cell.TextFieldTableCell;
+import javafx.scene.layout.BorderPane;
 import javafx.scene.text.TextAlignment;
+import javafx.stage.Window;
+import javafx.stage.WindowEvent;
 import javafx.util.StringConverter;
+import model.InspectionLot;
+import model.InspectionPlan;
 import model.PartBubbleDefinition;
 import model.PartRecord;
 import viewmodel.PartBubbleRowViewModel;
 import viewmodel.PartEditorViewModel;
 
 import java.io.IOException;
+import java.util.function.Consumer;
 
 public class PartEditorController {
     private static final int MAX_LOT_SIZE = 1000;
 
-    private final PartEditorViewModel viewModel = new PartEditorViewModel();
+    private final PartEditorViewModel viewModel;
+    private final BooleanProperty repositoryBusy = new SimpleBooleanProperty(false);
     private boolean syncingLotSize;
+    private Window guardedWindow;
+    private boolean allowWindowClose;
+    private final javafx.event.EventHandler<WindowEvent> closeRequestHandler = this::handleCloseRequest;
 
+    private void handleCloseRequest(WindowEvent event) {
+        if (allowWindowClose) {
+            allowWindowClose = false;
+            return;
+        }
+        if (repositoryBusy.get()) {
+            event.consume();
+            return;
+        }
+        if (!viewModel.unsavedChangesProperty().get()) {
+            return;
+        }
+        event.consume();
+        requestProceedWithPotentialUnsavedChanges("close the lot editor", false, this::closeWindowAfterSaveOrDiscard);
+    }
+
+    public PartEditorController(AppContext appContext) {
+        this.viewModel = new PartEditorViewModel(
+                appContext.getLotRepository(),
+                appContext.getPlanRepository()
+        );
+    }
+
+    @FXML
+    private BorderPane root;
     @FXML
     private TextField lotNameField;
     @FXML
@@ -42,6 +83,10 @@ public class PartEditorController {
     private Label lotSummaryLabel;
     @FXML
     private Label loadedPlanLabel;
+    @FXML
+    private Label nextPlanVersionLabel;
+    @FXML
+    private Label lotUnsavedLabel;
     @FXML
     private ComboBox<PartRecord> partSelectorComboBox;
     @FXML
@@ -62,9 +107,15 @@ public class PartEditorController {
     private Button previousPartButton;
     @FXML
     private Button nextPartButton;
+    @FXML
+    private Button upversionLotButton;
+    @FXML
+    private Button saveLotButton;
 
     @FXML
     private void initialize() {
+        root.disableProperty().bind(repositoryBusy);
+        root.sceneProperty().addListener((observable, oldScene, newScene) -> registerWindowCloseGuard(newScene));
         configureLotNameField();
         configureLotSizeSpinner();
         configurePartSelector();
@@ -77,23 +128,42 @@ public class PartEditorController {
     }
 
     public void loadLot(String lotId) {
-        viewModel.loadLot(lotId);
-        rebuildMasterColumns();
-        syncLoadedLotState();
-        syncPartSelection();
+        repositoryBusy.set(true);
+        BackgroundTaskRunner.run("lot-load", () -> viewModel.loadLotData(lotId), loadedLotData -> {
+            repositoryBusy.set(false);
+            viewModel.applyLoadedLot(loadedLotData);
+            rebuildMasterColumns();
+            syncLoadedLotState();
+            syncPartSelection();
+        }, failure -> {
+            repositoryBusy.set(false);
+            showFailure(failure, "Unable to load the inspection lot.");
+        });
     }
 
     @FXML
     private void onReturnToLotBrowser(ActionEvent event) throws IOException {
-        AppNavigator.swapRoot((Node) event.getSource(), "/fxml/inspection-lot-browser.fxml", "PartPlan - Inspection Lots", loader -> {
-            InspectionLotBrowserController controller = loader.getController();
-            controller.selectLot(viewModel.getCurrentLotId());
+        requestProceedWithPotentialUnsavedChanges("return to inspection lots", true, () -> {
+            try {
+                AppNavigator.swapRoot((Node) event.getSource(), "/fxml/inspection-lot-browser.fxml", "PartPlan - Inspection Lots", loader -> {
+                    InspectionLotBrowserController controller = loader.getController();
+                    controller.selectLot(viewModel.getCurrentLotId());
+                });
+            } catch (IOException exception) {
+                throw new IllegalStateException("Unable to return to inspection lots.", exception);
+            }
         });
     }
 
     @FXML
     private void onReturnToHub(ActionEvent event) throws IOException {
-        AppNavigator.swapRoot((Node) event.getSource(), "/fxml/welcome.fxml", "PartPlan");
+        requestProceedWithPotentialUnsavedChanges("return to the hub", true, () -> {
+            try {
+                AppNavigator.swapRoot((Node) event.getSource(), "/fxml/welcome.fxml", "PartPlan");
+            } catch (IOException exception) {
+                throw new IllegalStateException("Unable to return to the hub.", exception);
+            }
+        });
     }
 
     @FXML
@@ -107,6 +177,48 @@ public class PartEditorController {
     }
 
     @FXML
+    private void onSaveLot() {
+        saveCurrentLotAsync(null);
+    }
+
+    private void saveCurrentLotAsync(Runnable onSuccessContinuation) {
+        if (!viewModel.lotLoadedProperty().get()) {
+            return;
+        }
+
+        onLotNameCommitted();
+        InspectionLot snapshot;
+        try {
+            snapshot = viewModel.beginSaveSnapshot();
+        } catch (IllegalStateException exception) {
+            showInformation(exception.getMessage());
+            return;
+        }
+
+        saveLotButton.setText("Saving...");
+        repositoryBusy.set(true);
+        BackgroundTaskRunner.run("lot-save", () -> {
+            viewModel.persistLotSnapshot(snapshot);
+            return snapshot;
+        }, savedLot -> {
+            repositoryBusy.set(false);
+            viewModel.finishSaveSuccess(savedLot);
+            saveLotButton.setText("Save Lot");
+            syncLoadedLotState();
+            syncPartSelection();
+            rebuildMasterColumns();
+            if (onSuccessContinuation != null) {
+                onSuccessContinuation.run();
+            }
+        }, failure -> {
+            repositoryBusy.set(false);
+            viewModel.finishSaveFailure(snapshot.getId());
+            saveLotButton.setText("Save Lot");
+            showFailure(failure, "Unable to save the inspection lot.");
+        });
+    }
+
+    @FXML
     private void onPreviousPart() {
         viewModel.selectPreviousPart();
         syncPartSelection();
@@ -116,6 +228,41 @@ public class PartEditorController {
     private void onNextPart() {
         viewModel.selectNextPart();
         syncPartSelection();
+    }
+
+    @FXML
+    private void onUpversionLot() {
+        InspectionLot currentLot = viewModel.getCurrentLot();
+        InspectionPlan targetPlan = viewModel.getLatestUpversionTarget();
+        if (currentLot == null || targetPlan == null) {
+            return;
+        }
+
+        requestProceedWithPotentialUnsavedChanges("upversion this inspection lot", true, () -> {
+            javafx.scene.control.Alert alert = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.CONFIRMATION);
+            alert.setTitle("Upversion Inspection Lot");
+            alert.setHeaderText("Move this inspection lot to a newer plan version?");
+            alert.setContentText(buildUpversionMessage(currentLot, targetPlan));
+            java.util.Optional<javafx.scene.control.ButtonType> result = alert.showAndWait();
+            if (result.isEmpty() || result.get() != javafx.scene.control.ButtonType.OK) {
+                return;
+            }
+
+            repositoryBusy.set(true);
+            BackgroundTaskRunner.run("lot-upversion", viewModel::upversionCurrentLotInRepository, updatedLot -> {
+                repositoryBusy.set(false);
+                viewModel.applyUpversionedLot(updatedLot);
+                rebuildMasterColumns();
+                syncLoadedLotState();
+                syncPartSelection();
+                if (updatedLot != null) {
+                    showInformation("Inspection lot moved to " + updatedLot.getPlanName() + " v" + updatedLot.getPlanVersion() + ".");
+                }
+            }, failure -> {
+                repositoryBusy.set(false);
+                showFailure(failure, "Unable to upversion the inspection lot.");
+            });
+        });
     }
 
     private void configureLotNameField() {
@@ -227,15 +374,23 @@ public class PartEditorController {
         lotSummaryLabel.textProperty().bind(viewModel.lotSummaryProperty());
         loadedPlanLabel.textProperty().bind(viewModel.currentPlanNameProperty());
         currentPartTitleLabel.textProperty().bind(viewModel.currentPartTitleProperty());
+        nextPlanVersionLabel.textProperty().bind(viewModel.upversionTargetLabelProperty());
 
         lotNameField.disableProperty().bind(viewModel.lotLoadedProperty().not());
         lotSizeSpinner.disableProperty().bind(viewModel.lotLoadedProperty().not());
         partSelectorComboBox.disableProperty().bind(viewModel.lotLoadedProperty().not());
+        saveLotButton.disableProperty().bind(viewModel.lotLoadedProperty().not()
+                .or(viewModel.unsavedChangesProperty().not())
+                .or(viewModel.saveInProgressProperty()));
+        upversionLotButton.disableProperty().bind(viewModel.lotLoadedProperty().not().or(viewModel.upversionAvailableProperty().not()));
         previousPartButton.disableProperty().bind(viewModel.lotLoadedProperty().not()
                 .or(viewModel.currentPartNumberProperty().lessThanOrEqualTo(1)));
         nextPartButton.disableProperty().bind(viewModel.lotLoadedProperty().not()
                 .or(viewModel.currentPartNumberProperty().greaterThanOrEqualTo(viewModel.lotSizeProperty())));
         editorTabPane.disableProperty().bind(viewModel.lotLoadedProperty().not());
+        lotUnsavedLabel.textProperty().bind(viewModel.saveStateProperty());
+        lotUnsavedLabel.visibleProperty().bind(viewModel.saveStateProperty().isNotEmpty());
+        lotUnsavedLabel.managedProperty().bind(lotUnsavedLabel.visibleProperty());
 
         viewModel.currentPartNumberProperty().addListener((observable, oldValue, newValue) -> syncPartSelection());
     }
@@ -364,5 +519,99 @@ public class PartEditorController {
                 && bubble.getNominalValue().isBlank()
                 && bubble.getLowerTolerance().isBlank()
                 && bubble.getUpperTolerance().isBlank();
+    }
+
+    private String buildUpversionMessage(InspectionLot lot, InspectionPlan targetPlan) {
+        return """
+                Lot: %s
+                Current plan: %s v%d
+                New plan: %s v%d
+
+                Measurements are preserved for matching bubble IDs. New bubbles will start blank, and removed bubbles will be dropped from the lot.
+                """.formatted(
+                lot.getName(),
+                lot.getPlanName(),
+                lot.getPlanVersion(),
+                targetPlan.getName(),
+                targetPlan.getVersion()
+        );
+    }
+
+    private void showInformation(String message) {
+        javafx.scene.control.Alert alert = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.INFORMATION);
+        alert.setTitle("Part Editor");
+        alert.setHeaderText(null);
+        alert.setContentText(message);
+        alert.showAndWait();
+    }
+
+    private void showFailure(Throwable failure, String fallbackMessage) {
+        javafx.scene.control.Alert alert = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.ERROR);
+        alert.setTitle("Part Editor");
+        alert.setHeaderText("Action failed");
+        alert.setContentText(UserFacingErrorMessages.format(failure, fallbackMessage));
+        alert.showAndWait();
+    }
+
+    private void requestProceedWithPotentialUnsavedChanges(String actionLabel, boolean showBusyMessage, Runnable continuation) {
+        if (repositoryBusy.get()) {
+            if (showBusyMessage) {
+                showInformation("Please wait for the current database operation to finish.");
+            }
+            return;
+        }
+        if (!viewModel.unsavedChangesProperty().get()) {
+            continuation.run();
+            return;
+        }
+
+        switch (UnsavedChangesDialogs.promptToSaveDiscardOrCancel("inspection lot", actionLabel)) {
+            case SAVE -> saveCurrentLotAsync(continuation);
+            case DISCARD -> continuation.run();
+            case CANCEL -> {
+            }
+        }
+    }
+
+    private void registerWindowCloseGuard(javafx.scene.Scene scene) {
+        if (guardedWindow != null) {
+            guardedWindow.removeEventFilter(WindowEvent.WINDOW_CLOSE_REQUEST, closeRequestHandler);
+            guardedWindow = null;
+        }
+        if (scene == null) {
+            return;
+        }
+
+        Consumer<Window> installer = window -> {
+            if (window == null || window == guardedWindow) {
+                return;
+            }
+            guardedWindow = window;
+            guardedWindow.addEventFilter(WindowEvent.WINDOW_CLOSE_REQUEST, closeRequestHandler);
+        };
+
+        installer.accept(scene.getWindow());
+        scene.windowProperty().addListener((observable, oldWindow, newWindow) -> {
+            if (oldWindow != null && oldWindow != guardedWindow) {
+                oldWindow.removeEventFilter(WindowEvent.WINDOW_CLOSE_REQUEST, closeRequestHandler);
+            }
+            if (oldWindow != null && oldWindow == guardedWindow) {
+                oldWindow.removeEventFilter(WindowEvent.WINDOW_CLOSE_REQUEST, closeRequestHandler);
+                guardedWindow = null;
+            }
+            installer.accept(newWindow);
+        });
+    }
+
+    private void closeWindowAfterSaveOrDiscard() {
+        if (guardedWindow == null) {
+            return;
+        }
+        allowWindowClose = true;
+        if (guardedWindow instanceof javafx.stage.Stage stage) {
+            stage.close();
+            return;
+        }
+        guardedWindow.hide();
     }
 }
