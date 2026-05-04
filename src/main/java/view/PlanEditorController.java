@@ -75,6 +75,10 @@ public class PlanEditorController {
     @FXML
     private Label pdfPreviewLabel;
     @FXML
+    private Label missingDrawingLabel;
+    @FXML
+    private Label unsupportedDrawingLabel;
+    @FXML
     private ImageView drawingImageView;
     @FXML
     private ScrollPane drawingScrollPane;
@@ -688,39 +692,61 @@ public class PlanEditorController {
     }
 
     private void loadDrawingPreview(String drawingPath) {
-        if (drawingPath == null || drawingPath.isBlank()) {
-            clearDrawingPreview();
-            return;
-        }
+        hideAllDrawingOverlays();
+        if (drawingPath == null || drawingPath.isBlank()) return;
         File drawingFile = new File(drawingPath);
+        // #87 — Missing file
         if (!drawingFile.isFile()) {
-            clearDrawingPreview();
+            missingDrawingLabel.setVisible(true);
+            missingDrawingLabel.setManaged(true);
             return;
         }
         if (isPdf(drawingFile)) {
-            drawingImageView.setImage(null);
-            bubbleOverlayPane.getChildren().clear();
-            drawingScrollPane.setVisible(false);
-            drawingScrollPane.setManaged(false);
             pdfPreviewLabel.setVisible(true);
             pdfPreviewLabel.setManaged(true);
             return;
         }
-        pdfPreviewLabel.setVisible(false);
-        pdfPreviewLabel.setManaged(false);
+        // #87 — Unsupported format
+        if (!isSupportedImageFormat(drawingFile)) {
+            unsupportedDrawingLabel.setVisible(true);
+            unsupportedDrawingLabel.setManaged(true);
+            return;
+        }
+        Image image = new Image(drawingFile.toURI().toString());
+        // #87 — Corrupt/unreadable image
+        if (image.isError()) {
+            unsupportedDrawingLabel.setVisible(true);
+            unsupportedDrawingLabel.setManaged(true);
+            return;
+        }
         drawingScrollPane.setVisible(true);
         drawingScrollPane.setManaged(true);
-        drawingImageView.setImage(new Image(drawingFile.toURI().toString()));
+        drawingImageView.setImage(image);
         renderBubbles();
     }
 
     private void clearDrawingPreview() {
+        hideAllDrawingOverlays();
         drawingImageView.setImage(null);
         bubbleOverlayPane.getChildren().clear();
+    }
+    private void hideAllDrawingOverlays() {
         drawingScrollPane.setVisible(false);
         drawingScrollPane.setManaged(false);
         pdfPreviewLabel.setVisible(false);
         pdfPreviewLabel.setManaged(false);
+        missingDrawingLabel.setVisible(false);
+        missingDrawingLabel.setManaged(false);
+        unsupportedDrawingLabel.setVisible(false);
+        unsupportedDrawingLabel.setManaged(false);
+    }
+    private static final java.util.Set<String> SUPPORTED_IMAGE_EXTENSIONS = java.util.Set.of("png", "jpg", "jpeg", "gif", "bmp");
+
+    private boolean isSupportedImageFormat(File file) {
+        String name = file.getName().toLowerCase(java.util.Locale.ROOT);
+        int dot = name.lastIndexOf('.');
+        if (dot < 0) return false;
+        return SUPPORTED_IMAGE_EXTENSIONS.contains(name.substring(dot + 1));
     }
 
     private void selectCurrentPlanIfPresent() {

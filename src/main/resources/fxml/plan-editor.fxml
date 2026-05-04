@@ -99,6 +99,8 @@
         <StackPane styleClass="canvas-shell">
             <Label fx:id="emptyStateLabel" styleClass="empty-state" text="Add a drawing page to start this inspection plan." wrapText="true" />
             <Label fx:id="pdfPreviewLabel" managed="false" styleClass="empty-state" text="PDF selected. The file is saved with the plan, but PDF preview is not available in this editor." visible="false" wrapText="true" />
+            <Label fx:id="missingDrawingLabel" managed="false" styleClass="empty-state" text="Drawing file not found. The file may have been moved or deleted. Re-import the drawing to restore it." visible="false" wrapText="true" />
+            <Label fx:id="unsupportedDrawingLabel" managed="false" styleClass="empty-state" text="This drawing file format is not supported or the file is corrupted. Supported formats: PNG, JPG, GIF, BMP, PDF." visible="false" wrapText="true" />
             <ScrollPane fx:id="drawingScrollPane" fitToHeight="false" fitToWidth="false" pannable="true" styleClass="drawing-scroll-pane">
                 <content>
                     <Group>
