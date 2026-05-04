@@ -39,3 +39,4 @@ build/
 .DS_Store
 
 app-data/
+.env/
