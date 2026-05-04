@@ -28,6 +28,11 @@
     -fx-text-fill: #c9d8e5;
 }
 
+.top-bar .field-value {
+    -fx-text-fill: #c9d8e5;
+    -fx-font-weight: 700;
+}
+
 .text-field {
     -fx-background-color: rgba(255, 255, 255, 0.96);
     -fx-background-radius: 10px;

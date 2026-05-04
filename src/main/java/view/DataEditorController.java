@@ -4,6 +4,7 @@ import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.Parent;
+import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
@@ -29,6 +30,18 @@ public class DataEditorController implements Initializable {
 
     @FXML
     private Label currentPlanLabel;
+
+    @FXML
+    private Label planVersionLabel;
+
+    @FXML
+    private Label measurementDataVersionLabel;
+
+    @FXML
+    private Label planDescriptionLabel;
+
+    @FXML
+    private Button upversionMeasurementDataButton;
 
     @FXML
     private TableView<Bubble> tableView;
@@ -80,6 +93,9 @@ public class DataEditorController implements Initializable {
     @Override
     public void initialize(URL location, ResourceBundle resources) {
         currentPlanLabel.textProperty().bind(dataEditorViewModel.getPlanEditorViewModel().planNameProperty());
+        planVersionLabel.textProperty().bind(dataEditorViewModel.getPlanEditorViewModel().planVersionTextProperty());
+        measurementDataVersionLabel.textProperty().bind(dataEditorViewModel.getPlanEditorViewModel().measurementDataVersionTextProperty());
+        planDescriptionLabel.textProperty().bind(dataEditorViewModel.getPlanEditorViewModel().planDescriptionTextProperty());
 
         columnSequenceNumber.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(data.getValue().getSequenceNumber()));
 
@@ -87,18 +103,21 @@ public class DataEditorController implements Initializable {
         columnRadius.setCellFactory(TextFieldTableCell.forTableColumn(new DoubleStringConverter()));
         columnRadius.setOnEditCommit(event -> {
             event.getRowValue().setRadius(event.getNewValue());
+            dataEditorViewModel.saveMeasurementData();
         });
 
         columnLabel.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(data.getValue().getLabel()));
         columnSequenceNumber.setCellFactory(TextFieldTableCell.forTableColumn(new IntegerStringConverter()));
         columnSequenceNumber.setOnEditCommit(event -> {
             event.getRowValue().setSequenceNumber(event.getNewValue());
+            dataEditorViewModel.saveMeasurementData();
         });
 
         columnCharacteristic.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(data.getValue().getCharacteristic()));
         columnCharacteristic.setCellFactory(TextFieldTableCell.forTableColumn(new DefaultStringConverter()));
         columnCharacteristic.setOnEditCommit(event -> {
             event.getRowValue().setCharacteristic(event.getNewValue());
+            dataEditorViewModel.saveMeasurementData();
         });
 
         columnInspectionType.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(data.getValue().getInspectionType()));
@@ -107,42 +126,67 @@ public class DataEditorController implements Initializable {
         columnNominalValue.setCellFactory(TextFieldTableCell.forTableColumn(new DoubleStringConverter()));
         columnNominalValue.setOnEditCommit(event -> {
             event.getRowValue().setNominalValue(event.getNewValue());
+            dataEditorViewModel.saveMeasurementData();
         });
 
         columnLowerTolerance.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(data.getValue().getLowerTolerance()));
         columnLowerTolerance.setCellFactory(TextFieldTableCell.forTableColumn(new DoubleStringConverter()));
         columnLowerTolerance.setOnEditCommit(event -> {
-        event.getRowValue().setLowerTolerance(event.getNewValue());});
+            event.getRowValue().setLowerTolerance(event.getNewValue());
+            dataEditorViewModel.saveMeasurementData();});
 
         columnUpperTolerance.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(data.getValue().getUpperTolerance()));
         columnUpperTolerance.setCellFactory(TextFieldTableCell.forTableColumn(new DoubleStringConverter()));
         columnUpperTolerance.setOnEditCommit(event -> {
-        event.getRowValue().setUpperTolerance(event.getNewValue());});
+            event.getRowValue().setUpperTolerance(event.getNewValue());
+            dataEditorViewModel.saveMeasurementData();});
 
         columnExpectedPassFail.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(data.getValue().getExpectedPassFail()));
         columnExpectedPassFail.setCellFactory(TextFieldTableCell.forTableColumn(new BooleanStringConverter()));
         columnExpectedPassFail.setOnEditCommit(event -> {
-        event.getRowValue().setExpectedPassFail(event.getNewValue());});
+            event.getRowValue().setExpectedPassFail(event.getNewValue());
+            dataEditorViewModel.saveMeasurementData();});
 
         columnMeasuredValue.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(data.getValue().getMeasuredValue()));
         columnMeasuredValue.setCellFactory(TextFieldTableCell.forTableColumn(new DoubleStringConverter()));
         columnMeasuredValue.setOnEditCommit(event -> {
-        event.getRowValue().setMeasuredValue(event.getNewValue());});
+            event.getRowValue().setMeasuredValue(event.getNewValue());
+            dataEditorViewModel.saveMeasurementData();});
 
         columnActualPassFail.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(data.getValue().getActualPassFail()));
         columnActualPassFail.setCellFactory(TextFieldTableCell.forTableColumn(new BooleanStringConverter()));
         columnActualPassFail.setOnEditCommit(event -> {
-        event.getRowValue().setActualPassFail(event.getNewValue());});
+            event.getRowValue().setActualPassFail(event.getNewValue());
+            dataEditorViewModel.saveMeasurementData();});
 
         columnStatus.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(data.getValue().getStatus())); //TODO: figure out what to use for this
 
         columnNote.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(data.getValue().getNote()));
         columnNote.setCellFactory(TextFieldTableCell.forTableColumn(new DefaultStringConverter()));
         columnNote.setOnEditCommit(event -> {
-        event.getRowValue().setNote(event.getNewValue());});
+            event.getRowValue().setNote(event.getNewValue());
+            dataEditorViewModel.saveMeasurementData();});
 
         tableView.setItems(dataEditorViewModel.getBubbles());
         tableView.setEditable(true);
+        configurePlanLockEditability();
+    }
+
+    @FXML
+    private void onUpversionMeasurementData() {
+        dataEditorViewModel.upversionMeasurementData();
+    }
+
+    private void configurePlanLockEditability() {
+        columnSequenceNumber.editableProperty().bind(dataEditorViewModel.getPlanEditorViewModel().planLockedProperty().not());
+        columnRadius.editableProperty().bind(dataEditorViewModel.getPlanEditorViewModel().planLockedProperty().not());
+        columnLabel.editableProperty().bind(dataEditorViewModel.getPlanEditorViewModel().planLockedProperty().not());
+        columnCharacteristic.editableProperty().bind(dataEditorViewModel.getPlanEditorViewModel().planLockedProperty().not());
+        columnInspectionType.editableProperty().bind(dataEditorViewModel.getPlanEditorViewModel().planLockedProperty().not());
+        columnNominalValue.editableProperty().bind(dataEditorViewModel.getPlanEditorViewModel().planLockedProperty().not());
+        columnLowerTolerance.editableProperty().bind(dataEditorViewModel.getPlanEditorViewModel().planLockedProperty().not());
+        columnUpperTolerance.editableProperty().bind(dataEditorViewModel.getPlanEditorViewModel().planLockedProperty().not());
+        columnExpectedPassFail.editableProperty().bind(dataEditorViewModel.getPlanEditorViewModel().planLockedProperty().not());
     }
 
     public DataEditorViewModel getDataEditorViewModel(){

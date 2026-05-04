@@ -34,17 +34,19 @@
                 <Button mnemonicParsing="false" onAction="#onSavePlan" styleClass="primary-button" text="Save Plan" />
                 <Button mnemonicParsing="false" onAction="#onOpenPlan" styleClass="secondary-button" text="Open Plan" />
                 <Button mnemonicParsing="false" onAction="#onDeletePlan" styleClass="secondary-button" text="Delete Plan" />
-                <Button mnemonicParsing="false" onAction="#onImportDrawing" styleClass="primary-button" text="Add Page" />
+                <Button fx:id="addPageButton" mnemonicParsing="false" onAction="#onImportDrawing" styleClass="primary-button" text="Add Page" />
                 <MenuButton mnemonicParsing="false" text="Export" styleClass="secondary-button">
                     <items>
                         <MenuItem mnemonicParsing="false" text="Export as CSV" onAction="#onExportCsv"/>
                         <MenuItem mnemonicParsing="false" text="Export as PDF" onAction="#onExportPdf"/>
                     </items>
                 </MenuButton>
+                <Button fx:id="finalizePlanButton" mnemonicParsing="false" onAction="#onFinalizePlan" styleClass="secondary-button" text="Finalize Plan" />
                 <Separator orientation="VERTICAL" prefHeight="28.0" />
                 <Label styleClass="field-label" text="Plan Name" />
                 <TextField fx:id="planNameField" onAction="#onPlanNameChanged" onKeyReleased="#onPlanNameChanged" prefWidth="280.0" promptText="New Inspection Plan" />
-                <Button mnemonicParsing="false" onAction="#OnOpenDataEditor" styleClass="secondary-button" text="Open in Data Editor" />
+                <Label fx:id="planVersionLabel" styleClass="field-value" text="Version 1 • Draft" />
+                <Button fx:id="openDataEditorButton" mnemonicParsing="false" onAction="#OnOpenDataEditor" styleClass="secondary-button" text="Open in Data Editor" />
             </HBox>
         </VBox>
     </top>
@@ -137,6 +139,8 @@
                     <Separator />
                     <Label styleClass="field-label" text="Bubble Number" />
                     <TextField fx:id="bubbleNumberField" promptText="Bubble number" />
+                    <Label styleClass="field-label" text="Internal ID" />
+                    <TextField fx:id="bubbleInternalIdField" editable="false" promptText="Generated automatically" />
                     <HBox alignment="CENTER_LEFT" spacing="6.0">
                         <CheckBox fx:id="useDefaultDiameterCheckBox" mnemonicParsing="false" selected="true" styleClass="compact-checkbox">
                             <tooltip>

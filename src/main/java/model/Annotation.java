@@ -16,7 +16,7 @@ public abstract class Annotation implements DrawableAnnotation {
     }
 
     protected Annotation(String id, double x, double y, String color, LocalDateTime createdAt, LocalDateTime updatedAt) {
-        this.id = id;
+        this.id = (id == null || id.isBlank()) ? UUID.randomUUID().toString() : id;
         this.x = x;
         this.y = y;
         this.color = color;
@@ -27,6 +27,11 @@ public abstract class Annotation implements DrawableAnnotation {
     public String getId() {
         return id;
     }
+
+    public String getInternalId() {
+        return id;
+    }
+
 
     @Override
     public double getX() {

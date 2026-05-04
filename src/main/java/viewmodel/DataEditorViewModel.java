@@ -17,4 +17,12 @@ public class DataEditorViewModel {
     public ObservableList<Bubble> getBubbles(){
         return this.planEditorViewModel.getPageBubbles();
     }
+
+    public void saveMeasurementData() {
+        planEditorViewModel.saveCurrentPlan();
+    }
+
+    public void upversionMeasurementData() {
+        planEditorViewModel.upversionMeasurementData();
+    }
 }
