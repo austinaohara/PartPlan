@@ -9,6 +9,7 @@ public class PartRecord {
     private final String id;
     private int partNumber;
     private final Map<String, String> measurements = new LinkedHashMap<>();
+    private final Map<String, String> comments = new LinkedHashMap<>();
 
     public PartRecord(int partNumber) {
         this(UUID.randomUUID().toString(), partNumber);
@@ -42,6 +43,17 @@ public class PartRecord {
         measurements.put(bubbleId, value == null ? "" : value.trim());
     }
 
+    public String getComment(String bubbleId) {
+        return comments.getOrDefault(bubbleId, "");
+    }
+
+    public void setComment(String bubbleId, String value) {
+        if (bubbleId == null || bubbleId.isBlank()) {
+            return;
+        }
+        comments.put(bubbleId, value == null ? "" : value.trim());
+    }
+
     public void ensureMeasurement(String bubbleId) {
         if (bubbleId == null || bubbleId.isBlank()) {
             return;
@@ -49,12 +61,27 @@ public class PartRecord {
         measurements.putIfAbsent(bubbleId, "");
     }
 
+    public void ensureComment(String bubbleId) {
+        if (bubbleId == null || bubbleId.isBlank()) {
+            return;
+        }
+        comments.putIfAbsent(bubbleId, "");
+    }
+
     public void removeMeasurement(String bubbleId) {
         measurements.remove(bubbleId);
     }
 
+    public void removeComment(String bubbleId) {
+        comments.remove(bubbleId);
+    }
+
     public void retainMeasurements(Collection<String> bubbleIds) {
         measurements.keySet().retainAll(bubbleIds);
+    }
+
+    public void retainComments(Collection<String> bubbleIds) {
+        comments.keySet().retainAll(bubbleIds);
     }
 
     @Override

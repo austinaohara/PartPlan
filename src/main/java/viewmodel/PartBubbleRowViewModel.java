@@ -12,6 +12,7 @@ public class PartBubbleRowViewModel {
     private final StringProperty note = new SimpleStringProperty();
     private final StringProperty requirement = new SimpleStringProperty();
     private final StringProperty measurementValue = new SimpleStringProperty();
+    private final StringProperty commentValue = new SimpleStringProperty();
 
     public PartBubbleRowViewModel(
             String bubbleId,
@@ -21,7 +22,8 @@ public class PartBubbleRowViewModel {
             String lowerTolerance,
             String upperTolerance,
             String note,
-            String measurementValue
+            String measurementValue,
+            String commentValue
     ) {
         this.bubbleId = bubbleId;
         this.sequenceNumber.set(sequenceNumber);
@@ -29,6 +31,7 @@ public class PartBubbleRowViewModel {
         this.note.set(note);
         this.requirement.set(buildRequirement(bubbleName, nominalValue, lowerTolerance, upperTolerance, note));
         this.measurementValue.set(measurementValue);
+        this.commentValue.set(commentValue);
     }
 
     public String getBubbleId() {
@@ -63,6 +66,10 @@ public class PartBubbleRowViewModel {
         return requirement;
     }
 
+    public String getRequirement() {
+        return requirement.get();
+    }
+
     public String getMeasurementValue() {
         return measurementValue.get();
     }
@@ -73,6 +80,18 @@ public class PartBubbleRowViewModel {
 
     public void setMeasurementValue(String value) {
         measurementValue.set(value);
+    }
+
+    public String getCommentValue() {
+        return commentValue.get();
+    }
+
+    public StringProperty commentValueProperty() {
+        return commentValue;
+    }
+
+    public void setCommentValue(String value) {
+        commentValue.set(value);
     }
 
     private String buildRequirement(

@@ -62,8 +62,10 @@ public class PartLot {
 
         for (PartRecord part : parts) {
             part.retainMeasurements(bubbleIds);
+            part.retainComments(bubbleIds);
             for (PartBubbleDefinition bubble : bubbles) {
                 part.ensureMeasurement(bubble.getId());
+                part.ensureComment(bubble.getId());
             }
         }
     }
@@ -72,6 +74,7 @@ public class PartLot {
         PartRecord part = new PartRecord(partNumber);
         for (PartBubbleDefinition bubble : bubbles) {
             part.ensureMeasurement(bubble.getId());
+            part.ensureComment(bubble.getId());
         }
         return part;
     }
