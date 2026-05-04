@@ -1,6 +1,7 @@
 package view;
 
 import app.AppContext;
+import app.AppMenuSupport;
 import app.BackgroundTaskRunner;
 import app.UnsavedChangesDialogs;
 import app.UserFacingErrorMessages;
@@ -52,6 +53,7 @@ import model.InspectionLot;
 import model.InspectionPlan;
 import model.PartBubbleDefinition;
 import model.PartRecord;
+import service.auth.AuthService;
 import viewmodel.PartBubbleRowViewModel;
 import viewmodel.PartEditorViewModel;
 
@@ -64,6 +66,7 @@ public class PartEditorController {
     private static final int MAX_LOT_SIZE = 1000;
 
     private final PartEditorViewModel viewModel;
+    private final AuthService authService;
     private final BooleanProperty repositoryBusy = new SimpleBooleanProperty(false);
     private final Map<MasterCommentCellKey, MasterMeasurementTableCell> masterMeasurementCells = new HashMap<>();
     private boolean syncingLotSize;
@@ -88,6 +91,7 @@ public class PartEditorController {
     }
 
     public PartEditorController(AppContext appContext) {
+        this.authService = appContext.getAuthService();
         this.viewModel = new PartEditorViewModel(
                 appContext.getLotRepository(),
                 appContext.getPlanRepository()
@@ -137,6 +141,11 @@ public class PartEditorController {
 
     @FXML
     private void initialize() {
+        AppMenuSupport.install(root, AppMenuSupport.MenuContext.LOT_EDITOR, new AppMenuSupport.MenuCallbacks(
+                this::signOutFromMenu,
+                this::openFirebaseSettingsFromMenu,
+                () -> AppMenuSupport.openOpenAiSettingsWindow(root)
+        ));
         root.disableProperty().bind(repositoryBusy);
         root.sceneProperty().addListener((observable, oldScene, newScene) -> registerWindowCloseGuard(newScene));
         configureLotNameField();
@@ -1034,6 +1043,27 @@ public class PartEditorController {
             case CANCEL -> {
             }
         }
+    }
+
+    private void signOutFromMenu() {
+        requestProceedWithPotentialUnsavedChanges("sign out", true, () -> {
+            try {
+                authService.signOut();
+                AppNavigator.swapRoot(root, "/fxml/login.fxml", "PartPlan - Sign In");
+            } catch (IOException exception) {
+                throw new IllegalStateException("Unable to sign out.", exception);
+            }
+        });
+    }
+
+    private void openFirebaseSettingsFromMenu() {
+        requestProceedWithPotentialUnsavedChanges("open Firebase settings", true, () -> {
+            try {
+                AppNavigator.swapRoot(root, "/fxml/firebase-config.fxml", "PartPlan - Firebase Setup");
+            } catch (IOException exception) {
+                throw new IllegalStateException("Unable to open the Firebase settings screen.", exception);
+            }
+        });
     }
 
     private void registerWindowCloseGuard(javafx.scene.Scene scene) {

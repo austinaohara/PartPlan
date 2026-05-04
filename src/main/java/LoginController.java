@@ -1,4 +1,5 @@
 import app.AppContext;
+import app.AppMenuSupport;
 import app.UserFacingErrorMessages;
 import javafx.application.Platform;
 import javafx.concurrent.Task;
@@ -53,6 +54,11 @@ public class LoginController {
 
     @FXML
     private void initialize() {
+        AppMenuSupport.install(rootPane, AppMenuSupport.MenuContext.GENERAL, new AppMenuSupport.MenuCallbacks(
+                null,
+                this::openFirebaseSetup,
+                () -> AppMenuSupport.openOpenAiSettingsWindow(rootPane)
+        ));
         progressIndicator.setVisible(false);
         progressIndicator.setManaged(false);
 

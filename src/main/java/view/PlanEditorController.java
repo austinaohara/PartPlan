@@ -1,6 +1,7 @@
 package view;
 
 import app.AppContext;
+import app.AppMenuSupport;
 import app.BackgroundTaskRunner;
 import app.UnsavedChangesDialogs;
 import app.UserFacingErrorMessages;
@@ -23,6 +24,7 @@ import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.input.ScrollEvent;
+import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.VBox;
@@ -41,6 +43,7 @@ import model.Bubble;
 import model.InspectionType;
 import model.PlanPage;
 import service.autoballoon.AutoBalloonRequest;
+import service.auth.AuthService;
 import service.export.ExportFormat;
 import service.export.InspectionExportService;
 import viewmodel.PlanEditorViewModel;
@@ -68,6 +71,7 @@ public class PlanEditorController {
     private static final double PANEL_MAX_WIDTH = 600.0;
 
     private final PlanEditorViewModel viewModel;
+    private final AuthService authService;
     private final BooleanProperty repositoryBusy = new SimpleBooleanProperty(false);
     private double zoomLevel = DEFAULT_ZOOM;
     private final InspectionExportService exportService = new InspectionExportService();
@@ -92,6 +96,7 @@ public class PlanEditorController {
     }
 
     public PlanEditorController(AppContext appContext) {
+        this.authService = appContext.getAuthService();
         this.viewModel = new PlanEditorViewModel(
                 appContext.getPlanRepository(),
                 appContext.getLotRepository(),
@@ -103,7 +108,7 @@ public class PlanEditorController {
 
     // Existing fields
     @FXML
-    private Parent root;
+    private BorderPane root;
     @FXML
     private TextField planNameField;
     @FXML
@@ -229,6 +234,11 @@ public class PlanEditorController {
 
     @FXML
     private void initialize() {
+        AppMenuSupport.install(root, AppMenuSupport.MenuContext.PLAN_EDITOR, new AppMenuSupport.MenuCallbacks(
+                this::signOutFromMenu,
+                this::openFirebaseSettingsFromMenu,
+                this::onOpenAutoBalloonSettings
+        ));
         root.disableProperty().bind(repositoryBusy);
         planNameField.setText(displayPlanName(viewModel.getPlanName()));
         planStatusValueLabel.textProperty().bind(viewModel.planStatusProperty());
@@ -1634,6 +1644,27 @@ public class PlanEditorController {
             case CANCEL -> {
             }
         }
+    }
+
+    private void signOutFromMenu() {
+        requestProceedWithPotentialUnsavedChanges("sign out", true, () -> {
+            try {
+                authService.signOut();
+                AppNavigator.swapRoot(root, "/fxml/login.fxml", "PartPlan - Sign In");
+            } catch (IOException exception) {
+                throw new IllegalStateException("Unable to sign out.", exception);
+            }
+        });
+    }
+
+    private void openFirebaseSettingsFromMenu() {
+        requestProceedWithPotentialUnsavedChanges("open Firebase settings", true, () -> {
+            try {
+                AppNavigator.swapRoot(root, "/fxml/firebase-config.fxml", "PartPlan - Firebase Setup");
+            } catch (IOException exception) {
+                throw new IllegalStateException("Unable to open the Firebase settings screen.", exception);
+            }
+        });
     }
 
     private void registerWindowCloseGuard(Scene scene) {
