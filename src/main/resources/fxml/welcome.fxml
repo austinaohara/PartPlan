@@ -14,7 +14,11 @@
             <padding>
                 <Insets bottom="20.0" left="28.0" right="28.0" top="28.0" />
             </padding>
-            <Label fx:id="welcomeLabel" styleClass="screen-title" text="Welcome" />
+            <HBox alignment="CENTER_LEFT" spacing="12.0">
+                <Label fx:id="welcomeLabel" styleClass="screen-title" text="Welcome" />
+                <Region HBox.hgrow="ALWAYS" />
+                <Button mnemonicParsing="false" onAction="#onSignOut" styleClass="secondary-button" text="Sign Out" />
+            </HBox>
         </VBox>
     </top>
 
