@@ -31,10 +31,11 @@
             <artifactId>pdfbox</artifactId>
             <version>3.0.7</version>
         </dependency>
+
         <dependency>
-            <groupId>com.google.code.gson</groupId>
-            <artifactId>gson</artifactId>
-            <version>2.13.2</version>
+            <groupId>org.xerial</groupId>
+            <artifactId>sqlite-jdbc</artifactId>
+            <version>3.49.1.0</version>
         </dependency>
 
         <dependency>

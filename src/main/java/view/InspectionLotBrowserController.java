@@ -1,10 +1,5 @@
 package view;
 
-import app.AppContext;
-import app.BackgroundTaskRunner;
-import app.UserFacingErrorMessages;
-import javafx.beans.property.BooleanProperty;
-import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.fxml.FXML;
@@ -22,7 +17,6 @@ import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonType;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
-import javafx.scene.layout.BorderPane;
 import javafx.util.StringConverter;
 import model.InspectionLot;
 import model.InspectionLotSummary;
@@ -38,18 +32,8 @@ public class InspectionLotBrowserController {
     private static final int MAX_LOT_SIZE = 1000;
     private static final DateTimeFormatter UPDATED_AT_FORMAT = DateTimeFormatter.ofPattern("MMM d, yyyy h:mm a");
 
-    private final InspectionLotBrowserViewModel viewModel;
-    private final BooleanProperty repositoryBusy = new SimpleBooleanProperty(false);
+    private final InspectionLotBrowserViewModel viewModel = new InspectionLotBrowserViewModel();
 
-    public InspectionLotBrowserController(AppContext appContext) {
-        this.viewModel = new InspectionLotBrowserViewModel(
-                appContext.getPlanRepository(),
-                appContext.getLotRepository()
-        );
-    }
-
-    @FXML
-    private BorderPane root;
     @FXML
     private TableView<InspectionLotSummary> savedLotsTableView;
     @FXML
@@ -71,21 +55,18 @@ public class InspectionLotBrowserController {
     @FXML
     private Button deleteLotButton;
     @FXML
-    private Button upversionLotButton;
-    @FXML
     private Button createLotButton;
     @FXML
     private Label savedLotCountLabel;
 
     @FXML
     private void initialize() {
-        root.disableProperty().bind(repositoryBusy);
         configureSavedLotsTable();
         configurePlanSelector();
         configureLotSizeSpinner();
         bindViewModel();
-        savedLotsTableView.setPlaceholder(new Label("Loading inspection lots..."));
-        refreshBrowserDataAsync(null);
+        syncDefaults();
+        updateSavedLotCount();
     }
 
     public void selectLot(String lotId) {
@@ -104,7 +85,11 @@ public class InspectionLotBrowserController {
 
     @FXML
     private void onRefreshData() {
-        refreshBrowserDataAsync(getSelectedLotId());
+        String selectedLotId = getSelectedLotId();
+        viewModel.refresh();
+        syncDefaults();
+        updateSavedLotCount();
+        selectLot(selectedLotId);
     }
 
     @FXML
@@ -123,82 +108,22 @@ public class InspectionLotBrowserController {
     }
 
     @FXML
-    private void onUpversionLot() {
-        InspectionLotSummary selectedLot = savedLotsTableView.getSelectionModel().getSelectedItem();
-        if (selectedLot == null) {
-            return;
-        }
-
-        InspectionPlan targetPlan = viewModel.findLatestUpversionTarget(selectedLot);
-        if (targetPlan == null) {
-            showInformation("No newer completed plan version is available for this inspection lot.");
-            return;
-        }
-
-        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
-        alert.setTitle("Upversion Inspection Lot");
-        alert.setHeaderText("Move selected inspection lot to a newer plan version?");
-        alert.setContentText(buildUpversionMessage(selectedLot, targetPlan));
-        Optional<ButtonType> result = alert.showAndWait();
-        if (result.isEmpty() || result.get() != ButtonType.OK) {
-            return;
-        }
-
-        repositoryBusy.set(true);
-        BackgroundTaskRunner.run("lot-browser-upversion", () -> {
-            InspectionLot updatedLot = viewModel.upversionLotInRepository(selectedLot);
-            InspectionLotBrowserViewModel.BrowserData browserData = viewModel.loadBrowserData();
-            return new LotBrowserMutationResult(updatedLot, browserData);
-        }, resultData -> {
-            repositoryBusy.set(false);
-            viewModel.applyBrowserData(resultData.browserData());
-            syncDefaults();
-            updateSavedLotCount();
-            InspectionLot updatedLot = resultData.lot();
-            if (updatedLot != null) {
-                selectLot(updatedLot.getId());
-                showInformation("Inspection lot moved to " + formatPlanReference(updatedLot.getPlanName(), updatedLot.getPlanVersion()) + ".");
-            }
-        }, failure -> {
-            repositoryBusy.set(false);
-            showFailure(failure, "Unable to upversion the inspection lot.");
-        });
-    }
-
-    @FXML
-    private void onCreateLot() {
+    private void onCreateLot() throws IOException {
         commitLotSizeEditor();
         InspectionPlan selectedPlan = planSelectorComboBox.getSelectionModel().getSelectedItem();
         Integer requestedSize = lotSizeSpinner.getValue();
-        repositoryBusy.set(true);
-        BackgroundTaskRunner.run("lot-create", () -> {
-            InspectionLot createdLot = viewModel.createLotInRepository(
-                    selectedPlan,
-                    lotNameField.getText(),
-                    requestedSize == null ? 1 : requestedSize
-            );
-            InspectionLotBrowserViewModel.BrowserData browserData = viewModel.loadBrowserData();
-            return new LotBrowserMutationResult(createdLot, browserData);
-        }, resultData -> {
-            repositoryBusy.set(false);
-            viewModel.applyBrowserData(resultData.browserData());
-            syncDefaults();
-            updateSavedLotCount();
+        InspectionLot createdLot = viewModel.createLot(
+                selectedPlan,
+                lotNameField.getText(),
+                requestedSize == null ? 1 : requestedSize
+        );
 
-            InspectionLot createdLot = resultData.lot();
-            if (createdLot == null) {
-                return;
-            }
+        if (createdLot == null) {
+            return;
+        }
 
-            try {
-                openPartEditor(createLotButton, createdLot.getId());
-            } catch (IOException exception) {
-                showInformation("Inspection lot created, but the part editor could not be opened.");
-            }
-        }, failure -> {
-            repositoryBusy.set(false);
-            showFailure(failure, "Unable to create the inspection lot.");
-        });
+        updateSavedLotCount();
+        openPartEditor(createLotButton, createdLot.getId());
     }
 
     @FXML
@@ -213,7 +138,7 @@ public class InspectionLotBrowserController {
         savedLotsTableView.setOnKeyPressed(this::handleSavedLotsTableKeyPressed);
 
         lotNameColumn.setCellValueFactory(data -> new ReadOnlyStringWrapper(data.getValue().getName()));
-        lotPlanColumn.setCellValueFactory(data -> new ReadOnlyStringWrapper(formatPlanReference(data.getValue().getPlanName(), data.getValue().getPlanVersion())));
+        lotPlanColumn.setCellValueFactory(data -> new ReadOnlyStringWrapper(data.getValue().getPlanName()));
         lotSizeColumn.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(data.getValue().getLotSize()));
         lotUpdatedColumn.setCellValueFactory(data -> new ReadOnlyStringWrapper(formatTimestamp(data.getValue().getUpdatedAt())));
 
@@ -325,11 +250,7 @@ public class InspectionLotBrowserController {
         if (plan == null || plan.getName() == null || plan.getName().isBlank()) {
             return "Untitled Plan";
         }
-        String name = plan.getName().trim();
-        if (plan.getVersion() <= 0) {
-            return name;
-        }
-        return name + " v" + plan.getVersion();
+        return plan.getName().trim();
     }
 
     private void deleteSelectedLot() {
@@ -347,6 +268,7 @@ public class InspectionLotBrowserController {
             return;
         }
 
+        viewModel.deleteLot(selectedLot);
         repositoryBusy.set(true);
         BackgroundTaskRunner.run("lot-delete", () -> {
             viewModel.deleteLotInRepository(selectedLot);
