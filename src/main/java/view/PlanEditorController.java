@@ -11,6 +11,7 @@ import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.Node;
 import javafx.scene.control.*;
+import javafx.scene.control.ButtonBar;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.KeyCode;
@@ -73,6 +74,10 @@ public class PlanEditorController {
     private Label emptyStateLabel;
     @FXML
     private Label pdfPreviewLabel;
+    @FXML
+    private Label missingDrawingLabel;
+    @FXML
+    private Label unsupportedDrawingLabel;
     @FXML
     private ImageView drawingImageView;
     @FXML
@@ -179,7 +184,20 @@ public class PlanEditorController {
         bubbleOverlayPane.setOnMouseClicked(this::handleDrawingClick);
         bubbleOverlayPane.setOnMouseDragged(this::handleBubbleOverlayDrag);
         bubbleOverlayPane.setOnMouseReleased(this::handleBubbleOverlayRelease);
-        root.sceneProperty().addListener((observable, oldScene, newScene) -> registerShortcuts(newScene));
+        root.sceneProperty().addListener((observable, oldScene, newScene) -> {
+            registerShortcuts(newScene);
+            if (newScene != null) {
+                newScene.windowProperty().addListener((obs2, oldWin, newWin) -> {
+                    if (newWin instanceof Stage stage) {
+                        stage.setOnCloseRequest(event -> {
+                            if (!confirmDiscardChanges()) {
+                                event.consume();
+                            }
+                        });
+                    }
+                });
+            }
+        });
         drawingScrollPane.addEventFilter(ScrollEvent.SCROLL, this::handleScrollZoom);
         viewModel.getPageBubbles().addListener((ListChangeListener<Bubble>) change -> renderBubbles());
         viewModel.selectedBubbleProperty().addListener((observable, oldBubble, newBubble) -> {
@@ -282,9 +300,24 @@ public class PlanEditorController {
 
         setupResizeHandle(leftResizeHandle, leftPanel, true);
         setupResizeHandle(rightResizeHandle, rightPanel, false);
+
+        // #85 — Prevent invalid numeric input
+        applyPositiveDecimalFilter(bubbleDiameterField);
+        applyPositiveIntegerFilter(bubbleNumberField);
+        applyDecimalFilter(nominalValueField);
+        applyDecimalFilter(lowerToleranceField);
+        applyDecimalFilter(upperToleranceField);
+
+        // #86 — Show user-friendly error messages when saving fails
+        viewModel.saveErrorProperty().addListener((obs, oldErr, newErr) -> {
+            if (newErr != null && !newErr.isBlank()) {
+                showSaveError(newErr);
+                viewModel.clearSaveError();
+            }
+        });
     }
 
-    // ── Resize ───────────────────────────────────────────────────────────────
+    // Resize
 
     private void setupResizeHandle(VBox handle, VBox panel, boolean isLeft) {
         handle.setOnMousePressed((MouseEvent e) -> {
@@ -305,7 +338,7 @@ public class PlanEditorController {
         });
     }
 
-    // ── Panel toggle ──────────────────────────────────────────────────────────
+    // Panel toggle
 
     @FXML
     private void onToggleLeftPanel() {
@@ -329,10 +362,11 @@ public class PlanEditorController {
         rightCollapsedTab.setManaged(!rightExpanded);
     }
 
-    // ── Existing handlers (unchanged) ─────────────────────────────────────────
+    // Existing handlers (unchanged)
 
     @FXML
     private void onNewPlan() {
+        if (!confirmDiscardChanges()) return;
         viewModel.createNewPlan();
         planNameField.setText(displayPlanName(viewModel.getPlanName()));
         planPagesListView.getSelectionModel().clearSelection();
@@ -345,11 +379,13 @@ public class PlanEditorController {
     private void onSavePlan() {
         onPlanNameChanged();
         viewModel.saveCurrentPlan();
-        planNameField.setText(displayPlanName(viewModel.getPlanName()));
-        loadDrawingPreview(viewModel.getDrawingPath());
-        selectCurrentPageIfPresent();
-        selectCurrentPlanIfPresent();
-        showInformation("Plan saved locally as JSON.");
+        if (viewModel.saveErrorProperty().get() == null) {
+            planNameField.setText(displayPlanName(viewModel.getPlanName()));
+            loadDrawingPreview(viewModel.getDrawingPath());
+            selectCurrentPageIfPresent();
+            selectCurrentPlanIfPresent();
+            showInformation("Plan saved locally as JSON.");
+        }
     }
 
     @FXML
@@ -359,6 +395,7 @@ public class PlanEditorController {
             showInformation("Select a saved plan first.");
             return;
         }
+        if (!confirmDiscardChanges()) return;
         viewModel.openPlan(selectedPlan);
         planNameField.setText(displayPlanName(viewModel.getPlanName()));
         selectCurrentPageIfPresent();
@@ -389,6 +426,7 @@ public class PlanEditorController {
 
     @FXML
     private void onReturnToHub(ActionEvent event) throws IOException {
+        if (!confirmDiscardChanges()) return;
         AppNavigator.swapRoot((Node) event.getSource(), "/fxml/welcome.fxml", "PartPlan");
     }
 
@@ -654,39 +692,61 @@ public class PlanEditorController {
     }
 
     private void loadDrawingPreview(String drawingPath) {
-        if (drawingPath == null || drawingPath.isBlank()) {
-            clearDrawingPreview();
-            return;
-        }
+        hideAllDrawingOverlays();
+        if (drawingPath == null || drawingPath.isBlank()) return;
         File drawingFile = new File(drawingPath);
+        // #87 — Missing file
         if (!drawingFile.isFile()) {
-            clearDrawingPreview();
+            missingDrawingLabel.setVisible(true);
+            missingDrawingLabel.setManaged(true);
             return;
         }
         if (isPdf(drawingFile)) {
-            drawingImageView.setImage(null);
-            bubbleOverlayPane.getChildren().clear();
-            drawingScrollPane.setVisible(false);
-            drawingScrollPane.setManaged(false);
             pdfPreviewLabel.setVisible(true);
             pdfPreviewLabel.setManaged(true);
             return;
         }
-        pdfPreviewLabel.setVisible(false);
-        pdfPreviewLabel.setManaged(false);
+        // #87 — Unsupported format
+        if (!isSupportedImageFormat(drawingFile)) {
+            unsupportedDrawingLabel.setVisible(true);
+            unsupportedDrawingLabel.setManaged(true);
+            return;
+        }
+        Image image = new Image(drawingFile.toURI().toString());
+        // #87 — Corrupt/unreadable image
+        if (image.isError()) {
+            unsupportedDrawingLabel.setVisible(true);
+            unsupportedDrawingLabel.setManaged(true);
+            return;
+        }
         drawingScrollPane.setVisible(true);
         drawingScrollPane.setManaged(true);
-        drawingImageView.setImage(new Image(drawingFile.toURI().toString()));
+        drawingImageView.setImage(image);
         renderBubbles();
     }
 
     private void clearDrawingPreview() {
+        hideAllDrawingOverlays();
         drawingImageView.setImage(null);
         bubbleOverlayPane.getChildren().clear();
+    }
+    private void hideAllDrawingOverlays() {
         drawingScrollPane.setVisible(false);
         drawingScrollPane.setManaged(false);
         pdfPreviewLabel.setVisible(false);
         pdfPreviewLabel.setManaged(false);
+        missingDrawingLabel.setVisible(false);
+        missingDrawingLabel.setManaged(false);
+        unsupportedDrawingLabel.setVisible(false);
+        unsupportedDrawingLabel.setManaged(false);
+    }
+    private static final java.util.Set<String> SUPPORTED_IMAGE_EXTENSIONS = java.util.Set.of("png", "jpg", "jpeg", "gif", "bmp");
+
+    private boolean isSupportedImageFormat(File file) {
+        String name = file.getName().toLowerCase(java.util.Locale.ROOT);
+        int dot = name.lastIndexOf('.');
+        if (dot < 0) return false;
+        return SUPPORTED_IMAGE_EXTENSIONS.contains(name.substring(dot + 1));
     }
 
     private void selectCurrentPlanIfPresent() {
@@ -713,6 +773,75 @@ public class PlanEditorController {
                 return;
             }
         }
+    }
+
+    // #85 Numeric input filters
+    // Allows only digits and a single decimal point. Rejects empty or zero-only values
+    // that would make diameter nonsensical — those are caught on save.
+    // Allows a leading minus sign on the tolerance fields via applyDecimalFilter instead.
+    private void applyPositiveDecimalFilter(TextField field) {
+        field.textProperty().addListener((obs, oldVal, newVal) -> {
+            if (newVal == null) return;
+            // Allow: digits, one dot, leading minus NOT allowed
+            if (!newVal.matches("\\d*\\.?\\d*")) {
+                field.setText(oldVal);
+            }
+        });
+    }
+
+    // Allows only positive integers (digits only, no dot, no minus).
+    private void applyPositiveIntegerFilter(TextField field) {
+        field.textProperty().addListener((obs, oldVal, newVal) -> {
+            if (newVal == null) return;
+            if (!newVal.matches("\\d*")) {
+                field.setText(oldVal);
+            }
+        });
+    }
+
+    // Allows a signed decimal: optional leading minus, digits, one dot.
+    // Used for nominal value and tolerances which can be negative.
+    private void applyDecimalFilter(TextField field) {
+        field.textProperty().addListener((obs, oldVal, newVal) -> {
+            if (newVal == null) return;
+            // Allow empty, "-", digits, ".", and combinations like "-3.14"
+            if (!newVal.matches("-?\\d*\\.?\\d*")) {
+                field.setText(oldVal);
+            }
+        });
+    }
+
+    // Returns true if it's safe to proceed (no unsaved changes, or the user chose to discard).
+    // Shows a confirmation dialog only when there are unsaved changes.
+    private boolean confirmDiscardChanges() {
+        if (!viewModel.hasUnsavedChanges()) return true;
+
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+        alert.setTitle("Unsaved Changes");
+        alert.setHeaderText("You have unsaved changes.");
+        alert.setContentText("Save your plan before continuing, or discard your changes?");
+
+        ButtonType saveButton = new ButtonType("Save");
+        ButtonType discardButton = new ButtonType("Discard");
+        ButtonType cancelButton = new ButtonType("Cancel", ButtonBar.ButtonData.CANCEL_CLOSE);
+        alert.getButtonTypes().setAll(saveButton, discardButton, cancelButton);
+
+        Optional<ButtonType> result = alert.showAndWait();
+        if (result.isEmpty() || result.get() == cancelButton) {
+            return false;
+        }
+        if (result.get() == saveButton) {
+            onSavePlan();
+        }
+        return true;
+    }
+
+    private void showSaveError(String message) {
+        Alert alert = new Alert(Alert.AlertType.ERROR);
+        alert.setTitle("Save Failed");
+        alert.setHeaderText("PartPlan could not save your plan.");
+        alert.setContentText(message);
+        alert.showAndWait();
     }
 
     private void showInformation(String message) {
