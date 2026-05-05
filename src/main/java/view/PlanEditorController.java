@@ -581,9 +581,8 @@ public class PlanEditorController {
 
     @FXML
     private void onOpenPlan() {
-        InspectionPlan selectedPlan = savedPlansListView.getSelectionModel().getSelectedItem();
+        InspectionPlan selectedPlan = promptForPlanSelection();
         if (selectedPlan == null) {
-            showInformation("Select a saved plan first.");
             return;
         }
         requestProceedWithPotentialUnsavedChanges("open another plan", true, () -> {
@@ -1596,6 +1595,51 @@ public class PlanEditorController {
         String versionText = plan.getVersion() <= 0 ? "Draft" : "v" + plan.getVersion();
         String statusText = plan.isComplete() ? "Complete" : "Pending";
         return name + " (" + statusText + ", " + versionText + ")";
+    }
+
+    private InspectionPlan promptForPlanSelection() {
+        if (viewModel.getSavedPlans().isEmpty()) {
+            showInformation("There are no saved plans to open.");
+            return null;
+        }
+
+        ListView<InspectionPlan> planListView = new ListView<>(viewModel.getSavedPlans());
+        planListView.setPrefWidth(420.0);
+        planListView.setPrefHeight(320.0);
+        planListView.setCellFactory(listView -> new ListCell<>() {
+            @Override
+            protected void updateItem(InspectionPlan item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? null : formatPlanListEntry(item));
+            }
+        });
+
+        InspectionPlan currentSelection = savedPlansListView.getSelectionModel().getSelectedItem();
+        if (currentSelection != null) {
+            planListView.getSelectionModel().select(currentSelection);
+            planListView.scrollTo(currentSelection);
+        }
+
+        Dialog<InspectionPlan> dialog = new Dialog<>();
+        dialog.setTitle("Open Plan");
+        dialog.setHeaderText("Choose a plan to open");
+        dialog.getDialogPane().setContent(planListView);
+        ButtonType openButtonType = new ButtonType("Open", ButtonBar.ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().addAll(openButtonType, ButtonType.CANCEL);
+        Node openButton = dialog.getDialogPane().lookupButton(openButtonType);
+        openButton.disableProperty().bind(planListView.getSelectionModel().selectedItemProperty().isNull());
+
+        planListView.setOnMouseClicked(event -> {
+            if (event.getClickCount() == 2 && planListView.getSelectionModel().getSelectedItem() != null) {
+                dialog.setResult(planListView.getSelectionModel().getSelectedItem());
+                dialog.close();
+            }
+        });
+
+        dialog.setResultConverter(buttonType -> buttonType == openButtonType
+                ? planListView.getSelectionModel().getSelectedItem()
+                : null);
+        return dialog.showAndWait().orElse(null);
     }
 
     private void refreshSavedPlansAsync() {

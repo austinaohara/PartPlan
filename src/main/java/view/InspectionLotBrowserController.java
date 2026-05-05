@@ -11,8 +11,12 @@ import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.fxml.FXML;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonBar;
 import javafx.scene.control.ComboBox;
+import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
+import javafx.scene.control.ListCell;
+import javafx.scene.control.ListView;
 import javafx.scene.control.Spinner;
 import javafx.scene.control.SpinnerValueFactory;
 import javafx.scene.control.TableColumn;
@@ -119,7 +123,7 @@ public class InspectionLotBrowserController {
 
     @FXML
     private void onOpenLot() throws IOException {
-        InspectionLotSummary selectedLot = savedLotsTableView.getSelectionModel().getSelectedItem();
+        InspectionLotSummary selectedLot = promptForLotSelection();
         if (selectedLot == null) {
             return;
         }
@@ -378,6 +382,53 @@ public class InspectionLotBrowserController {
             return name;
         }
         return name + " v" + planVersion;
+    }
+
+    private InspectionLotSummary promptForLotSelection() {
+        if (viewModel.getSavedLots().isEmpty()) {
+            showInformation("There are no saved inspection lots to open.");
+            return null;
+        }
+
+        ListView<InspectionLotSummary> lotListView = new ListView<>(viewModel.getSavedLots());
+        lotListView.setPrefWidth(460.0);
+        lotListView.setPrefHeight(320.0);
+        lotListView.setCellFactory(listView -> new ListCell<>() {
+            @Override
+            protected void updateItem(InspectionLotSummary item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null
+                        ? null
+                        : item.getName() + " (" + formatPlanReference(item.getPlanName(), item.getPlanVersion()) + ")");
+            }
+        });
+
+        InspectionLotSummary currentSelection = savedLotsTableView.getSelectionModel().getSelectedItem();
+        if (currentSelection != null) {
+            lotListView.getSelectionModel().select(currentSelection);
+            lotListView.scrollTo(currentSelection);
+        }
+
+        Dialog<InspectionLotSummary> dialog = new Dialog<>();
+        dialog.setTitle("Open Inspection Lot");
+        dialog.setHeaderText("Choose a lot to open");
+        dialog.getDialogPane().setContent(lotListView);
+        ButtonType openButtonType = new ButtonType("Open", ButtonBar.ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().addAll(openButtonType, ButtonType.CANCEL);
+        Node openButton = dialog.getDialogPane().lookupButton(openButtonType);
+        openButton.disableProperty().bind(lotListView.getSelectionModel().selectedItemProperty().isNull());
+
+        lotListView.setOnMouseClicked(event -> {
+            if (event.getClickCount() == 2 && lotListView.getSelectionModel().getSelectedItem() != null) {
+                dialog.setResult(lotListView.getSelectionModel().getSelectedItem());
+                dialog.close();
+            }
+        });
+
+        dialog.setResultConverter(buttonType -> buttonType == openButtonType
+                ? lotListView.getSelectionModel().getSelectedItem()
+                : null);
+        return dialog.showAndWait().orElse(null);
     }
 
     private String buildUpversionMessage(InspectionLotSummary lot, InspectionPlan targetPlan) {

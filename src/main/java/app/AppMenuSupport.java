@@ -176,7 +176,7 @@ public final class AppMenuSupport {
         Menu lotMenu = new Menu("Lot");
         lotMenu.getItems().addAll(
                 disabledItem(MenuAction.LOT_CREATE_LOT, "Create Lot", menuItems),
-                disabledItem(MenuAction.LOT_OPEN_SELECTED_LOT, "Open Selected Lot", menuItems),
+                disabledItem(MenuAction.LOT_OPEN_SELECTED_LOT, "Open Lot...", menuItems),
                 disabledItem(MenuAction.LOT_SAVE_LOT, "Save Lot", menuItems),
                 disabledItem(MenuAction.LOT_DELETE_LOT, "Delete Lot", menuItems),
                 disabledItem(MenuAction.LOT_UPVERSION_LOT, "Upversion Lot", menuItems),
