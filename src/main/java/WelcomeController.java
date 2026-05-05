@@ -1,9 +1,11 @@
 import app.AppContext;
+import app.AppMenuSupport;
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.scene.Node;
 import javafx.scene.control.Label;
+import javafx.scene.layout.BorderPane;
 import service.auth.AuthService;
 import service.session.SessionManager;
 import service.session.UserSession;
@@ -16,6 +18,8 @@ public class WelcomeController {
     private final SessionManager sessionManager;
     private final AuthService authService;
 
+    @FXML
+    private BorderPane rootPane;
     @FXML
     private Label welcomeLabel;
 
@@ -31,6 +35,11 @@ public class WelcomeController {
             Platform.runLater(this::openLogin);
             return;
         }
+        AppMenuSupport.install(rootPane, AppMenuSupport.MenuContext.GENERAL, new AppMenuSupport.MenuCallbacks(
+                this::signOutFromMenu,
+                this::openFirebaseSetupFromMenu,
+                () -> AppMenuSupport.openOpenAiSettingsWindow(rootPane)
+        ));
 
         UserSession session = sessionManager.requireCurrentSession();
         String identity = session.getEmail() == null || session.getEmail().isBlank()
@@ -41,7 +50,7 @@ public class WelcomeController {
 
     @FXML
     private void onOpenPlanEditor(ActionEvent event) throws IOException {
-        AppNavigator.swapRoot((Node) event.getSource(), "/fxml/plan-editor.fxml", "PartPlan - Plan Editor");
+        AppNavigator.swapRoot((Node) event.getSource(), "/fxml/plan-browser.fxml", "PartPlan - Inspection Plans");
     }
 
     @FXML
@@ -65,6 +74,23 @@ public class WelcomeController {
             AppNavigator.swapRoot(welcomeLabel, "/fxml/login.fxml", "PartPlan - Sign In");
         } catch (IOException exception) {
             throw new IllegalStateException("Unable to open the sign-in screen.", exception);
+        }
+    }
+
+    private void signOutFromMenu() {
+        try {
+            authService.signOut();
+            AppNavigator.swapRoot(rootPane, "/fxml/login.fxml", "PartPlan - Sign In");
+        } catch (IOException exception) {
+            throw new IllegalStateException("Unable to sign out.", exception);
+        }
+    }
+
+    private void openFirebaseSetupFromMenu() {
+        try {
+            AppNavigator.swapRoot(rootPane, "/fxml/firebase-config.fxml", "PartPlan - Firebase Setup");
+        } catch (IOException exception) {
+            throw new IllegalStateException("Unable to open the Firebase settings screen.", exception);
         }
     }
 }

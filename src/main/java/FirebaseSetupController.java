@@ -1,4 +1,5 @@
 import app.AppContext;
+import app.AppMenuSupport;
 import app.AppStoragePaths;
 import app.UserFacingErrorMessages;
 import javafx.fxml.FXML;
@@ -47,6 +48,11 @@ public class FirebaseSetupController {
 
     @FXML
     private void initialize() {
+        AppMenuSupport.install(rootPane, AppMenuSupport.MenuContext.GENERAL, new AppMenuSupport.MenuCallbacks(
+                null,
+                null,
+                () -> AppMenuSupport.openOpenAiSettingsWindow(rootPane)
+        ));
         storagePathLabel.setText(AppStoragePaths.appDataDirectory().toString());
 
         try {

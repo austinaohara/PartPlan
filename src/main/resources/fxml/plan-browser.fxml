@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.TableColumn?>
+<?import javafx.scene.control.TableView?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.VBox?>
+
+<BorderPane fx:id="root" prefHeight="700.0" prefWidth="1100.0" stylesheets="@../styles/main.css" xmlns="http://javafx.com/javafx/20.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="view.PlanBrowserController">
+    <top>
+        <VBox spacing="12.0" styleClass="top-bar">
+            <padding>
+                <Insets bottom="18.0" left="24.0" right="24.0" top="24.0" />
+            </padding>
+            <HBox alignment="CENTER_LEFT" spacing="12.0">
+                <Label styleClass="screen-title" text="Inspection Plans" />
+                <Region HBox.hgrow="ALWAYS" />
+                <Button mnemonicParsing="false" onAction="#onRefreshData" styleClass="secondary-button" text="Refresh" />
+                <Button mnemonicParsing="false" onAction="#onReturnToHub" styleClass="secondary-button" text="Return to Hub" />
+            </HBox>
+            <Label styleClass="browser-copy" text="Open an existing inspection plan or start a new plan before moving into the drawing editor." wrapText="true" />
+        </VBox>
+    </top>
+
+    <center>
+        <HBox spacing="24.0" styleClass="browser-shell">
+            <padding>
+                <Insets bottom="24.0" left="24.0" right="24.0" top="24.0" />
+            </padding>
+
+            <VBox spacing="16.0" styleClass="editor-card" HBox.hgrow="ALWAYS">
+                <padding>
+                    <Insets bottom="24.0" left="24.0" right="24.0" top="24.0" />
+                </padding>
+                <HBox alignment="CENTER_LEFT" spacing="12.0">
+                    <Label styleClass="panel-title" text="Existing Plans" />
+                    <Region HBox.hgrow="ALWAYS" />
+                    <Label fx:id="savedPlanCountLabel" styleClass="browser-stat" text="0 saved plans" />
+                </HBox>
+                <Label styleClass="editor-copy" text="Review saved plan revisions, reopen a draft, or inspect a complete plan before editing or exporting." wrapText="true" />
+                <TableView fx:id="savedPlansTableView" styleClass="browser-table" VBox.vgrow="ALWAYS">
+                    <columnResizePolicy>
+                        <TableView fx:constant="CONSTRAINED_RESIZE_POLICY" />
+                    </columnResizePolicy>
+                    <columns>
+                        <TableColumn fx:id="planNameColumn" prefWidth="260.0" text="Plan" />
+                        <TableColumn fx:id="planStatusColumn" prefWidth="120.0" text="Status" />
+                        <TableColumn fx:id="planVersionColumn" prefWidth="100.0" text="Version" />
+                        <TableColumn fx:id="planUpdatedColumn" prefWidth="180.0" text="Updated" />
+                    </columns>
+                </TableView>
+                <HBox alignment="CENTER_RIGHT" spacing="10.0">
+                    <Button fx:id="renamePlanButton" mnemonicParsing="false" onAction="#onRenamePlan" styleClass="secondary-button" text="Rename Plan" />
+                    <Button fx:id="deletePlanButton" mnemonicParsing="false" onAction="#onDeletePlan" styleClass="danger-button" text="Delete Plan" />
+                    <Button fx:id="openPlanButton" mnemonicParsing="false" onAction="#onOpenPlan" styleClass="primary-button" text="Open Plan..." />
+                </HBox>
+            </VBox>
+
+            <VBox maxWidth="340.0" prefWidth="340.0" spacing="16.0" styleClass="editor-card">
+                <padding>
+                    <Insets bottom="24.0" left="24.0" right="24.0" top="24.0" />
+                </padding>
+                <Label styleClass="panel-title" text="New Inspection Plan" />
+                <Label styleClass="editor-copy" text="Start a new blank plan, then import drawing pages and place bubbles inside the dedicated plan editor." wrapText="true" />
+                <Region VBox.vgrow="ALWAYS" />
+                <Button fx:id="createPlanButton" maxWidth="Infinity" mnemonicParsing="false" onAction="#onCreatePlan" styleClass="primary-button" text="New Plan..." />
+            </VBox>
+        </HBox>
+    </center>
+</BorderPane>

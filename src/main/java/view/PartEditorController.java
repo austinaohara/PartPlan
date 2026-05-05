@@ -1,6 +1,7 @@
 package view;
 
 import app.AppContext;
+import app.AppMenuSupport;
 import app.BackgroundTaskRunner;
 import app.UnsavedChangesDialogs;
 import app.UserFacingErrorMessages;
@@ -32,6 +33,7 @@ import javafx.scene.control.TableView;
 import javafx.scene.control.TabPane;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TextArea;
+import javafx.scene.control.TextInputDialog;
 import javafx.scene.control.TextInputControl;
 import javafx.scene.control.Tooltip;
 import javafx.scene.control.SelectionMode;
@@ -52,6 +54,7 @@ import model.InspectionLot;
 import model.InspectionPlan;
 import model.PartBubbleDefinition;
 import model.PartRecord;
+import service.auth.AuthService;
 import viewmodel.PartBubbleRowViewModel;
 import viewmodel.PartEditorViewModel;
 
@@ -64,6 +67,7 @@ public class PartEditorController {
     private static final int MAX_LOT_SIZE = 1000;
 
     private final PartEditorViewModel viewModel;
+    private final AuthService authService;
     private final BooleanProperty repositoryBusy = new SimpleBooleanProperty(false);
     private final Map<MasterCommentCellKey, MasterMeasurementTableCell> masterMeasurementCells = new HashMap<>();
     private boolean syncingLotSize;
@@ -88,6 +92,7 @@ public class PartEditorController {
     }
 
     public PartEditorController(AppContext appContext) {
+        this.authService = appContext.getAuthService();
         this.viewModel = new PartEditorViewModel(
                 appContext.getLotRepository(),
                 appContext.getPlanRepository()
@@ -97,15 +102,11 @@ public class PartEditorController {
     @FXML
     private BorderPane root;
     @FXML
-    private TextField lotNameField;
+    private Label lotTitleLabel;
     @FXML
     private Spinner<Integer> lotSizeSpinner;
     @FXML
-    private Label lotSummaryLabel;
-    @FXML
-    private Label loadedPlanLabel;
-    @FXML
-    private Label nextPlanVersionLabel;
+    private Label lotMetadataLabel;
     @FXML
     private Label lotUnsavedLabel;
     @FXML
@@ -137,9 +138,14 @@ public class PartEditorController {
 
     @FXML
     private void initialize() {
+        AppMenuSupport.install(root, AppMenuSupport.MenuContext.LOT_EDITOR, new AppMenuSupport.MenuCallbacks(
+                this::signOutFromMenu,
+                this::openFirebaseSettingsFromMenu,
+                () -> AppMenuSupport.openOpenAiSettingsWindow(root)
+        ));
+        bindMenuActions();
         root.disableProperty().bind(repositoryBusy);
         root.sceneProperty().addListener((observable, oldScene, newScene) -> registerWindowCloseGuard(newScene));
-        configureLotNameField();
         configureLotSizeSpinner();
         configurePartSelector();
         configurePartTable();
@@ -190,18 +196,26 @@ public class PartEditorController {
     }
 
     @FXML
-    private void onLotNameCommitted() {
+    private void onSaveLot() {
+        requestSaveCurrentLot(null);
+    }
+
+    private void requestSaveCurrentLot(Runnable onSuccessContinuation) {
+        if (repositoryBusy.get() || viewModel.saveInProgressProperty().get()) {
+            showInformation("Please wait for the current database operation to finish.");
+            return;
+        }
         if (!viewModel.lotLoadedProperty().get()) {
             return;
         }
+        if (!viewModel.unsavedChangesProperty().get()) {
+            if (onSuccessContinuation != null) {
+                onSuccessContinuation.run();
+            }
+            return;
+        }
 
-        viewModel.saveCurrentLotName(lotNameField.getText());
-        syncLoadedLotState();
-    }
-
-    @FXML
-    private void onSaveLot() {
-        saveCurrentLotAsync(null);
+        saveCurrentLotAsync(onSuccessContinuation);
     }
 
     private void saveCurrentLotAsync(Runnable onSuccessContinuation) {
@@ -209,7 +223,6 @@ public class PartEditorController {
             return;
         }
 
-        onLotNameCommitted();
         InspectionLot snapshot;
         try {
             snapshot = viewModel.beginSaveSnapshot();
@@ -285,15 +298,6 @@ public class PartEditorController {
                 repositoryBusy.set(false);
                 showFailure(failure, "Unable to upversion the inspection lot.");
             });
-        });
-    }
-
-    private void configureLotNameField() {
-        lotNameField.setOnAction(event -> onLotNameCommitted());
-        lotNameField.focusedProperty().addListener((observable, oldValue, focused) -> {
-            if (!focused) {
-                onLotNameCommitted();
-            }
         });
     }
 
@@ -408,12 +412,12 @@ public class PartEditorController {
     }
 
     private void bindViewModel() {
-        lotSummaryLabel.textProperty().bind(viewModel.lotSummaryProperty());
-        loadedPlanLabel.textProperty().bind(viewModel.currentPlanNameProperty());
         currentPartTitleLabel.textProperty().bind(viewModel.currentPartTitleProperty());
-        nextPlanVersionLabel.textProperty().bind(viewModel.upversionTargetLabelProperty());
+        viewModel.currentLotNameProperty().addListener((observable, oldValue, newValue) -> refreshLotHeader());
+        viewModel.currentPlanNameProperty().addListener((observable, oldValue, newValue) -> refreshLotHeader());
+        viewModel.upversionTargetLabelProperty().addListener((observable, oldValue, newValue) -> refreshLotHeader());
+        refreshLotHeader();
 
-        lotNameField.disableProperty().bind(viewModel.lotLoadedProperty().not());
         lotSizeSpinner.disableProperty().bind(viewModel.lotLoadedProperty().not());
         partSelectorComboBox.disableProperty().bind(viewModel.lotLoadedProperty().not());
         saveLotButton.disableProperty().bind(viewModel.lotLoadedProperty().not()
@@ -472,11 +476,7 @@ public class PartEditorController {
     }
 
     private void syncLoadedLotState() {
-        if (viewModel.lotLoadedProperty().get()) {
-            lotNameField.setText(viewModel.currentLotNameProperty().get());
-        } else {
-            lotNameField.clear();
-        }
+        refreshLotHeader();
     }
 
     private void syncPartSelection() {
@@ -1029,11 +1029,94 @@ public class PartEditorController {
         }
 
         switch (UnsavedChangesDialogs.promptToSaveDiscardOrCancel("inspection lot", actionLabel)) {
-            case SAVE -> saveCurrentLotAsync(continuation);
+            case SAVE -> requestSaveCurrentLot(continuation);
             case DISCARD -> continuation.run();
             case CANCEL -> {
             }
         }
+    }
+
+    private void bindMenuActions() {
+        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.FILE_RENAME_LOT, this::onRenameCurrentLotFromMenu);
+        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.LOT_SAVE_LOT, this::onSaveLot);
+        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.LOT_UPVERSION_LOT, this::onUpversionLot);
+        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.NAV_INSPECTION_LOTS, this::returnToLotBrowserFromMenu);
+        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.NAV_HOME, this::returnToHubFromMenu);
+
+        AppMenuSupport.bindDisable(root, AppMenuSupport.MenuAction.LOT_SAVE_LOT,
+                viewModel.lotLoadedProperty().not()
+                        .or(viewModel.unsavedChangesProperty().not())
+                        .or(viewModel.saveInProgressProperty())
+                        .or(repositoryBusy));
+        AppMenuSupport.bindDisable(root, AppMenuSupport.MenuAction.FILE_RENAME_LOT,
+                viewModel.lotLoadedProperty().not().or(repositoryBusy));
+        AppMenuSupport.bindDisable(root, AppMenuSupport.MenuAction.LOT_UPVERSION_LOT,
+                viewModel.lotLoadedProperty().not()
+                        .or(viewModel.upversionAvailableProperty().not())
+                        .or(repositoryBusy));
+    }
+
+    private void onRenameCurrentLotFromMenu() {
+        if (!viewModel.lotLoadedProperty().get()) {
+            showInformation("Open an inspection lot before renaming it.");
+            return;
+        }
+
+        TextInputDialog dialog = new TextInputDialog(currentLotDisplayName());
+        dialog.setTitle("Rename Inspection Lot");
+        dialog.setHeaderText("Rename current inspection lot");
+        dialog.setContentText("Lot Name:");
+        java.util.Optional<String> result = dialog.showAndWait();
+        if (result.isEmpty()) {
+            return;
+        }
+
+        viewModel.saveCurrentLotName(result.get());
+        syncLoadedLotState();
+    }
+
+    private void returnToLotBrowserFromMenu() {
+        requestProceedWithPotentialUnsavedChanges("return to inspection lots", true, () -> {
+            try {
+                AppNavigator.swapRoot(root, "/fxml/inspection-lot-browser.fxml", "PartPlan - Inspection Lots", loader -> {
+                    InspectionLotBrowserController controller = loader.getController();
+                    controller.selectLot(viewModel.getCurrentLotId());
+                });
+            } catch (IOException exception) {
+                throw new IllegalStateException("Unable to return to inspection lots.", exception);
+            }
+        });
+    }
+
+    private void returnToHubFromMenu() {
+        requestProceedWithPotentialUnsavedChanges("return to the hub", true, () -> {
+            try {
+                AppNavigator.swapRoot(root, "/fxml/welcome.fxml", "PartPlan");
+            } catch (IOException exception) {
+                throw new IllegalStateException("Unable to return to the hub.", exception);
+            }
+        });
+    }
+
+    private void signOutFromMenu() {
+        requestProceedWithPotentialUnsavedChanges("sign out", true, () -> {
+            try {
+                authService.signOut();
+                AppNavigator.swapRoot(root, "/fxml/login.fxml", "PartPlan - Sign In");
+            } catch (IOException exception) {
+                throw new IllegalStateException("Unable to sign out.", exception);
+            }
+        });
+    }
+
+    private void openFirebaseSettingsFromMenu() {
+        requestProceedWithPotentialUnsavedChanges("open Firebase settings", true, () -> {
+            try {
+                AppNavigator.swapRoot(root, "/fxml/firebase-config.fxml", "PartPlan - Firebase Setup");
+            } catch (IOException exception) {
+                throw new IllegalStateException("Unable to open the Firebase settings screen.", exception);
+            }
+        });
     }
 
     private void registerWindowCloseGuard(javafx.scene.Scene scene) {
@@ -1076,5 +1159,29 @@ public class PartEditorController {
             return;
         }
         guardedWindow.hide();
+    }
+
+    private String currentLotDisplayName() {
+        String lotName = viewModel.currentLotNameProperty().get();
+        if (lotName == null || lotName.isBlank()) {
+            return "Inspection Lot";
+        }
+        return lotName.trim();
+    }
+
+    private void refreshLotHeader() {
+        lotTitleLabel.setText(currentLotDisplayName());
+
+        String planText = viewModel.currentPlanNameProperty().get();
+        if (planText == null || planText.isBlank()) {
+            planText = "No plan selected";
+        }
+        String nextVersionText = viewModel.upversionTargetLabelProperty().get();
+
+        StringBuilder metadata = new StringBuilder(planText.trim());
+        if (nextVersionText != null && !nextVersionText.isBlank() && !"No newer version".equals(nextVersionText)) {
+            metadata.append(" · Next: ").append(nextVersionText.trim());
+        }
+        lotMetadataLabel.setText(metadata.toString());
     }
 }

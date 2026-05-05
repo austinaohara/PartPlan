@@ -7,8 +7,6 @@
 <?import javafx.scene.control.ComboBox?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.ListView?>
-<?import javafx.scene.control.MenuButton?>
-<?import javafx.scene.control.MenuItem?>
 <?import javafx.scene.control.ScrollPane?>
 <?import javafx.scene.control.Separator?>
 <?import javafx.scene.control.TextArea?>
@@ -18,6 +16,7 @@
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.Pane?>
+<?import javafx.scene.layout.Region?>
 <?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.VBox?>
 
@@ -27,13 +26,17 @@
             <padding>
                 <Insets bottom="18.0" left="24.0" right="24.0" top="24.0" />
             </padding>
-            <Label styleClass="screen-title" text="Plan Editor" />
             <HBox alignment="CENTER_LEFT" spacing="12.0">
+                <VBox alignment="CENTER_LEFT" spacing="4.0">
+                    <Label fx:id="planTitleLabel" styleClass="screen-title" text="New Inspection Plan" />
+                    <Label fx:id="planMetadataLabel" styleClass="welcome-subtitle" text="Draft · Pending" />
+                </VBox>
+                <Region HBox.hgrow="ALWAYS" />
+                <Button mnemonicParsing="false" onAction="#onReturnToPlans" styleClass="secondary-button" text="Inspection Plans" />
                 <Button mnemonicParsing="false" onAction="#onReturnToHub" styleClass="secondary-button" text="Return to Hub" />
-                <Button mnemonicParsing="false" onAction="#onNewPlan" styleClass="secondary-button" text="New Plan" />
+            </HBox>
+            <HBox alignment="CENTER_LEFT" spacing="12.0">
                 <Button fx:id="savePlanButton" mnemonicParsing="false" onAction="#onSavePlan" styleClass="primary-button" text="Save Draft" />
-                <Button mnemonicParsing="false" onAction="#onOpenPlan" styleClass="secondary-button" text="Open Plan" />
-                <Button fx:id="deletePlanButton" mnemonicParsing="false" onAction="#onDeletePlan" styleClass="secondary-button" text="Delete Plan" />
                 <Button fx:id="completePlanButton" mnemonicParsing="false" onAction="#onCompletePlan" styleClass="primary-button" text="Complete Plan" />
                 <Button fx:id="createRevisionButton" mnemonicParsing="false" onAction="#onCreateRevision" styleClass="secondary-button" text="Create Revision" />
                 <Button fx:id="addPageButton" mnemonicParsing="false" onAction="#onImportDrawing" styleClass="primary-button" text="Add Page" />
@@ -45,21 +48,7 @@
                     </Button>
                     <Button fx:id="autoBalloonButton" mnemonicParsing="false" onAction="#onAutoBalloonPage" styleClass="auto-balloon-segment-button" text="Auto-Balloon Page" />
                 </HBox>
-                <MenuButton mnemonicParsing="false" text="Export" styleClass="secondary-button">
-                    <items>
-                        <MenuItem mnemonicParsing="false" text="Export as CSV" onAction="#onExportCsv"/>
-                        <MenuItem mnemonicParsing="false" text="Export as PDF" onAction="#onExportPdf"/>
-                    </items>
-                </MenuButton>
-                <Separator orientation="VERTICAL" prefHeight="28.0" />
-                <Label styleClass="field-label" text="Plan Name" />
-                <TextField fx:id="planNameField" onAction="#onPlanNameChanged" onKeyReleased="#onPlanNameChanged" prefWidth="280.0" promptText="New Inspection Plan" />
-                <Label styleClass="field-label" text="Status" />
-                <Label fx:id="planStatusValueLabel" styleClass="field-value" text="Pending" />
-                <Label styleClass="field-label" text="Version" />
-                <Label fx:id="planVersionValueLabel" styleClass="field-value" text="Draft" />
                 <Label fx:id="planUnsavedLabel" managed="false" styleClass="toolbar-pill" text="Unsaved changes" visible="false" />
-                <Button mnemonicParsing="false" onAction="#OnOpenDataEditor" styleClass="secondary-button" text="Open in Data Editor" />
             </HBox>
         </VBox>
     </top>
@@ -70,7 +59,7 @@
             <VBox fx:id="leftPanel" prefWidth="310.0" styleClass="tool-window">
                 <!-- Title bar: title on left, X on right -->
                 <HBox alignment="CENTER_LEFT" styleClass="tool-window-header">
-                    <Label styleClass="tool-window-title" text="Saved Plans" HBox.hgrow="ALWAYS" />
+                    <Label styleClass="tool-window-title" text="Plan Outline" HBox.hgrow="ALWAYS" />
                     <HBox HBox.hgrow="ALWAYS" />
                     <Button onAction="#onToggleLeftPanel" styleClass="tool-window-close-btn" text="X" />
                 </HBox>
@@ -78,13 +67,10 @@
                     <padding>
                         <Insets bottom="16.0" left="16.0" right="16.0" top="12.0" />
                     </padding>
-                    <ListView fx:id="savedPlansListView" prefHeight="280.0" styleClass="saved-plans-list" />
-                    <Separator />
-                    <Label styleClass="tool-window-section-title" text="Current Plan" />
                     <Label styleClass="field-label" text="Pages" />
                     <ListView fx:id="planPagesListView" prefHeight="150.0" styleClass="saved-plans-list" />
                     <Label styleClass="field-label" text="Bubbles" />
-                    <TextField fx:id="bubbleSearchField" promptText="Search by # or name…" />
+                    <TextField fx:id="bubbleSearchField" promptText="Search by # or nameâ€¦" />
                     <HBox alignment="CENTER_LEFT" spacing="6.0">
                         <Label styleClass="field-label" text="Sort:" />
                         <ComboBox fx:id="bubbleSortComboBox" maxWidth="Infinity" HBox.hgrow="ALWAYS" />
@@ -104,7 +90,7 @@
             <!-- Collapsed left strip -->
             <VBox fx:id="leftCollapsedTab" alignment="TOP_CENTER" managed="false" onMouseClicked="#onToggleLeftPanel" prefWidth="28.0" styleClass="tool-strip" visible="false">
                 <Group>
-                    <Label rotate="-90" styleClass="tool-strip-label" text="Saved Plans" />
+                    <Label rotate="-90" styleClass="tool-strip-label" text="Plan Outline" />
                 </Group>
             </VBox>
         </HBox>
@@ -194,3 +180,4 @@
         </HBox>
     </right>
 </BorderPane>
+

@@ -9,7 +9,6 @@
 <?import javafx.scene.control.TabPane?>
 <?import javafx.scene.control.TableColumn?>
 <?import javafx.scene.control.TableView?>
-<?import javafx.scene.control.TextField?>
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.Priority?>
@@ -18,30 +17,25 @@
 
 <BorderPane fx:id="root" prefHeight="700.0" prefWidth="1100.0" stylesheets="@../styles/main.css" xmlns="http://javafx.com/javafx/20.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="view.PartEditorController">
     <top>
-        <VBox spacing="12.0" styleClass="top-bar">
+        <VBox spacing="14.0" styleClass="top-bar">
             <padding>
                 <Insets bottom="18.0" left="24.0" right="24.0" top="24.0" />
             </padding>
             <HBox alignment="CENTER_LEFT" spacing="12.0">
-                <Label styleClass="screen-title" text="Part Editor" />
+                <VBox alignment="CENTER_LEFT" spacing="4.0">
+                    <Label fx:id="lotTitleLabel" styleClass="screen-title" text="Inspection Lot" />
+                    <Label fx:id="lotMetadataLabel" styleClass="welcome-subtitle" text="No plan selected" />
+                </VBox>
                 <Region HBox.hgrow="ALWAYS" />
                 <Button mnemonicParsing="false" onAction="#onReturnToLotBrowser" styleClass="secondary-button" text="Inspection Lots" />
                 <Button mnemonicParsing="false" onAction="#onReturnToHub" styleClass="secondary-button" text="Return to Hub" />
             </HBox>
             <HBox alignment="CENTER_LEFT" spacing="12.0">
-                <Label styleClass="field-label" text="Lot Name" />
-                <TextField fx:id="lotNameField" onAction="#onLotNameCommitted" prefWidth="220.0" promptText="Inspection lot name" />
                 <Label styleClass="field-label" text="Lot Size" />
                 <Spinner fx:id="lotSizeSpinner" prefWidth="110.0" />
-                <Label styleClass="field-label" text="Plan" />
-                <Label fx:id="loadedPlanLabel" styleClass="toolbar-pill" text="No plan selected" />
-                <Label styleClass="field-label" text="Next Version" />
-                <Label fx:id="nextPlanVersionLabel" styleClass="toolbar-pill" text="No newer version" />
                 <Label fx:id="lotUnsavedLabel" managed="false" styleClass="toolbar-pill" text="Unsaved changes" visible="false" />
                 <Button fx:id="saveLotButton" mnemonicParsing="false" onAction="#onSaveLot" styleClass="primary-button" text="Save Lot" />
                 <Button fx:id="upversionLotButton" mnemonicParsing="false" onAction="#onUpversionLot" styleClass="secondary-button" text="Upversion Lot" />
-                <Label styleClass="field-label" text="Summary" />
-                <Label fx:id="lotSummaryLabel" styleClass="toolbar-pill" text="No inspection lot selected" />
             </HBox>
         </VBox>
     </top>
@@ -103,3 +97,4 @@
         </TabPane>
     </center>
 </BorderPane>
+

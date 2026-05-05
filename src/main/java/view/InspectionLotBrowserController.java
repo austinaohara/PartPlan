@@ -1,8 +1,10 @@
 package view;
 
 import app.AppContext;
+import app.AppMenuSupport;
 import app.BackgroundTaskRunner;
 import app.UserFacingErrorMessages;
+import javafx.beans.binding.Bindings;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.ReadOnlyObjectWrapper;
@@ -10,13 +12,18 @@ import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.fxml.FXML;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonBar;
 import javafx.scene.control.ComboBox;
+import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
+import javafx.scene.control.ListCell;
+import javafx.scene.control.ListView;
 import javafx.scene.control.Spinner;
 import javafx.scene.control.SpinnerValueFactory;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
+import javafx.scene.control.TextInputDialog;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonType;
@@ -27,6 +34,7 @@ import javafx.util.StringConverter;
 import model.InspectionLot;
 import model.InspectionLotSummary;
 import model.InspectionPlan;
+import service.auth.AuthService;
 import viewmodel.InspectionLotBrowserViewModel;
 
 import java.io.IOException;
@@ -39,9 +47,11 @@ public class InspectionLotBrowserController {
     private static final DateTimeFormatter UPDATED_AT_FORMAT = DateTimeFormatter.ofPattern("MMM d, yyyy h:mm a");
 
     private final InspectionLotBrowserViewModel viewModel;
+    private final AuthService authService;
     private final BooleanProperty repositoryBusy = new SimpleBooleanProperty(false);
 
     public InspectionLotBrowserController(AppContext appContext) {
+        this.authService = appContext.getAuthService();
         this.viewModel = new InspectionLotBrowserViewModel(
                 appContext.getPlanRepository(),
                 appContext.getLotRepository()
@@ -61,13 +71,9 @@ public class InspectionLotBrowserController {
     @FXML
     private TableColumn<InspectionLotSummary, String> lotUpdatedColumn;
     @FXML
-    private ComboBox<InspectionPlan> planSelectorComboBox;
-    @FXML
-    private TextField lotNameField;
-    @FXML
-    private Spinner<Integer> lotSizeSpinner;
-    @FXML
     private Button openLotButton;
+    @FXML
+    private Button renameLotButton;
     @FXML
     private Button deleteLotButton;
     @FXML
@@ -79,10 +85,14 @@ public class InspectionLotBrowserController {
 
     @FXML
     private void initialize() {
+        AppMenuSupport.install(root, AppMenuSupport.MenuContext.LOT_BROWSER, new AppMenuSupport.MenuCallbacks(
+                this::signOutFromMenu,
+                this::openFirebaseSettingsFromMenu,
+                () -> AppMenuSupport.openOpenAiSettingsWindow(root)
+        ));
+        bindMenuActions();
         root.disableProperty().bind(repositoryBusy);
         configureSavedLotsTable();
-        configurePlanSelector();
-        configureLotSizeSpinner();
         bindViewModel();
         savedLotsTableView.setPlaceholder(new Label("Loading inspection lots..."));
         refreshBrowserDataAsync(null);
@@ -111,6 +121,7 @@ public class InspectionLotBrowserController {
     private void onOpenLot() throws IOException {
         InspectionLotSummary selectedLot = savedLotsTableView.getSelectionModel().getSelectedItem();
         if (selectedLot == null) {
+            showInformation("Select an inspection lot first.");
             return;
         }
 
@@ -119,16 +130,35 @@ public class InspectionLotBrowserController {
 
     @FXML
     private void onDeleteLot() {
-        deleteSelectedLot();
+        InspectionLotSummary selectedLot = savedLotsTableView.getSelectionModel().getSelectedItem();
+        if (selectedLot == null) {
+            showInformation("Select an inspection lot first.");
+            return;
+        }
+        deleteLot(selectedLot);
+    }
+
+    @FXML
+    private void onRenameLot() {
+        InspectionLotSummary selectedLot = savedLotsTableView.getSelectionModel().getSelectedItem();
+        if (selectedLot == null) {
+            showInformation("Select an inspection lot first.");
+            return;
+        }
+        renameLot(selectedLot);
     }
 
     @FXML
     private void onUpversionLot() {
         InspectionLotSummary selectedLot = savedLotsTableView.getSelectionModel().getSelectedItem();
         if (selectedLot == null) {
+            showInformation("Select an inspection lot first.");
             return;
         }
+        upversionLot(selectedLot);
+    }
 
+    private void upversionLot(InspectionLotSummary selectedLot) {
         InspectionPlan targetPlan = viewModel.findLatestUpversionTarget(selectedLot);
         if (targetPlan == null) {
             showInformation("No newer completed plan version is available for this inspection lot.");
@@ -152,7 +182,6 @@ public class InspectionLotBrowserController {
         }, resultData -> {
             repositoryBusy.set(false);
             viewModel.applyBrowserData(resultData.browserData());
-            syncDefaults();
             updateSavedLotCount();
             InspectionLot updatedLot = resultData.lot();
             if (updatedLot != null) {
@@ -167,22 +196,22 @@ public class InspectionLotBrowserController {
 
     @FXML
     private void onCreateLot() {
-        commitLotSizeEditor();
-        InspectionPlan selectedPlan = planSelectorComboBox.getSelectionModel().getSelectedItem();
-        Integer requestedSize = lotSizeSpinner.getValue();
+        NewLotRequest request = promptForNewLot();
+        if (request == null) {
+            return;
+        }
         repositoryBusy.set(true);
         BackgroundTaskRunner.run("lot-create", () -> {
             InspectionLot createdLot = viewModel.createLotInRepository(
-                    selectedPlan,
-                    lotNameField.getText(),
-                    requestedSize == null ? 1 : requestedSize
+                    request.plan(),
+                    request.lotName(),
+                    request.lotSize()
             );
             InspectionLotBrowserViewModel.BrowserData browserData = viewModel.loadBrowserData();
             return new LotBrowserMutationResult(createdLot, browserData);
         }, resultData -> {
             repositoryBusy.set(false);
             viewModel.applyBrowserData(resultData.browserData());
-            syncDefaults();
             updateSavedLotCount();
 
             InspectionLot createdLot = resultData.lot();
@@ -241,68 +270,23 @@ public class InspectionLotBrowserController {
             return;
         }
 
-        deleteSelectedLot();
+        deleteLot(savedLotsTableView.getSelectionModel().getSelectedItem());
         event.consume();
-    }
-
-    private void configurePlanSelector() {
-        planSelectorComboBox.setItems(viewModel.getSavedPlans());
-        planSelectorComboBox.setConverter(new StringConverter<>() {
-            @Override
-            public String toString(InspectionPlan plan) {
-                return plan == null ? "" : displayPlanName(plan);
-            }
-
-            @Override
-            public InspectionPlan fromString(String string) {
-                return null;
-            }
-        });
-    }
-
-    private void configureLotSizeSpinner() {
-        lotSizeSpinner.setValueFactory(new SpinnerValueFactory.IntegerSpinnerValueFactory(1, MAX_LOT_SIZE, 5));
-        lotSizeSpinner.setEditable(true);
-        lotSizeSpinner.getEditor().setOnAction(event -> commitLotSizeEditor());
-        lotSizeSpinner.focusedProperty().addListener((observable, oldValue, focused) -> {
-            if (!focused) {
-                commitLotSizeEditor();
-            }
-        });
     }
 
     private void bindViewModel() {
         openLotButton.disableProperty().bind(savedLotsTableView.getSelectionModel().selectedItemProperty().isNull());
+        renameLotButton.disableProperty().bind(savedLotsTableView.getSelectionModel().selectedItemProperty().isNull());
         deleteLotButton.disableProperty().bind(savedLotsTableView.getSelectionModel().selectedItemProperty().isNull());
-        createLotButton.disableProperty().bind(planSelectorComboBox.getSelectionModel().selectedItemProperty().isNull());
+        createLotButton.disableProperty().bind(Bindings.isEmpty(viewModel.getSavedPlans()));
         viewModel.getSavedLots().addListener((javafx.collections.ListChangeListener<InspectionLotSummary>) change -> updateSavedLotCount());
         savedLotsTableView.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> updateUpversionActionState());
         updateUpversionActionState();
     }
 
-    private void syncDefaults() {
-        if (planSelectorComboBox.getSelectionModel().getSelectedItem() == null && !viewModel.getSavedPlans().isEmpty()) {
-            planSelectorComboBox.getSelectionModel().selectFirst();
-        }
-    }
-
     private void updateSavedLotCount() {
         int lotCount = viewModel.getSavedLots().size();
         savedLotCountLabel.setText("%d saved %s".formatted(lotCount, lotCount == 1 ? "lot" : "lots"));
-    }
-
-    private void commitLotSizeEditor() {
-        SpinnerValueFactory.IntegerSpinnerValueFactory valueFactory =
-                (SpinnerValueFactory.IntegerSpinnerValueFactory) lotSizeSpinner.getValueFactory();
-        String text = lotSizeSpinner.getEditor().getText();
-
-        try {
-            int parsed = Integer.parseInt(text.trim());
-            int bounded = Math.max(valueFactory.getMin(), Math.min(valueFactory.getMax(), parsed));
-            valueFactory.setValue(bounded);
-        } catch (NumberFormatException exception) {
-            valueFactory.setValue(5);
-        }
     }
 
     private String getSelectedLotId() {
@@ -332,8 +316,7 @@ public class InspectionLotBrowserController {
         return name + " v" + plan.getVersion();
     }
 
-    private void deleteSelectedLot() {
-        InspectionLotSummary selectedLot = savedLotsTableView.getSelectionModel().getSelectedItem();
+    private void deleteLot(InspectionLotSummary selectedLot) {
         if (selectedLot == null) {
             return;
         }
@@ -354,7 +337,6 @@ public class InspectionLotBrowserController {
         }, browserData -> {
             repositoryBusy.set(false);
             viewModel.applyBrowserData(browserData);
-            syncDefaults();
             updateSavedLotCount();
         }, failure -> {
             repositoryBusy.set(false);
@@ -368,6 +350,108 @@ public class InspectionLotBrowserController {
             return name;
         }
         return name + " v" + planVersion;
+    }
+
+    private InspectionLotSummary promptForLotSelection() {
+        if (viewModel.getSavedLots().isEmpty()) {
+            showInformation("There are no saved inspection lots to open.");
+            return null;
+        }
+
+        ListView<InspectionLotSummary> lotListView = new ListView<>(viewModel.getSavedLots());
+        lotListView.setPrefWidth(460.0);
+        lotListView.setPrefHeight(320.0);
+        lotListView.setCellFactory(listView -> new ListCell<>() {
+            @Override
+            protected void updateItem(InspectionLotSummary item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null
+                        ? null
+                        : item.getName() + " (" + formatPlanReference(item.getPlanName(), item.getPlanVersion()) + ")");
+            }
+        });
+
+        InspectionLotSummary currentSelection = savedLotsTableView.getSelectionModel().getSelectedItem();
+        if (currentSelection != null) {
+            lotListView.getSelectionModel().select(currentSelection);
+            lotListView.scrollTo(currentSelection);
+        }
+
+        Dialog<InspectionLotSummary> dialog = new Dialog<>();
+        dialog.setTitle("Open Inspection Lot");
+        dialog.setHeaderText("Choose a lot to open");
+        dialog.getDialogPane().setContent(lotListView);
+        ButtonType openButtonType = new ButtonType("Open", ButtonBar.ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().addAll(openButtonType, ButtonType.CANCEL);
+        Node openButton = dialog.getDialogPane().lookupButton(openButtonType);
+        openButton.disableProperty().bind(lotListView.getSelectionModel().selectedItemProperty().isNull());
+
+        lotListView.setOnMouseClicked(event -> {
+            if (event.getClickCount() == 2 && lotListView.getSelectionModel().getSelectedItem() != null) {
+                dialog.setResult(lotListView.getSelectionModel().getSelectedItem());
+                dialog.close();
+            }
+        });
+
+        dialog.setResultConverter(buttonType -> buttonType == openButtonType
+                ? lotListView.getSelectionModel().getSelectedItem()
+                : null);
+        return dialog.showAndWait().orElse(null);
+    }
+
+    private NewLotRequest promptForNewLot() {
+        if (viewModel.getSavedPlans().isEmpty()) {
+            showInformation("There are no completed plans available for a new inspection lot.");
+            return null;
+        }
+
+        ComboBox<InspectionPlan> planSelector = new ComboBox<>(viewModel.getSavedPlans());
+        planSelector.setPrefWidth(320.0);
+        planSelector.setConverter(new StringConverter<>() {
+            @Override
+            public String toString(InspectionPlan plan) {
+                return plan == null ? "" : displayPlanName(plan);
+            }
+
+            @Override
+            public InspectionPlan fromString(String string) {
+                return null;
+            }
+        });
+        planSelector.getSelectionModel().selectFirst();
+
+        TextField lotNameInput = new TextField();
+        lotNameInput.setPromptText("Inspection lot name");
+
+        Spinner<Integer> lotSizeInput = new Spinner<>(1, MAX_LOT_SIZE, 5);
+        lotSizeInput.setEditable(true);
+
+        javafx.scene.layout.VBox content = new javafx.scene.layout.VBox(10.0,
+                new Label("Completed Plan"),
+                planSelector,
+                new Label("Lot Name"),
+                lotNameInput,
+                new Label("Lot Size"),
+                lotSizeInput
+        );
+
+        Dialog<NewLotRequest> dialog = new Dialog<>();
+        dialog.setTitle("New Inspection Lot");
+        dialog.setHeaderText("Choose a completed plan and lot details");
+        dialog.getDialogPane().setContent(content);
+        ButtonType createButtonType = new ButtonType("Create", ButtonBar.ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().addAll(createButtonType, ButtonType.CANCEL);
+        Node createButton = dialog.getDialogPane().lookupButton(createButtonType);
+        createButton.disableProperty().bind(planSelector.getSelectionModel().selectedItemProperty().isNull());
+
+        dialog.setResultConverter(buttonType -> buttonType == createButtonType
+                ? new NewLotRequest(
+                planSelector.getSelectionModel().getSelectedItem(),
+                lotNameInput.getText(),
+                lotSizeInput.getValue()
+        )
+                : null);
+        return dialog.showAndWait().orElse(null);
     }
 
     private String buildUpversionMessage(InspectionLotSummary lot, InspectionPlan targetPlan) {
@@ -410,7 +494,6 @@ public class InspectionLotBrowserController {
         BackgroundTaskRunner.run("lot-browser-refresh", viewModel::loadBrowserData, browserData -> {
             repositoryBusy.set(false);
             viewModel.applyBrowserData(browserData);
-            syncDefaults();
             updateSavedLotCount();
             savedLotsTableView.setPlaceholder(new Label("No inspection lots have been created yet."));
             if (selectedLotId != null && !selectedLotId.isBlank()) {
@@ -423,6 +506,111 @@ public class InspectionLotBrowserController {
         });
     }
 
+    private void renameLot(InspectionLotSummary selectedLot) {
+        if (selectedLot == null) {
+            return;
+        }
+
+        TextInputDialog dialog = new TextInputDialog(selectedLot.getName());
+        dialog.setTitle("Rename Inspection Lot");
+        dialog.setHeaderText("Rename selected inspection lot");
+        dialog.setContentText("Lot Name:");
+        Optional<String> result = dialog.showAndWait();
+        if (result.isEmpty()) {
+            return;
+        }
+
+        repositoryBusy.set(true);
+        String renamedLotId = selectedLot.getId();
+        String proposedName = result.get();
+        BackgroundTaskRunner.run("lot-rename", () -> {
+            viewModel.renameLotInRepository(selectedLot, proposedName);
+            return viewModel.loadBrowserData();
+        }, browserData -> {
+            repositoryBusy.set(false);
+            viewModel.applyBrowserData(browserData);
+            updateSavedLotCount();
+            selectLot(renamedLotId);
+        }, failure -> {
+            repositoryBusy.set(false);
+            showFailure(failure, "Unable to rename the inspection lot.");
+        });
+    }
+
+    private void bindMenuActions() {
+        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.LOT_CREATE_LOT, this::onCreateLot);
+        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.LOT_OPEN_SELECTED_LOT, this::onOpenLotFromMenu);
+        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.FILE_RENAME_LOT, this::onRenameLotFromMenu);
+        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.LOT_DELETE_LOT, this::onDeleteLotFromMenu);
+        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.LOT_UPVERSION_LOT, this::onUpversionLotFromMenu);
+        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.NAV_HOME, this::returnToHubFromMenu);
+        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.TOOLS_REFRESH_REMOTE_DATA, this::onRefreshData);
+    }
+
+    private void onOpenLotFromMenu() {
+        try {
+            InspectionLotSummary selectedLot = promptForLotSelection();
+            if (selectedLot == null) {
+                return;
+            }
+            openPartEditor(savedLotsTableView, selectedLot.getId());
+        } catch (IOException exception) {
+            throw new IllegalStateException("Unable to open the selected inspection lot.", exception);
+        }
+    }
+
+    private void onDeleteLotFromMenu() {
+        InspectionLotSummary selectedLot = promptForLotSelection();
+        if (selectedLot == null) {
+            return;
+        }
+        deleteLot(selectedLot);
+    }
+
+    private void onRenameLotFromMenu() {
+        InspectionLotSummary selectedLot = promptForLotSelection();
+        if (selectedLot == null) {
+            return;
+        }
+        renameLot(selectedLot);
+    }
+
+    private void onUpversionLotFromMenu() {
+        InspectionLotSummary selectedLot = promptForLotSelection();
+        if (selectedLot == null) {
+            return;
+        }
+        upversionLot(selectedLot);
+    }
+
+    private void signOutFromMenu() {
+        try {
+            authService.signOut();
+            AppNavigator.swapRoot(root, "/fxml/login.fxml", "PartPlan - Sign In");
+        } catch (IOException exception) {
+            throw new IllegalStateException("Unable to sign out.", exception);
+        }
+    }
+
+    private void returnToHubFromMenu() {
+        try {
+            AppNavigator.swapRoot(root, "/fxml/welcome.fxml", "PartPlan");
+        } catch (IOException exception) {
+            throw new IllegalStateException("Unable to return to the hub.", exception);
+        }
+    }
+
+    private void openFirebaseSettingsFromMenu() {
+        try {
+            AppNavigator.swapRoot(root, "/fxml/firebase-config.fxml", "PartPlan - Firebase Setup");
+        } catch (IOException exception) {
+            throw new IllegalStateException("Unable to open the Firebase settings screen.", exception);
+        }
+    }
+
     private record LotBrowserMutationResult(InspectionLot lot, InspectionLotBrowserViewModel.BrowserData browserData) {
+    }
+
+    private record NewLotRequest(InspectionPlan plan, String lotName, int lotSize) {
     }
 }

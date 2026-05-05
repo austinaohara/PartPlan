@@ -1,6 +1,7 @@
 package view;
 
 import app.AppContext;
+import app.AppMenuSupport;
 import app.BackgroundTaskRunner;
 import app.UnsavedChangesDialogs;
 import app.UserFacingErrorMessages;
@@ -11,6 +12,7 @@ import javafx.collections.ListChangeListener;
 import javafx.collections.transformation.FilteredList;
 import javafx.collections.transformation.SortedList;
 import javafx.event.ActionEvent;
+import javafx.event.EventHandler;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
@@ -23,6 +25,7 @@ import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.input.ScrollEvent;
+import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.VBox;
@@ -41,6 +44,7 @@ import model.Bubble;
 import model.InspectionType;
 import model.PlanPage;
 import service.autoballoon.AutoBalloonRequest;
+import service.auth.AuthService;
 import service.export.ExportFormat;
 import service.export.InspectionExportService;
 import viewmodel.PlanEditorViewModel;
@@ -53,9 +57,10 @@ import javafx.geometry.Point2D;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Comparator;
-import java.util.function.Consumer;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
+import java.util.function.Consumer;
 
 public class PlanEditorController {
     private static final Path DEFAULT_IMAGE_DIRECTORY = Path.of("src", "main", "resources", "images");
@@ -68,12 +73,15 @@ public class PlanEditorController {
     private static final double PANEL_MAX_WIDTH = 600.0;
 
     private final PlanEditorViewModel viewModel;
+    private final AuthService authService;
     private final BooleanProperty repositoryBusy = new SimpleBooleanProperty(false);
     private double zoomLevel = DEFAULT_ZOOM;
     private final InspectionExportService exportService = new InspectionExportService();
     private Window guardedWindow;
+    private Scene registeredShortcutScene;
     private boolean allowWindowClose;
-    private final javafx.event.EventHandler<WindowEvent> closeRequestHandler = this::handleCloseRequest;
+    private final EventHandler<WindowEvent> closeRequestHandler = this::handleCloseRequest;
+    private final EventHandler<KeyEvent> hotkeyHandler = this::handleHotkeys;
 
     private void handleCloseRequest(WindowEvent event) {
         if (allowWindowClose) {
@@ -92,6 +100,7 @@ public class PlanEditorController {
     }
 
     public PlanEditorController(AppContext appContext) {
+        this.authService = appContext.getAuthService();
         this.viewModel = new PlanEditorViewModel(
                 appContext.getPlanRepository(),
                 appContext.getLotRepository(),
@@ -103,13 +112,11 @@ public class PlanEditorController {
 
     // Existing fields
     @FXML
-    private Parent root;
+    private BorderPane root;
     @FXML
-    private TextField planNameField;
+    private Label planTitleLabel;
     @FXML
-    private Label planStatusValueLabel;
-    @FXML
-    private Label planVersionValueLabel;
+    private Label planMetadataLabel;
     @FXML
     private Label planUnsavedLabel;
     @FXML
@@ -133,13 +140,9 @@ public class PlanEditorController {
     @FXML
     private ComboBox<String> bubbleSortComboBox;
     @FXML
-    private ListView<InspectionPlan> savedPlansListView;
-    @FXML
     private ListView<PlanPage> planPagesListView;
     @FXML
     private Button savePlanButton;
-    @FXML
-    private Button deletePlanButton;
     @FXML
     private Button completePlanButton;
     @FXML
@@ -224,20 +227,23 @@ public class PlanEditorController {
     private String defaultNote = "";
     private boolean updatingBubbleDefaultsUi;
 
-    private Stage dataEditorStage;
+    private Stage bubbleTableStage;
     private Stage autoBalloonSettingsStage;
 
     @FXML
     private void initialize() {
+        AppMenuSupport.install(root, AppMenuSupport.MenuContext.PLAN_EDITOR, new AppMenuSupport.MenuCallbacks(
+                this::signOutFromMenu,
+                this::openFirebaseSettingsFromMenu,
+                this::onOpenAutoBalloonSettings
+        ));
+        bindMenuActions();
         root.disableProperty().bind(repositoryBusy);
-        planNameField.setText(displayPlanName(viewModel.getPlanName()));
-        planStatusValueLabel.textProperty().bind(viewModel.planStatusProperty());
-        planVersionValueLabel.textProperty().bind(viewModel.planVersionProperty());
+        refreshPlanHeader();
         drawingFileNameLabel.textProperty().bind(viewModel.drawingFileNameProperty());
         drawingPathLabel.textProperty().bind(viewModel.drawingPathProperty());
         emptyStateLabel.visibleProperty().bind(viewModel.drawingLoadedProperty().not());
         emptyStateLabel.managedProperty().bind(emptyStateLabel.visibleProperty());
-        planNameField.disableProperty().bind(viewModel.currentPlanEditableProperty().not().or(repositoryBusy));
         savePlanButton.disableProperty().bind(viewModel.currentPlanEditableProperty().not()
                 .or(viewModel.unsavedChangesProperty().not())
                 .or(viewModel.saveInProgressProperty())
@@ -264,9 +270,12 @@ public class PlanEditorController {
         bubbleOverlayPane.setOnMouseDragged(this::handleBubbleOverlayDrag);
         bubbleOverlayPane.setOnMouseReleased(this::handleBubbleOverlayRelease);
         root.sceneProperty().addListener((observable, oldScene, newScene) -> {
-            registerShortcuts(newScene);
+            registerShortcuts(oldScene, newScene);
             registerWindowCloseGuard(newScene);
         });
+        viewModel.planNameProperty().addListener((observable, oldValue, newValue) -> refreshPlanHeader());
+        viewModel.planStatusProperty().addListener((observable, oldValue, newValue) -> refreshPlanHeader());
+        viewModel.planVersionProperty().addListener((observable, oldValue, newValue) -> refreshPlanHeader());
         drawingScrollPane.addEventFilter(ScrollEvent.SCROLL, this::handleScrollZoom);
         viewModel.getPageBubbles().addListener((ListChangeListener<Bubble>) change -> renderBubbles());
         viewModel.selectedBubbleProperty().addListener((observable, oldBubble, newBubble) -> {
@@ -282,20 +291,6 @@ public class PlanEditorController {
         viewModel.currentPlanEditableProperty().addListener((observable, oldValue, newValue) -> refreshBubbleEditor(viewModel.getSelectedBubble()));
         refreshBubbleEditor(null);
 
-        savedPlansListView.setItems(viewModel.getSavedPlans());
-        savedPlansListView.setDisable(true);
-        savedPlansListView.setPlaceholder(new Label("Loading saved plans..."));
-        deletePlanButton.disableProperty().bind(savedPlansListView.getSelectionModel().selectedItemProperty().isNull().or(repositoryBusy));
-        savedPlansListView.setCellFactory(listView -> new ListCell<>() {
-            protected void updateItem(InspectionPlan item, boolean empty) {
-                super.updateItem(item, empty);
-                if (empty || item == null) {
-                    setText(null);
-                    return;
-                }
-                setText(formatPlanListEntry(item));
-            }
-        });
         planPagesListView.setItems(viewModel.getPlanPages());
         planPagesListView.setCellFactory(listView -> new ListCell<>() {
             protected void updateItem(PlanPage item, boolean empty) {
@@ -370,7 +365,23 @@ public class PlanEditorController {
 
         setupResizeHandle(leftResizeHandle, leftPanel, true);
         setupResizeHandle(rightResizeHandle, rightPanel, false);
-        refreshSavedPlansAsync();
+    }
+
+    public void loadPlan(String planId) {
+        if (planId == null || planId.isBlank()) {
+            return;
+        }
+
+        repositoryBusy.set(true);
+        BackgroundTaskRunner.run("plan-load", () -> viewModel.loadPlanFromRepository(planId), loadedPlan -> {
+            repositoryBusy.set(false);
+            viewModel.applyLoadedPlan(loadedPlan);
+            viewModel.addOrUpdateSavedPlan(loadedPlan);
+            refreshLoadedPlanView();
+        }, failure -> {
+            repositoryBusy.set(false);
+            showFailure(failure, "Unable to load the inspection plan.");
+        });
     }
 
     // ── Resize ───────────────────────────────────────────────────────────────
@@ -427,15 +438,29 @@ public class PlanEditorController {
 
     @FXML
     private void onSavePlan() {
-        saveCurrentPlanAsync(null);
+        requestSaveCurrentPlan(null);
+    }
+
+    private void requestSaveCurrentPlan(Runnable onSuccessContinuation) {
+        if (repositoryBusy.get() || viewModel.saveInProgressProperty().get()) {
+            showInformation("Please wait for the current database operation to finish.");
+            return;
+        }
+        if (!viewModel.isCurrentPlanEditable()) {
+            showReadOnlyPlanMessage();
+            return;
+        }
+        if (!viewModel.hasUnsavedChanges()) {
+            if (onSuccessContinuation != null) {
+                onSuccessContinuation.run();
+            }
+            return;
+        }
+
+        saveCurrentPlanAsync(onSuccessContinuation);
     }
 
     private void saveCurrentPlanAsync(Runnable onSuccessContinuation) {
-        if (!viewModel.isCurrentPlanEditable()) {
-            showInformation("Complete plans are read-only. Create a revision to make changes.");
-            return;
-        }
-        onPlanNameChanged();
         InspectionPlan snapshot;
         try {
             snapshot = viewModel.beginSaveSnapshot();
@@ -453,7 +478,6 @@ public class PlanEditorController {
             repositoryBusy.set(false);
             viewModel.finishSaveSuccess(savedPlan);
             savePlanButton.setText("Save Draft");
-            selectCurrentPlanIfPresent();
             if (onSuccessContinuation != null) {
                 onSuccessContinuation.run();
             }
@@ -467,13 +491,6 @@ public class PlanEditorController {
 
     @FXML
     private void onCompletePlan() {
-        try {
-            onPlanNameChanged();
-        } catch (IllegalStateException exception) {
-            showInformation(exception.getMessage());
-            return;
-        }
-
         repositoryBusy.set(true);
         BackgroundTaskRunner.run("plan-complete", viewModel::completeCurrentPlanInRepository, completedPlan -> {
             repositoryBusy.set(false);
@@ -570,32 +587,15 @@ public class PlanEditorController {
 
     @FXML
     private void onOpenPlan() {
-        InspectionPlan selectedPlan = savedPlansListView.getSelectionModel().getSelectedItem();
-        if (selectedPlan == null) {
-            showInformation("Select a saved plan first.");
-            return;
-        }
-        requestProceedWithPotentialUnsavedChanges("open another plan", true, () -> {
-            repositoryBusy.set(true);
-            BackgroundTaskRunner.run("plan-open", () -> viewModel.loadPlanFromRepository(selectedPlan.getId()), loadedPlan -> {
-                repositoryBusy.set(false);
-                viewModel.applyLoadedPlan(loadedPlan);
-                viewModel.addOrUpdateSavedPlan(loadedPlan);
-                refreshLoadedPlanView();
-            }, failure -> {
-                repositoryBusy.set(false);
-                showFailure(failure, "Unable to open the selected plan.");
-            });
-        });
+        returnToPlanBrowserFromMenu();
     }
 
     @FXML
     private void onDeletePlan() {
-        InspectionPlan selectedPlan = savedPlansListView.getSelectionModel().getSelectedItem();
-        if (selectedPlan == null) {
-            showInformation("Select a saved plan first.");
-            return;
-        }
+        showInformation("Delete plans from the Inspection Plans browser.");
+    }
+
+    private void requestDeletePlan(InspectionPlan selectedPlan) {
         InspectionPlan currentPlan = viewModel.getCurrentPlan();
         if (currentPlan != null
                 && selectedPlan.getId().equals(currentPlan.getId())
@@ -642,6 +642,17 @@ public class PlanEditorController {
     }
 
     @FXML
+    private void onReturnToPlans(ActionEvent event) throws IOException {
+        requestProceedWithPotentialUnsavedChanges("return to inspection plans", true, () -> {
+            try {
+                openPlanBrowser((Node) event.getSource());
+            } catch (IOException exception) {
+                throw new IllegalStateException("Unable to return to inspection plans.", exception);
+            }
+        });
+    }
+
+    @FXML
     private void onReturnToHub(ActionEvent event) throws IOException {
         requestProceedWithPotentialUnsavedChanges("return to the hub", true, () -> {
             try {
@@ -650,19 +661,6 @@ public class PlanEditorController {
                 throw new IllegalStateException("Unable to return to the hub.", exception);
             }
         });
-    }
-
-    @FXML
-    private void onPlanNameChanged() {
-        if (!viewModel.isCurrentPlanEditable()) {
-            return;
-        }
-        viewModel.renamePlan(planNameField.getText());
-        String displayName = displayPlanName(viewModel.getPlanName());
-        if (!planNameField.getText().equals(displayName)) {
-            planNameField.setText(displayName);
-            planNameField.positionCaret(planNameField.getText().length());
-        }
     }
 
     @FXML
@@ -679,7 +677,7 @@ public class PlanEditorController {
                 new FileChooser.ExtensionFilter("PDF Files", "*.pdf")
         );
         configureInitialDirectory(fileChooser);
-        Window window = planNameField.getScene().getWindow();
+        Window window = root.getScene().getWindow();
         File selectedFile = fileChooser.showOpenDialog(window);
         if (selectedFile == null) return;
         viewModel.importDrawing(selectedFile);
@@ -770,19 +768,23 @@ public class PlanEditorController {
     }
 
     @FXML
-    private void OnOpenDataEditor() {
+    private void onOpenBubbleTable() {
         try {
-            if (dataEditorStage == null || !dataEditorStage.isShowing()) { // prevents multiple dataEditor windows
+            if (bubbleTableStage == null || !bubbleTableStage.isShowing()) {
                 FXMLLoader fxmlLoader = new FXMLLoader();
                 fxmlLoader.setLocation(getClass().getResource("/fxml/data-editor.fxml"));
                 fxmlLoader.setController(new DataEditorController(this.viewModel));
-                Parent root = fxmlLoader.load();
+                Parent bubbleTableRoot = fxmlLoader.load();
 
-                dataEditorStage = new Stage();
-                dataEditorStage.setScene(new Scene(root));
-                dataEditorStage.show();
+                bubbleTableStage = new Stage();
+                bubbleTableStage.setTitle("PartPlan - Bubble Table");
+                bubbleTableStage.setScene(new Scene(bubbleTableRoot));
+                if (root.getScene() != null) {
+                    bubbleTableStage.initOwner(root.getScene().getWindow());
+                }
+                bubbleTableStage.show();
             } else {
-                dataEditorStage.toFront();
+                bubbleTableStage.toFront();
             }
         } catch (Exception e) {
             throw new RuntimeException(e);
@@ -844,9 +846,18 @@ public class PlanEditorController {
         if (Files.isDirectory(imageDirectory)) fileChooser.setInitialDirectory(imageDirectory.toFile());
     }
 
-    private void registerShortcuts(Scene scene) {
-        if (scene == null) return;
-        scene.addEventFilter(KeyEvent.KEY_PRESSED, this::handleHotkeys);
+    private void registerShortcuts(Scene oldScene, Scene newScene) {
+        if (oldScene != null && oldScene != newScene) {
+            oldScene.removeEventFilter(KeyEvent.KEY_PRESSED, hotkeyHandler);
+            if (registeredShortcutScene == oldScene) {
+                registeredShortcutScene = null;
+            }
+        }
+        if (newScene == null || newScene == registeredShortcutScene) {
+            return;
+        }
+        newScene.addEventFilter(KeyEvent.KEY_PRESSED, hotkeyHandler);
+        registeredShortcutScene = newScene;
     }
 
     private void handleHotkeys(KeyEvent event) {
@@ -863,7 +874,7 @@ public class PlanEditorController {
 
         if (!event.isControlDown()) return;
         if (event.getCode() == KeyCode.S) {
-            onSavePlan();
+            requestSaveCurrentPlan(null);
             event.consume();
             return;
         }
@@ -968,17 +979,6 @@ public class PlanEditorController {
         pdfPreviewLabel.setManaged(false);
     }
 
-    private void selectCurrentPlanIfPresent() {
-        InspectionPlan currentPlan = viewModel.getCurrentPlan();
-        if (currentPlan == null) return;
-        for (InspectionPlan savedPlan : viewModel.getSavedPlans()) {
-            if (savedPlan.getId().equals(currentPlan.getId())) {
-                savedPlansListView.getSelectionModel().select(savedPlan);
-                return;
-            }
-        }
-    }
-
     private void selectCurrentPageIfPresent() {
         PlanPage currentPage = viewModel.getSelectedPage();
         if (currentPage == null) {
@@ -1000,6 +1000,10 @@ public class PlanEditorController {
         alert.setHeaderText(null);
         alert.setContentText(message);
         alert.showAndWait();
+    }
+
+    private void showReadOnlyPlanMessage() {
+        showInformation("Complete plans are read-only. Create a revision to make changes.");
     }
 
     private void showFailure(Throwable failure, String fallbackMessage) {
@@ -1467,6 +1471,24 @@ public class PlanEditorController {
         return DEFAULT_PLAN_NAME.equals(planName) ? "" : planName;
     }
 
+    private String currentPlanDisplayName() {
+        String planName = viewModel.getPlanName();
+        if (planName == null || planName.isBlank()) {
+            return DEFAULT_PLAN_NAME;
+        }
+        return planName.trim();
+    }
+
+    private void refreshPlanHeader() {
+        planTitleLabel.setText(currentPlanDisplayName());
+        String versionText = valueOrEmpty(viewModel.planVersionProperty().get());
+        String statusText = valueOrEmpty(viewModel.planStatusProperty().get());
+        String metadata = versionText.isBlank()
+                ? statusText
+                : statusText.isBlank() ? versionText : versionText + " · " + statusText;
+        planMetadataLabel.setText(metadata.isBlank() ? "Draft · Pending" : metadata);
+    }
+
     private double bubbleLabelFontSize(Bubble bubble, double scale) {
         double diameter = bubble.getRadius() * 2.0 * scale;
         double labelLength = Math.max(1, bubble.getLabel() == null ? 1 : bubble.getLabel().length());
@@ -1583,37 +1605,58 @@ public class PlanEditorController {
         return name + " (" + statusText + ", " + versionText + ")";
     }
 
-    private void refreshSavedPlansAsync() {
-        repositoryBusy.set(true);
-        BackgroundTaskRunner.run("plan-list-load", viewModel::loadSavedPlansFromRepository, plans -> {
-            repositoryBusy.set(false);
-            viewModel.applySavedPlans(plans);
-            savedPlansListView.setDisable(false);
-            savedPlansListView.setPlaceholder(new Label("No saved plans yet."));
-            selectCurrentPlanIfPresent();
-        }, failure -> {
-            repositoryBusy.set(false);
-            savedPlansListView.setDisable(false);
-            savedPlansListView.setPlaceholder(new Label("Unable to load saved plans."));
-            showFailure(failure, "Unable to load saved plans.");
+    private InspectionPlan promptForPlanSelection() {
+        if (viewModel.getSavedPlans().isEmpty()) {
+            showInformation("There are no saved plans to open.");
+            return null;
+        }
+
+        ListView<InspectionPlan> planListView = new ListView<>(viewModel.getSavedPlans());
+        planListView.setPrefWidth(420.0);
+        planListView.setPrefHeight(320.0);
+        planListView.setCellFactory(listView -> new ListCell<>() {
+            @Override
+            protected void updateItem(InspectionPlan item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? null : formatPlanListEntry(item));
+            }
         });
+
+        Dialog<InspectionPlan> dialog = new Dialog<>();
+        dialog.setTitle("Open Plan");
+        dialog.setHeaderText("Choose a plan to open");
+        dialog.getDialogPane().setContent(planListView);
+        ButtonType openButtonType = new ButtonType("Open", ButtonBar.ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().addAll(openButtonType, ButtonType.CANCEL);
+        Node openButton = dialog.getDialogPane().lookupButton(openButtonType);
+        openButton.disableProperty().bind(planListView.getSelectionModel().selectedItemProperty().isNull());
+
+        planListView.setOnMouseClicked(event -> {
+            if (event.getClickCount() == 2 && planListView.getSelectionModel().getSelectedItem() != null) {
+                dialog.setResult(planListView.getSelectionModel().getSelectedItem());
+                dialog.close();
+            }
+        });
+
+        dialog.setResultConverter(buttonType -> buttonType == openButtonType
+                ? planListView.getSelectionModel().getSelectedItem()
+                : null);
+        return dialog.showAndWait().orElse(null);
     }
 
     private void refreshLoadedPlanView() {
-        planNameField.setText(displayPlanName(viewModel.getPlanName()));
+        refreshPlanHeader();
         selectCurrentPageIfPresent();
         loadDrawingPreview(viewModel.getDrawingPath());
         resetViewport();
-        selectCurrentPlanIfPresent();
     }
 
     private void applyNewPlanView() {
         viewModel.createNewPlan();
-        planNameField.setText(displayPlanName(viewModel.getPlanName()));
+        refreshPlanHeader();
         planPagesListView.getSelectionModel().clearSelection();
         clearDrawingPreview();
         resetViewport();
-        savedPlansListView.getSelectionModel().clearSelection();
     }
 
     private void requestProceedWithPotentialUnsavedChanges(String actionLabel, boolean showBusyMessage, Runnable continuation) {
@@ -1629,11 +1672,155 @@ public class PlanEditorController {
         }
 
         switch (UnsavedChangesDialogs.promptToSaveDiscardOrCancel("plan", actionLabel)) {
-            case SAVE -> saveCurrentPlanAsync(continuation);
+            case SAVE -> requestSaveCurrentPlan(continuation);
             case DISCARD -> continuation.run();
             case CANCEL -> {
             }
         }
+    }
+
+    private void bindMenuActions() {
+        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.FILE_RENAME_PLAN, this::onRenameCurrentPlanFromMenu);
+        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.FILE_SAVE, this::onSavePlan);
+        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.FILE_SAVE_AS_REVISION, this::onCreateRevision);
+        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.FILE_IMPORT_DRAWING_PAGE, this::onImportDrawing);
+        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.FILE_EXPORT_CSV, this::onExportCsvFromMenu);
+        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.FILE_EXPORT_PDF, this::onExportPdfFromMenu);
+        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.NAV_PLANS, this::returnToPlanBrowserFromMenu);
+        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.NAV_HOME, this::returnToHubFromMenu);
+
+        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.VIEW_SAVED_PLANS_PANEL, this::onToggleLeftPanel);
+        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.VIEW_BUBBLE_DATA_PANEL, this::onToggleRightPanel);
+        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.VIEW_ZOOM_IN, this::zoomIn);
+        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.VIEW_ZOOM_OUT, this::zoomOut);
+        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.VIEW_RESET_ZOOM, this::resetViewport);
+        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.VIEW_FIT_TO_PAGE, this::fitImageToViewport);
+
+        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.PLAN_COMPLETE_PLAN, this::onCompletePlan);
+        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.PLAN_CREATE_REVISION, this::onCreateRevision);
+        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.PLAN_OPEN_DATA_EDITOR, this::onOpenBubbleTable);
+        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.PLAN_AUTO_BALLOON_PAGE, this::onAutoBalloonPage);
+
+        AppMenuSupport.bindDisable(root, AppMenuSupport.MenuAction.FILE_SAVE,
+                viewModel.currentPlanEditableProperty().not()
+                        .or(viewModel.unsavedChangesProperty().not())
+                        .or(viewModel.saveInProgressProperty())
+                        .or(repositoryBusy));
+        AppMenuSupport.bindDisable(root, AppMenuSupport.MenuAction.FILE_RENAME_PLAN,
+                viewModel.currentPlanEditableProperty().not().or(repositoryBusy));
+        AppMenuSupport.bindDisable(root, AppMenuSupport.MenuAction.FILE_IMPORT_DRAWING_PAGE,
+                viewModel.currentPlanEditableProperty().not().or(repositoryBusy));
+        AppMenuSupport.bindDisable(root, AppMenuSupport.MenuAction.PLAN_COMPLETE_PLAN,
+                viewModel.currentPlanEditableProperty().not().or(repositoryBusy));
+        AppMenuSupport.bindDisable(root, AppMenuSupport.MenuAction.PLAN_CREATE_REVISION,
+                viewModel.currentPlanCompleteProperty().not().or(repositoryBusy));
+        AppMenuSupport.bindDisable(root, AppMenuSupport.MenuAction.PLAN_AUTO_BALLOON_PAGE,
+                viewModel.currentPlanEditableProperty().not()
+                        .or(viewModel.drawingLoadedProperty().not())
+                        .or(repositoryBusy));
+    }
+
+    private void onRenameCurrentPlanFromMenu() {
+        if (!viewModel.isCurrentPlanEditable()) {
+            showInformation("Complete plans are read-only. Create a revision to make changes.");
+            return;
+        }
+
+        TextInputDialog dialog = new TextInputDialog(currentPlanDisplayName());
+        dialog.setTitle("Rename Inspection Plan");
+        dialog.setHeaderText("Rename current inspection plan");
+        dialog.setContentText("Plan Name:");
+        Optional<String> result = dialog.showAndWait();
+        if (result.isEmpty()) {
+            return;
+        }
+
+        viewModel.renamePlan(result.get());
+        refreshPlanHeader();
+    }
+
+    private void returnToPlanBrowserFromMenu() {
+        requestProceedWithPotentialUnsavedChanges("return to inspection plans", true, () -> {
+            try {
+                openPlanBrowser(root);
+            } catch (IOException exception) {
+                throw new IllegalStateException("Unable to return to inspection plans.", exception);
+            }
+        });
+    }
+
+    private void onExportCsvFromMenu() {
+        try {
+            onExportCsv();
+        } catch (Exception exception) {
+            throw new IllegalStateException("Unable to export CSV.", exception);
+        }
+    }
+
+    private void onExportPdfFromMenu() {
+        try {
+            onExportPdf();
+        } catch (Exception exception) {
+            throw new IllegalStateException("Unable to export PDF.", exception);
+        }
+    }
+
+    private void onOpenPlanFromMenu() {
+        InspectionPlan selectedPlan = promptForPlanSelection();
+        if (selectedPlan == null) {
+            return;
+        }
+        requestProceedWithPotentialUnsavedChanges("open another plan", true, () -> {
+            repositoryBusy.set(true);
+            BackgroundTaskRunner.run("plan-open", () -> viewModel.loadPlanFromRepository(selectedPlan.getId()), loadedPlan -> {
+                repositoryBusy.set(false);
+                viewModel.applyLoadedPlan(loadedPlan);
+                viewModel.addOrUpdateSavedPlan(loadedPlan);
+                refreshLoadedPlanView();
+            }, failure -> {
+                repositoryBusy.set(false);
+                showFailure(failure, "Unable to open the selected plan.");
+            });
+        });
+    }
+
+    private void onDeletePlanFromMenu() {
+        InspectionPlan selectedPlan = promptForPlanSelection();
+        if (selectedPlan == null) {
+            return;
+        }
+        requestDeletePlan(selectedPlan);
+    }
+
+    private void returnToHubFromMenu() {
+        requestProceedWithPotentialUnsavedChanges("return to the hub", true, () -> {
+            try {
+                AppNavigator.swapRoot(root, "/fxml/welcome.fxml", "PartPlan");
+            } catch (IOException exception) {
+                throw new IllegalStateException("Unable to return to the hub.", exception);
+            }
+        });
+    }
+
+    private void signOutFromMenu() {
+        requestProceedWithPotentialUnsavedChanges("sign out", true, () -> {
+            try {
+                authService.signOut();
+                AppNavigator.swapRoot(root, "/fxml/login.fxml", "PartPlan - Sign In");
+            } catch (IOException exception) {
+                throw new IllegalStateException("Unable to sign out.", exception);
+            }
+        });
+    }
+
+    private void openFirebaseSettingsFromMenu() {
+        requestProceedWithPotentialUnsavedChanges("open Firebase settings", true, () -> {
+            try {
+                AppNavigator.swapRoot(root, "/fxml/firebase-config.fxml", "PartPlan - Firebase Setup");
+            } catch (IOException exception) {
+                throw new IllegalStateException("Unable to open the Firebase settings screen.", exception);
+            }
+        });
     }
 
     private void registerWindowCloseGuard(Scene scene) {
@@ -1676,6 +1863,14 @@ public class PlanEditorController {
             return;
         }
         guardedWindow.hide();
+    }
+
+    private void openPlanBrowser(Node source) throws IOException {
+        String currentPlanId = viewModel.getCurrentPlan() == null ? null : viewModel.getCurrentPlan().getId();
+        AppNavigator.swapRoot(source, "/fxml/plan-browser.fxml", "PartPlan - Inspection Plans", loader -> {
+            PlanBrowserController controller = loader.getController();
+            controller.selectPlan(currentPlanId);
+        });
     }
 
     private String buildDeletePlanMessage(InspectionPlan plan, List<InspectionLotSummary> affectedLots) {
