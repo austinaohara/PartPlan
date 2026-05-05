@@ -54,4 +54,26 @@ public class PlanBrowserViewModel {
         lotRepository.deleteLotsForPlan(planId);
         planRepository.deletePlan(planId);
     }
+
+    public void renamePlan(String planId, String proposedName) {
+        if (planId == null || planId.isBlank()) {
+            return;
+        }
+
+        InspectionPlan plan = planRepository.loadPlan(planId);
+        if (plan == null) {
+            return;
+        }
+
+        String normalizedName = normalizePlanName(proposedName, plan.getName());
+        plan.rename(normalizedName);
+        planRepository.savePlan(plan);
+    }
+
+    private String normalizePlanName(String proposedName, String fallback) {
+        if (proposedName == null || proposedName.isBlank()) {
+            return fallback == null || fallback.isBlank() ? "New Inspection Plan" : fallback.trim();
+        }
+        return proposedName.trim();
+    }
 }

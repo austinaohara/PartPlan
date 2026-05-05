@@ -54,6 +54,7 @@
                     </columns>
                 </TableView>
                 <HBox alignment="CENTER_RIGHT" spacing="10.0">
+                    <Button fx:id="renamePlanButton" mnemonicParsing="false" onAction="#onRenamePlan" styleClass="secondary-button" text="Rename Plan" />
                     <Button fx:id="deletePlanButton" mnemonicParsing="false" onAction="#onDeletePlan" styleClass="danger-button" text="Delete Plan" />
                     <Button fx:id="openPlanButton" mnemonicParsing="false" onAction="#onOpenPlan" styleClass="primary-button" text="Open Plan..." />
                 </HBox>

@@ -56,9 +56,10 @@ import javafx.geometry.Point2D;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Comparator;
-import java.util.function.Consumer;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
+import java.util.function.Consumer;
 
 public class PlanEditorController {
     private static final Path DEFAULT_IMAGE_DIRECTORY = Path.of("src", "main", "resources", "images");
@@ -110,11 +111,9 @@ public class PlanEditorController {
     @FXML
     private BorderPane root;
     @FXML
-    private TextField planNameField;
+    private Label planTitleLabel;
     @FXML
-    private Label planStatusValueLabel;
-    @FXML
-    private Label planVersionValueLabel;
+    private Label planMetadataLabel;
     @FXML
     private Label planUnsavedLabel;
     @FXML
@@ -237,14 +236,11 @@ public class PlanEditorController {
         ));
         bindMenuActions();
         root.disableProperty().bind(repositoryBusy);
-        planNameField.setText(displayPlanName(viewModel.getPlanName()));
-        planStatusValueLabel.textProperty().bind(viewModel.planStatusProperty());
-        planVersionValueLabel.textProperty().bind(viewModel.planVersionProperty());
+        refreshPlanHeader();
         drawingFileNameLabel.textProperty().bind(viewModel.drawingFileNameProperty());
         drawingPathLabel.textProperty().bind(viewModel.drawingPathProperty());
         emptyStateLabel.visibleProperty().bind(viewModel.drawingLoadedProperty().not());
         emptyStateLabel.managedProperty().bind(emptyStateLabel.visibleProperty());
-        planNameField.disableProperty().bind(viewModel.currentPlanEditableProperty().not().or(repositoryBusy));
         savePlanButton.disableProperty().bind(viewModel.currentPlanEditableProperty().not()
                 .or(viewModel.unsavedChangesProperty().not())
                 .or(viewModel.saveInProgressProperty())
@@ -274,6 +270,9 @@ public class PlanEditorController {
             registerShortcuts(newScene);
             registerWindowCloseGuard(newScene);
         });
+        viewModel.planNameProperty().addListener((observable, oldValue, newValue) -> refreshPlanHeader());
+        viewModel.planStatusProperty().addListener((observable, oldValue, newValue) -> refreshPlanHeader());
+        viewModel.planVersionProperty().addListener((observable, oldValue, newValue) -> refreshPlanHeader());
         drawingScrollPane.addEventFilter(ScrollEvent.SCROLL, this::handleScrollZoom);
         viewModel.getPageBubbles().addListener((ListChangeListener<Bubble>) change -> renderBubbles());
         viewModel.selectedBubbleProperty().addListener((observable, oldBubble, newBubble) -> {
@@ -444,7 +443,6 @@ public class PlanEditorController {
             showInformation("Complete plans are read-only. Create a revision to make changes.");
             return;
         }
-        onPlanNameChanged();
         InspectionPlan snapshot;
         try {
             snapshot = viewModel.beginSaveSnapshot();
@@ -475,13 +473,6 @@ public class PlanEditorController {
 
     @FXML
     private void onCompletePlan() {
-        try {
-            onPlanNameChanged();
-        } catch (IllegalStateException exception) {
-            showInformation(exception.getMessage());
-            return;
-        }
-
         repositoryBusy.set(true);
         BackgroundTaskRunner.run("plan-complete", viewModel::completeCurrentPlanInRepository, completedPlan -> {
             repositoryBusy.set(false);
@@ -644,16 +635,14 @@ public class PlanEditorController {
     }
 
     @FXML
-    private void onPlanNameChanged() {
-        if (!viewModel.isCurrentPlanEditable()) {
-            return;
-        }
-        viewModel.renamePlan(planNameField.getText());
-        String displayName = displayPlanName(viewModel.getPlanName());
-        if (!planNameField.getText().equals(displayName)) {
-            planNameField.setText(displayName);
-            planNameField.positionCaret(planNameField.getText().length());
-        }
+    private void onReturnToHub(ActionEvent event) throws IOException {
+        requestProceedWithPotentialUnsavedChanges("return to the hub", true, () -> {
+            try {
+                AppNavigator.swapRoot((Node) event.getSource(), "/fxml/welcome.fxml", "PartPlan");
+            } catch (IOException exception) {
+                throw new IllegalStateException("Unable to return to the hub.", exception);
+            }
+        });
     }
 
     @FXML
@@ -670,7 +659,7 @@ public class PlanEditorController {
                 new FileChooser.ExtensionFilter("PDF Files", "*.pdf")
         );
         configureInitialDirectory(fileChooser);
-        Window window = planNameField.getScene().getWindow();
+        Window window = root.getScene().getWindow();
         File selectedFile = fileChooser.showOpenDialog(window);
         if (selectedFile == null) return;
         viewModel.importDrawing(selectedFile);
@@ -1451,6 +1440,24 @@ public class PlanEditorController {
         return DEFAULT_PLAN_NAME.equals(planName) ? "" : planName;
     }
 
+    private String currentPlanDisplayName() {
+        String planName = viewModel.getPlanName();
+        if (planName == null || planName.isBlank()) {
+            return DEFAULT_PLAN_NAME;
+        }
+        return planName.trim();
+    }
+
+    private void refreshPlanHeader() {
+        planTitleLabel.setText(currentPlanDisplayName());
+        String versionText = valueOrEmpty(viewModel.planVersionProperty().get());
+        String statusText = valueOrEmpty(viewModel.planStatusProperty().get());
+        String metadata = versionText.isBlank()
+                ? statusText
+                : statusText.isBlank() ? versionText : versionText + " · " + statusText;
+        planMetadataLabel.setText(metadata.isBlank() ? "Draft · Pending" : metadata);
+    }
+
     private double bubbleLabelFontSize(Bubble bubble, double scale) {
         double diameter = bubble.getRadius() * 2.0 * scale;
         double labelLength = Math.max(1, bubble.getLabel() == null ? 1 : bubble.getLabel().length());
@@ -1607,7 +1614,7 @@ public class PlanEditorController {
     }
 
     private void refreshLoadedPlanView() {
-        planNameField.setText(displayPlanName(viewModel.getPlanName()));
+        refreshPlanHeader();
         selectCurrentPageIfPresent();
         loadDrawingPreview(viewModel.getDrawingPath());
         resetViewport();
@@ -1615,7 +1622,7 @@ public class PlanEditorController {
 
     private void applyNewPlanView() {
         viewModel.createNewPlan();
-        planNameField.setText(displayPlanName(viewModel.getPlanName()));
+        refreshPlanHeader();
         planPagesListView.getSelectionModel().clearSelection();
         clearDrawingPreview();
         resetViewport();
@@ -1642,6 +1649,7 @@ public class PlanEditorController {
     }
 
     private void bindMenuActions() {
+        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.FILE_RENAME_PLAN, this::onRenameCurrentPlanFromMenu);
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.FILE_SAVE, this::onSavePlan);
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.FILE_SAVE_AS_REVISION, this::onCreateRevision);
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.FILE_IMPORT_DRAWING_PAGE, this::onImportDrawing);
@@ -1661,6 +1669,25 @@ public class PlanEditorController {
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.PLAN_CREATE_REVISION, this::onCreateRevision);
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.PLAN_OPEN_DATA_EDITOR, this::onOpenBubbleTable);
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.PLAN_AUTO_BALLOON_PAGE, this::onAutoBalloonPage);
+    }
+
+    private void onRenameCurrentPlanFromMenu() {
+        if (!viewModel.isCurrentPlanEditable()) {
+            showInformation("Complete plans are read-only. Create a revision to make changes.");
+            return;
+        }
+
+        TextInputDialog dialog = new TextInputDialog(currentPlanDisplayName());
+        dialog.setTitle("Rename Inspection Plan");
+        dialog.setHeaderText("Rename current inspection plan");
+        dialog.setContentText("Plan Name:");
+        Optional<String> result = dialog.showAndWait();
+        if (result.isEmpty()) {
+            return;
+        }
+
+        viewModel.renamePlan(result.get());
+        refreshPlanHeader();
     }
 
     private void returnToPlanBrowserFromMenu() {

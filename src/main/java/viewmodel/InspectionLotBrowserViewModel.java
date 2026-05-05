@@ -72,6 +72,15 @@ public class InspectionLotBrowserViewModel {
         lotRepository.deleteLot(selectedLot.getId());
     }
 
+    public void renameLotInRepository(InspectionLotSummary selectedLot, String proposedName) {
+        if (selectedLot == null) {
+            return;
+        }
+
+        String normalizedName = normalizeLotName(proposedName, selectedLot.getName());
+        lotRepository.saveLotName(selectedLot.getId(), normalizedName);
+    }
+
     public BrowserData loadBrowserData() {
         return new BrowserData(
                 List.copyOf(planRepository.loadCompletePlans()),
@@ -91,5 +100,12 @@ public class InspectionLotBrowserViewModel {
     }
 
     public record BrowserData(List<InspectionPlan> savedPlans, List<InspectionLotSummary> savedLots) {
+    }
+
+    private String normalizeLotName(String proposedName, String fallback) {
+        if (proposedName == null || proposedName.isBlank()) {
+            return fallback == null || fallback.isBlank() ? "Inspection Lot" : fallback.trim();
+        }
+        return proposedName.trim();
     }
 }

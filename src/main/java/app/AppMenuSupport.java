@@ -115,6 +115,7 @@ public final class AppMenuSupport {
             case PLAN_BROWSER -> fileMenu.getItems().addAll(
                     disabledItem(MenuAction.FILE_NEW_PLAN, "New Plan...", menuItems),
                     disabledItem(MenuAction.FILE_OPEN_PLAN, "Open Plan...", menuItems),
+                    disabledItem(MenuAction.FILE_RENAME_PLAN, "Rename Plan...", menuItems),
                     new SeparatorMenuItem(),
                     disabledItem(MenuAction.PLAN_DELETE_PLAN, "Delete Plan", menuItems),
                     disabledItem(MenuAction.TOOLS_REFRESH_REMOTE_DATA, "Refresh", menuItems),
@@ -123,6 +124,8 @@ public final class AppMenuSupport {
                     actionItem("Exit", Platform::exit)
             );
             case PLAN_EDITOR -> fileMenu.getItems().addAll(
+                    disabledItem(MenuAction.FILE_RENAME_PLAN, "Rename Plan...", menuItems),
+                    new SeparatorMenuItem(),
                     disabledItem(MenuAction.FILE_SAVE, "Save Draft", menuItems),
                     disabledItem(MenuAction.FILE_IMPORT_DRAWING_PAGE, "Import Drawing/Page...", menuItems),
                     exportMenu(menuItems),
@@ -133,6 +136,7 @@ public final class AppMenuSupport {
             case LOT_BROWSER -> fileMenu.getItems().addAll(
                     disabledItem(MenuAction.LOT_CREATE_LOT, "New Inspection Lot...", menuItems),
                     disabledItem(MenuAction.LOT_OPEN_SELECTED_LOT, "Open Inspection Lot...", menuItems),
+                    disabledItem(MenuAction.FILE_RENAME_LOT, "Rename Inspection Lot...", menuItems),
                     new SeparatorMenuItem(),
                     disabledItem(MenuAction.LOT_DELETE_LOT, "Delete Inspection Lot", menuItems),
                     disabledItem(MenuAction.LOT_UPVERSION_LOT, "Upversion Inspection Lot", menuItems),
@@ -142,6 +146,8 @@ public final class AppMenuSupport {
                     actionItem("Exit", Platform::exit)
             );
             case LOT_EDITOR -> fileMenu.getItems().addAll(
+                    disabledItem(MenuAction.FILE_RENAME_LOT, "Rename Inspection Lot...", menuItems),
+                    new SeparatorMenuItem(),
                     disabledItem(MenuAction.LOT_SAVE_LOT, "Save Lot", menuItems),
                     disabledItem(MenuAction.LOT_UPVERSION_LOT, "Upversion Inspection Lot", menuItems),
                     new SeparatorMenuItem(),
@@ -367,6 +373,8 @@ public final class AppMenuSupport {
         FILE_NEW_PLAN,
         FILE_OPEN_PLAN,
         FILE_OPEN_INSPECTION_LOTS,
+        FILE_RENAME_PLAN,
+        FILE_RENAME_LOT,
         FILE_SAVE,
         FILE_SAVE_AS_REVISION,
         FILE_IMPORT_DRAWING_PAGE,

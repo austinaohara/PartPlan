@@ -18,6 +18,7 @@ import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
+import javafx.scene.control.TextInputDialog;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
@@ -65,6 +66,8 @@ public class PlanBrowserController {
     private TableColumn<InspectionPlan, String> planUpdatedColumn;
     @FXML
     private Button openPlanButton;
+    @FXML
+    private Button renamePlanButton;
     @FXML
     private Button deletePlanButton;
     @FXML
@@ -133,6 +136,16 @@ public class PlanBrowserController {
     }
 
     @FXML
+    private void onRenamePlan() {
+        InspectionPlan selectedPlan = savedPlansTableView.getSelectionModel().getSelectedItem();
+        if (selectedPlan == null) {
+            showInformation("Select an inspection plan first.");
+            return;
+        }
+        renamePlan(selectedPlan);
+    }
+
+    @FXML
     private void onReturnToHub() throws IOException {
         AppNavigator.swapRoot(savedPlansTableView, "/fxml/welcome.fxml", "PartPlan");
     }
@@ -177,6 +190,7 @@ public class PlanBrowserController {
 
     private void bindViewModel() {
         openPlanButton.disableProperty().bind(savedPlansTableView.getSelectionModel().selectedItemProperty().isNull());
+        renamePlanButton.disableProperty().bind(savedPlansTableView.getSelectionModel().selectedItemProperty().isNull());
         deletePlanButton.disableProperty().bind(savedPlansTableView.getSelectionModel().selectedItemProperty().isNull());
         viewModel.getSavedPlans().addListener((javafx.collections.ListChangeListener<InspectionPlan>) change -> updateSavedPlanCount());
         updateSavedPlanCount();
@@ -238,6 +252,37 @@ public class PlanBrowserController {
         }, failure -> {
             repositoryBusy.set(false);
             showFailure(failure, "Unable to prepare plan deletion.");
+        });
+    }
+
+    private void renamePlan(InspectionPlan selectedPlan) {
+        if (selectedPlan == null) {
+            return;
+        }
+
+        TextInputDialog dialog = new TextInputDialog(displayPlanName(selectedPlan));
+        dialog.setTitle("Rename Inspection Plan");
+        dialog.setHeaderText("Rename selected inspection plan");
+        dialog.setContentText("Plan Name:");
+        Optional<String> result = dialog.showAndWait();
+        if (result.isEmpty()) {
+            return;
+        }
+
+        repositoryBusy.set(true);
+        String renamedPlanId = selectedPlan.getId();
+        String proposedName = result.get();
+        BackgroundTaskRunner.run("plan-rename", () -> {
+            viewModel.renamePlan(renamedPlanId, proposedName);
+            return viewModel.loadPlans();
+        }, plans -> {
+            repositoryBusy.set(false);
+            viewModel.applyPlans(plans);
+            updateSavedPlanCount();
+            selectPlan(renamedPlanId);
+        }, failure -> {
+            repositoryBusy.set(false);
+            showFailure(failure, "Unable to rename the inspection plan.");
         });
     }
 
@@ -341,6 +386,7 @@ public class PlanBrowserController {
     private void bindMenuActions() {
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.FILE_NEW_PLAN, this::onCreatePlanFromMenu);
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.FILE_OPEN_PLAN, this::onOpenPlanFromMenu);
+        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.FILE_RENAME_PLAN, this::onRenamePlanFromMenu);
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.PLAN_DELETE_PLAN, this::onDeletePlanFromMenu);
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.NAV_HOME, this::returnToHubFromMenu);
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.TOOLS_REFRESH_REMOTE_DATA, this::onRefreshData);
@@ -372,6 +418,14 @@ public class PlanBrowserController {
             return;
         }
         deletePlan(selectedPlan);
+    }
+
+    private void onRenamePlanFromMenu() {
+        InspectionPlan selectedPlan = promptForPlanSelection();
+        if (selectedPlan == null) {
+            return;
+        }
+        renamePlan(selectedPlan);
     }
 
     private void signOutFromMenu() {

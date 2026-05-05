@@ -23,6 +23,7 @@ import javafx.scene.control.SpinnerValueFactory;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
+import javafx.scene.control.TextInputDialog;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonType;
@@ -71,6 +72,8 @@ public class InspectionLotBrowserController {
     private TableColumn<InspectionLotSummary, String> lotUpdatedColumn;
     @FXML
     private Button openLotButton;
+    @FXML
+    private Button renameLotButton;
     @FXML
     private Button deleteLotButton;
     @FXML
@@ -133,6 +136,16 @@ public class InspectionLotBrowserController {
             return;
         }
         deleteLot(selectedLot);
+    }
+
+    @FXML
+    private void onRenameLot() {
+        InspectionLotSummary selectedLot = savedLotsTableView.getSelectionModel().getSelectedItem();
+        if (selectedLot == null) {
+            showInformation("Select an inspection lot first.");
+            return;
+        }
+        renameLot(selectedLot);
     }
 
     @FXML
@@ -263,6 +276,7 @@ public class InspectionLotBrowserController {
 
     private void bindViewModel() {
         openLotButton.disableProperty().bind(savedLotsTableView.getSelectionModel().selectedItemProperty().isNull());
+        renameLotButton.disableProperty().bind(savedLotsTableView.getSelectionModel().selectedItemProperty().isNull());
         deleteLotButton.disableProperty().bind(savedLotsTableView.getSelectionModel().selectedItemProperty().isNull());
         createLotButton.disableProperty().bind(Bindings.isEmpty(viewModel.getSavedPlans()));
         viewModel.getSavedLots().addListener((javafx.collections.ListChangeListener<InspectionLotSummary>) change -> updateSavedLotCount());
@@ -492,9 +506,41 @@ public class InspectionLotBrowserController {
         });
     }
 
+    private void renameLot(InspectionLotSummary selectedLot) {
+        if (selectedLot == null) {
+            return;
+        }
+
+        TextInputDialog dialog = new TextInputDialog(selectedLot.getName());
+        dialog.setTitle("Rename Inspection Lot");
+        dialog.setHeaderText("Rename selected inspection lot");
+        dialog.setContentText("Lot Name:");
+        Optional<String> result = dialog.showAndWait();
+        if (result.isEmpty()) {
+            return;
+        }
+
+        repositoryBusy.set(true);
+        String renamedLotId = selectedLot.getId();
+        String proposedName = result.get();
+        BackgroundTaskRunner.run("lot-rename", () -> {
+            viewModel.renameLotInRepository(selectedLot, proposedName);
+            return viewModel.loadBrowserData();
+        }, browserData -> {
+            repositoryBusy.set(false);
+            viewModel.applyBrowserData(browserData);
+            updateSavedLotCount();
+            selectLot(renamedLotId);
+        }, failure -> {
+            repositoryBusy.set(false);
+            showFailure(failure, "Unable to rename the inspection lot.");
+        });
+    }
+
     private void bindMenuActions() {
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.LOT_CREATE_LOT, this::onCreateLot);
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.LOT_OPEN_SELECTED_LOT, this::onOpenLotFromMenu);
+        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.FILE_RENAME_LOT, this::onRenameLotFromMenu);
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.LOT_DELETE_LOT, this::onDeleteLotFromMenu);
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.LOT_UPVERSION_LOT, this::onUpversionLotFromMenu);
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.NAV_HOME, this::returnToHubFromMenu);
@@ -519,6 +565,14 @@ public class InspectionLotBrowserController {
             return;
         }
         deleteLot(selectedLot);
+    }
+
+    private void onRenameLotFromMenu() {
+        InspectionLotSummary selectedLot = promptForLotSelection();
+        if (selectedLot == null) {
+            return;
+        }
+        renameLot(selectedLot);
     }
 
     private void onUpversionLotFromMenu() {

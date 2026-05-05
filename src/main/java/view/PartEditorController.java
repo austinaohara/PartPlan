@@ -33,6 +33,7 @@ import javafx.scene.control.TableView;
 import javafx.scene.control.TabPane;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TextArea;
+import javafx.scene.control.TextInputDialog;
 import javafx.scene.control.TextInputControl;
 import javafx.scene.control.Tooltip;
 import javafx.scene.control.SelectionMode;
@@ -101,15 +102,11 @@ public class PartEditorController {
     @FXML
     private BorderPane root;
     @FXML
-    private TextField lotNameField;
+    private Label lotTitleLabel;
     @FXML
     private Spinner<Integer> lotSizeSpinner;
     @FXML
-    private Label lotSummaryLabel;
-    @FXML
-    private Label loadedPlanLabel;
-    @FXML
-    private Label nextPlanVersionLabel;
+    private Label lotMetadataLabel;
     @FXML
     private Label lotUnsavedLabel;
     @FXML
@@ -149,7 +146,6 @@ public class PartEditorController {
         bindMenuActions();
         root.disableProperty().bind(repositoryBusy);
         root.sceneProperty().addListener((observable, oldScene, newScene) -> registerWindowCloseGuard(newScene));
-        configureLotNameField();
         configureLotSizeSpinner();
         configurePartSelector();
         configurePartTable();
@@ -200,16 +196,6 @@ public class PartEditorController {
     }
 
     @FXML
-    private void onLotNameCommitted() {
-        if (!viewModel.lotLoadedProperty().get()) {
-            return;
-        }
-
-        viewModel.saveCurrentLotName(lotNameField.getText());
-        syncLoadedLotState();
-    }
-
-    @FXML
     private void onSaveLot() {
         saveCurrentLotAsync(null);
     }
@@ -219,7 +205,6 @@ public class PartEditorController {
             return;
         }
 
-        onLotNameCommitted();
         InspectionLot snapshot;
         try {
             snapshot = viewModel.beginSaveSnapshot();
@@ -295,15 +280,6 @@ public class PartEditorController {
                 repositoryBusy.set(false);
                 showFailure(failure, "Unable to upversion the inspection lot.");
             });
-        });
-    }
-
-    private void configureLotNameField() {
-        lotNameField.setOnAction(event -> onLotNameCommitted());
-        lotNameField.focusedProperty().addListener((observable, oldValue, focused) -> {
-            if (!focused) {
-                onLotNameCommitted();
-            }
         });
     }
 
@@ -418,12 +394,12 @@ public class PartEditorController {
     }
 
     private void bindViewModel() {
-        lotSummaryLabel.textProperty().bind(viewModel.lotSummaryProperty());
-        loadedPlanLabel.textProperty().bind(viewModel.currentPlanNameProperty());
         currentPartTitleLabel.textProperty().bind(viewModel.currentPartTitleProperty());
-        nextPlanVersionLabel.textProperty().bind(viewModel.upversionTargetLabelProperty());
+        viewModel.currentLotNameProperty().addListener((observable, oldValue, newValue) -> refreshLotHeader());
+        viewModel.currentPlanNameProperty().addListener((observable, oldValue, newValue) -> refreshLotHeader());
+        viewModel.upversionTargetLabelProperty().addListener((observable, oldValue, newValue) -> refreshLotHeader());
+        refreshLotHeader();
 
-        lotNameField.disableProperty().bind(viewModel.lotLoadedProperty().not());
         lotSizeSpinner.disableProperty().bind(viewModel.lotLoadedProperty().not());
         partSelectorComboBox.disableProperty().bind(viewModel.lotLoadedProperty().not());
         saveLotButton.disableProperty().bind(viewModel.lotLoadedProperty().not()
@@ -482,11 +458,7 @@ public class PartEditorController {
     }
 
     private void syncLoadedLotState() {
-        if (viewModel.lotLoadedProperty().get()) {
-            lotNameField.setText(viewModel.currentLotNameProperty().get());
-        } else {
-            lotNameField.clear();
-        }
+        refreshLotHeader();
     }
 
     private void syncPartSelection() {
@@ -1047,10 +1019,30 @@ public class PartEditorController {
     }
 
     private void bindMenuActions() {
+        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.FILE_RENAME_LOT, this::onRenameCurrentLotFromMenu);
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.LOT_SAVE_LOT, this::onSaveLot);
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.LOT_UPVERSION_LOT, this::onUpversionLot);
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.NAV_INSPECTION_LOTS, this::returnToLotBrowserFromMenu);
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.NAV_HOME, this::returnToHubFromMenu);
+    }
+
+    private void onRenameCurrentLotFromMenu() {
+        if (!viewModel.lotLoadedProperty().get()) {
+            showInformation("Open an inspection lot before renaming it.");
+            return;
+        }
+
+        TextInputDialog dialog = new TextInputDialog(currentLotDisplayName());
+        dialog.setTitle("Rename Inspection Lot");
+        dialog.setHeaderText("Rename current inspection lot");
+        dialog.setContentText("Lot Name:");
+        java.util.Optional<String> result = dialog.showAndWait();
+        if (result.isEmpty()) {
+            return;
+        }
+
+        viewModel.saveCurrentLotName(result.get());
+        syncLoadedLotState();
     }
 
     private void returnToLotBrowserFromMenu() {
@@ -1137,5 +1129,29 @@ public class PartEditorController {
             return;
         }
         guardedWindow.hide();
+    }
+
+    private String currentLotDisplayName() {
+        String lotName = viewModel.currentLotNameProperty().get();
+        if (lotName == null || lotName.isBlank()) {
+            return "Inspection Lot";
+        }
+        return lotName.trim();
+    }
+
+    private void refreshLotHeader() {
+        lotTitleLabel.setText(currentLotDisplayName());
+
+        String planText = viewModel.currentPlanNameProperty().get();
+        if (planText == null || planText.isBlank()) {
+            planText = "No plan selected";
+        }
+        String nextVersionText = viewModel.upversionTargetLabelProperty().get();
+
+        StringBuilder metadata = new StringBuilder(planText.trim());
+        if (nextVersionText != null && !nextVersionText.isBlank() && !"No newer version".equals(nextVersionText)) {
+            metadata.append(" · Next: ").append(nextVersionText.trim());
+        }
+        lotMetadataLabel.setText(metadata.toString());
     }
 }
