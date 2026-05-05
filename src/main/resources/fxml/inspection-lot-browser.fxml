@@ -2,12 +2,9 @@
 
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Button?>
-<?import javafx.scene.control.ComboBox?>
 <?import javafx.scene.control.Label?>
-<?import javafx.scene.control.Spinner?>
 <?import javafx.scene.control.TableColumn?>
 <?import javafx.scene.control.TableView?>
-<?import javafx.scene.control.TextField?>
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.Priority?>
@@ -68,16 +65,10 @@
                 <padding>
                     <Insets bottom="24.0" left="24.0" right="24.0" top="24.0" />
                 </padding>
-                <Label styleClass="panel-title" text="Create New Lot" />
-                <Label styleClass="editor-copy" text="Choose a completed plan version, set the lot name and lot size, then open the new lot in the part editor." wrapText="true" />
-                <Label styleClass="field-label" text="Completed Plan" />
-                <ComboBox fx:id="planSelectorComboBox" prefWidth="292.0" promptText="Select completed plan" />
-                <Label styleClass="field-label" text="Lot Name" />
-                <TextField fx:id="lotNameField" prefWidth="292.0" promptText="Inspection lot name" />
-                <Label styleClass="field-label" text="Lot Size" />
-                <Spinner fx:id="lotSizeSpinner" prefWidth="140.0" />
+                <Label styleClass="panel-title" text="New Inspection Lot" />
+                <Label styleClass="editor-copy" text="Create a new inspection lot by choosing a completed plan, lot name, and lot size in the next step." wrapText="true" />
                 <Region VBox.vgrow="ALWAYS" />
-                <Button fx:id="createLotButton" maxWidth="Infinity" mnemonicParsing="false" onAction="#onCreateLot" styleClass="primary-button" text="Create and Open Lot" />
+                <Button fx:id="createLotButton" maxWidth="Infinity" mnemonicParsing="false" onAction="#onCreateLot" styleClass="primary-button" text="New Lot..." />
             </VBox>
         </HBox>
     </center>

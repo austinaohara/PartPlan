@@ -93,7 +93,7 @@ public final class AppMenuSupport {
         Map<MenuAction, MenuItem> menuItems = new EnumMap<>(MenuAction.class);
         MenuBar menuBar = new MenuBar();
         menuBar.getProperties().put(MENU_ITEMS_KEY, menuItems);
-        menuBar.getMenus().add(buildFileMenu(callbacks, menuItems));
+        menuBar.getMenus().add(buildFileMenu(menuContext, callbacks, menuItems));
         menuBar.getMenus().add(buildEditMenu(menuItems));
         if (menuContext.includesViewMenu()) {
             menuBar.getMenus().add(buildViewMenu(menuItems));
@@ -101,29 +101,50 @@ public final class AppMenuSupport {
         if (menuContext.includesPlanMenu()) {
             menuBar.getMenus().add(buildPlanMenu(menuItems));
         }
-        if (menuContext.includesLotMenu()) {
-            menuBar.getMenus().add(buildLotMenu(menuItems));
-        }
         menuBar.getMenus().add(buildToolsMenu(callbacks, menuItems));
         menuBar.getMenus().add(buildHelpMenu());
         return menuBar;
     }
 
-    private static Menu buildFileMenu(MenuCallbacks callbacks, Map<MenuAction, MenuItem> menuItems) {
+    private static Menu buildFileMenu(MenuContext menuContext, MenuCallbacks callbacks, Map<MenuAction, MenuItem> menuItems) {
         Menu fileMenu = new Menu("File");
-        fileMenu.getItems().addAll(
-                disabledItem(MenuAction.FILE_NEW_PLAN, "New Plan", menuItems),
-                disabledItem(MenuAction.FILE_OPEN_PLAN, "Open Plan...", menuItems),
-                disabledItem(MenuAction.FILE_OPEN_INSPECTION_LOTS, "Open Inspection Lots", menuItems),
-                new SeparatorMenuItem(),
-                disabledItem(MenuAction.FILE_SAVE, "Save", menuItems),
-                disabledItem(MenuAction.FILE_SAVE_AS_REVISION, "Save As Revision", menuItems),
-                disabledItem(MenuAction.FILE_IMPORT_DRAWING_PAGE, "Import Drawing/Page...", menuItems),
-                exportMenu(menuItems),
-                new SeparatorMenuItem(),
-                actionItem(MenuAction.FILE_SIGN_OUT, "Sign Out", callbacks.onSignOut(), menuItems),
-                actionItem("Exit", Platform::exit)
-        );
+        switch (menuContext) {
+            case PLAN_EDITOR -> fileMenu.getItems().addAll(
+                    disabledItem(MenuAction.FILE_NEW_PLAN, "New Plan", menuItems),
+                    disabledItem(MenuAction.FILE_OPEN_PLAN, "Open Plan...", menuItems),
+                    new SeparatorMenuItem(),
+                    disabledItem(MenuAction.FILE_SAVE, "Save Draft", menuItems),
+                    disabledItem(MenuAction.FILE_IMPORT_DRAWING_PAGE, "Import Drawing/Page...", menuItems),
+                    exportMenu(menuItems),
+                    new SeparatorMenuItem(),
+                    actionItem(MenuAction.FILE_SIGN_OUT, "Sign Out", callbacks.onSignOut(), menuItems),
+                    actionItem("Exit", Platform::exit)
+            );
+            case LOT_BROWSER -> fileMenu.getItems().addAll(
+                    disabledItem(MenuAction.LOT_CREATE_LOT, "New Inspection Lot...", menuItems),
+                    disabledItem(MenuAction.LOT_OPEN_SELECTED_LOT, "Open Inspection Lot...", menuItems),
+                    new SeparatorMenuItem(),
+                    disabledItem(MenuAction.LOT_DELETE_LOT, "Delete Inspection Lot", menuItems),
+                    disabledItem(MenuAction.LOT_UPVERSION_LOT, "Upversion Inspection Lot", menuItems),
+                    disabledItem(MenuAction.TOOLS_REFRESH_REMOTE_DATA, "Refresh", menuItems),
+                    new SeparatorMenuItem(),
+                    actionItem(MenuAction.FILE_SIGN_OUT, "Sign Out", callbacks.onSignOut(), menuItems),
+                    actionItem("Exit", Platform::exit)
+            );
+            case LOT_EDITOR -> fileMenu.getItems().addAll(
+                    disabledItem(MenuAction.FILE_OPEN_INSPECTION_LOTS, "Open Inspection Lots", menuItems),
+                    new SeparatorMenuItem(),
+                    disabledItem(MenuAction.LOT_SAVE_LOT, "Save Lot", menuItems),
+                    disabledItem(MenuAction.LOT_UPVERSION_LOT, "Upversion Inspection Lot", menuItems),
+                    new SeparatorMenuItem(),
+                    actionItem(MenuAction.FILE_SIGN_OUT, "Sign Out", callbacks.onSignOut(), menuItems),
+                    actionItem("Exit", Platform::exit)
+            );
+            case GENERAL -> fileMenu.getItems().addAll(
+                    actionItem(MenuAction.FILE_SIGN_OUT, "Sign Out", callbacks.onSignOut(), menuItems),
+                    actionItem("Exit", Platform::exit)
+            );
+        }
         return fileMenu;
     }
 
@@ -158,8 +179,6 @@ public final class AppMenuSupport {
     private static Menu buildPlanMenu(Map<MenuAction, MenuItem> menuItems) {
         Menu planMenu = new Menu("Plan");
         planMenu.getItems().addAll(
-                disabledItem(MenuAction.PLAN_SAVE_DRAFT, "Save Draft", menuItems),
-                disabledItem(MenuAction.PLAN_OPEN_PLAN, "Open Plan...", menuItems),
                 disabledItem(MenuAction.PLAN_DELETE_PLAN, "Delete Plan", menuItems),
                 disabledItem(MenuAction.PLAN_COMPLETE_PLAN, "Complete Plan", menuItems),
                 disabledItem(MenuAction.PLAN_CREATE_REVISION, "Create Revision", menuItems),
@@ -170,22 +189,6 @@ public final class AppMenuSupport {
                 disabledItem(MenuAction.PLAN_PREVIOUS_PAGE, "Previous Page", menuItems)
         );
         return planMenu;
-    }
-
-    private static Menu buildLotMenu(Map<MenuAction, MenuItem> menuItems) {
-        Menu lotMenu = new Menu("Lot");
-        lotMenu.getItems().addAll(
-                disabledItem(MenuAction.LOT_CREATE_LOT, "Create Lot", menuItems),
-                disabledItem(MenuAction.LOT_OPEN_SELECTED_LOT, "Open Lot...", menuItems),
-                disabledItem(MenuAction.LOT_SAVE_LOT, "Save Lot", menuItems),
-                disabledItem(MenuAction.LOT_DELETE_LOT, "Delete Lot", menuItems),
-                disabledItem(MenuAction.LOT_UPVERSION_LOT, "Upversion Lot", menuItems),
-                new SeparatorMenuItem(),
-                disabledItem(MenuAction.LOT_PREVIOUS_PART, "Previous Part", menuItems),
-                disabledItem(MenuAction.LOT_NEXT_PART, "Next Part", menuItems),
-                disabledItem(MenuAction.LOT_GO_TO_PART, "Go To Part...", menuItems)
-        );
-        return lotMenu;
     }
 
     private static Menu buildToolsMenu(MenuCallbacks callbacks, Map<MenuAction, MenuItem> menuItems) {
@@ -304,19 +307,17 @@ public final class AppMenuSupport {
     }
 
     public enum MenuContext {
-        GENERAL(false, false, false),
-        PLAN_EDITOR(true, true, false),
-        LOT_BROWSER(false, false, true),
-        LOT_EDITOR(false, false, true);
+        GENERAL(false, false),
+        PLAN_EDITOR(true, true),
+        LOT_BROWSER(false, false),
+        LOT_EDITOR(false, false);
 
         private final boolean includesViewMenu;
         private final boolean includesPlanMenu;
-        private final boolean includesLotMenu;
 
-        MenuContext(boolean includesViewMenu, boolean includesPlanMenu, boolean includesLotMenu) {
+        MenuContext(boolean includesViewMenu, boolean includesPlanMenu) {
             this.includesViewMenu = includesViewMenu;
             this.includesPlanMenu = includesPlanMenu;
-            this.includesLotMenu = includesLotMenu;
         }
 
         public boolean includesViewMenu() {
@@ -325,10 +326,6 @@ public final class AppMenuSupport {
 
         public boolean includesPlanMenu() {
             return includesPlanMenu;
-        }
-
-        public boolean includesLotMenu() {
-            return includesLotMenu;
         }
     }
 
