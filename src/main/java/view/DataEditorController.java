@@ -1,5 +1,6 @@
 package view;
 
+import javafx.beans.binding.Bindings;
 import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
@@ -29,6 +30,8 @@ public class DataEditorController implements Initializable {
 
     @FXML
     private Label currentPlanLabel;
+    @FXML
+    private Label modeLabel;
 
     @FXML
     private TableView<Bubble> tableView;
@@ -80,10 +83,13 @@ public class DataEditorController implements Initializable {
     @Override
     public void initialize(URL location, ResourceBundle resources) {
         currentPlanLabel.textProperty().bind(dataEditorViewModel.getPlanEditorViewModel().planNameProperty());
+        modeLabel.textProperty().bind(Bindings.when(dataEditorViewModel.getPlanEditorViewModel().currentPlanEditableProperty())
+                .then("Editable draft")
+                .otherwise("Read-only complete plan"));
 
         columnSequenceNumber.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(data.getValue().getSequenceNumber()));
 
-        columnRadius.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>());
+        columnRadius.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(data.getValue().getRadius()));
         columnRadius.setCellFactory(TextFieldTableCell.forTableColumn(new DoubleStringConverter()));
         columnRadius.setOnEditCommit(event -> {
             event.getRowValue().setRadius(event.getNewValue());
@@ -142,7 +148,7 @@ public class DataEditorController implements Initializable {
         event.getRowValue().setNote(event.getNewValue());});
 
         tableView.setItems(dataEditorViewModel.getBubbles());
-        tableView.setEditable(true);
+        tableView.editableProperty().bind(dataEditorViewModel.getPlanEditorViewModel().currentPlanEditableProperty());
     }
 
     public DataEditorViewModel getDataEditorViewModel(){

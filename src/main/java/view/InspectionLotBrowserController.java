@@ -88,6 +88,7 @@ public class InspectionLotBrowserController {
                 this::openFirebaseSettingsFromMenu,
                 () -> AppMenuSupport.openOpenAiSettingsWindow(root)
         ));
+        bindMenuActions();
         root.disableProperty().bind(repositoryBusy);
         configureSavedLotsTable();
         configurePlanSelector();
@@ -430,6 +431,21 @@ public class InspectionLotBrowserController {
             savedLotsTableView.setPlaceholder(new Label("Unable to load inspection lots."));
             showFailure(failure, "Unable to load inspection lots.");
         });
+    }
+
+    private void bindMenuActions() {
+        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.LOT_CREATE_LOT, this::onCreateLot);
+        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.LOT_OPEN_SELECTED_LOT, this::onOpenLotFromMenu);
+        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.LOT_DELETE_LOT, this::onDeleteLot);
+        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.LOT_UPVERSION_LOT, this::onUpversionLot);
+    }
+
+    private void onOpenLotFromMenu() {
+        try {
+            onOpenLot();
+        } catch (IOException exception) {
+            throw new IllegalStateException("Unable to open the selected inspection lot.", exception);
+        }
     }
 
     private void signOutFromMenu() {

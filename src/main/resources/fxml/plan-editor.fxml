@@ -59,7 +59,7 @@
                 <Label styleClass="field-label" text="Version" />
                 <Label fx:id="planVersionValueLabel" styleClass="field-value" text="Draft" />
                 <Label fx:id="planUnsavedLabel" managed="false" styleClass="toolbar-pill" text="Unsaved changes" visible="false" />
-                <Button mnemonicParsing="false" onAction="#OnOpenDataEditor" styleClass="secondary-button" text="Open in Data Editor" />
+                <Button mnemonicParsing="false" onAction="#onOpenBubbleTable" styleClass="secondary-button" text="Open Bubble Table" />
             </HBox>
         </VBox>
     </top>

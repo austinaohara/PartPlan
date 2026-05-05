@@ -229,7 +229,7 @@ public class PlanEditorController {
     private String defaultNote = "";
     private boolean updatingBubbleDefaultsUi;
 
-    private Stage dataEditorStage;
+    private Stage bubbleTableStage;
     private Stage autoBalloonSettingsStage;
 
     @FXML
@@ -781,19 +781,23 @@ public class PlanEditorController {
     }
 
     @FXML
-    private void OnOpenDataEditor() {
+    private void onOpenBubbleTable() {
         try {
-            if (dataEditorStage == null || !dataEditorStage.isShowing()) { // prevents multiple dataEditor windows
+            if (bubbleTableStage == null || !bubbleTableStage.isShowing()) {
                 FXMLLoader fxmlLoader = new FXMLLoader();
                 fxmlLoader.setLocation(getClass().getResource("/fxml/data-editor.fxml"));
                 fxmlLoader.setController(new DataEditorController(this.viewModel));
-                Parent root = fxmlLoader.load();
+                Parent bubbleTableRoot = fxmlLoader.load();
 
-                dataEditorStage = new Stage();
-                dataEditorStage.setScene(new Scene(root));
-                dataEditorStage.show();
+                bubbleTableStage = new Stage();
+                bubbleTableStage.setTitle("PartPlan - Bubble Table");
+                bubbleTableStage.setScene(new Scene(bubbleTableRoot));
+                if (root.getScene() != null) {
+                    bubbleTableStage.initOwner(root.getScene().getWindow());
+                }
+                bubbleTableStage.show();
             } else {
-                dataEditorStage.toFront();
+                bubbleTableStage.toFront();
             }
         } catch (Exception e) {
             throw new RuntimeException(e);
@@ -1668,7 +1672,7 @@ public class PlanEditorController {
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.PLAN_DELETE_PLAN, this::onDeletePlan);
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.PLAN_COMPLETE_PLAN, this::onCompletePlan);
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.PLAN_CREATE_REVISION, this::onCreateRevision);
-        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.PLAN_OPEN_DATA_EDITOR, this::OnOpenDataEditor);
+        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.PLAN_OPEN_DATA_EDITOR, this::onOpenBubbleTable);
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.PLAN_AUTO_BALLOON_PAGE, this::onAutoBalloonPage);
     }
 

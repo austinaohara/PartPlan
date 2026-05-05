@@ -164,7 +164,7 @@ public final class AppMenuSupport {
                 disabledItem(MenuAction.PLAN_COMPLETE_PLAN, "Complete Plan", menuItems),
                 disabledItem(MenuAction.PLAN_CREATE_REVISION, "Create Revision", menuItems),
                 new SeparatorMenuItem(),
-                disabledItem(MenuAction.PLAN_OPEN_DATA_EDITOR, "Open in Data Editor", menuItems),
+                disabledItem(MenuAction.PLAN_OPEN_DATA_EDITOR, "Open Bubble Table", menuItems),
                 disabledItem(MenuAction.PLAN_AUTO_BALLOON_PAGE, "Auto-Balloon Page", menuItems),
                 disabledItem(MenuAction.PLAN_NEXT_PAGE, "Next Page", menuItems),
                 disabledItem(MenuAction.PLAN_PREVIOUS_PAGE, "Previous Page", menuItems)

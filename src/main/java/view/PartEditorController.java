@@ -146,6 +146,7 @@ public class PartEditorController {
                 this::openFirebaseSettingsFromMenu,
                 () -> AppMenuSupport.openOpenAiSettingsWindow(root)
         ));
+        bindMenuActions();
         root.disableProperty().bind(repositoryBusy);
         root.sceneProperty().addListener((observable, oldScene, newScene) -> registerWindowCloseGuard(newScene));
         configureLotNameField();
@@ -1043,6 +1044,27 @@ public class PartEditorController {
             case CANCEL -> {
             }
         }
+    }
+
+    private void bindMenuActions() {
+        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.FILE_OPEN_INSPECTION_LOTS, this::returnToLotBrowserFromMenu);
+        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.LOT_SAVE_LOT, this::onSaveLot);
+        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.LOT_UPVERSION_LOT, this::onUpversionLot);
+        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.LOT_PREVIOUS_PART, this::onPreviousPart);
+        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.LOT_NEXT_PART, this::onNextPart);
+    }
+
+    private void returnToLotBrowserFromMenu() {
+        requestProceedWithPotentialUnsavedChanges("return to inspection lots", true, () -> {
+            try {
+                AppNavigator.swapRoot(root, "/fxml/inspection-lot-browser.fxml", "PartPlan - Inspection Lots", loader -> {
+                    InspectionLotBrowserController controller = loader.getController();
+                    controller.selectLot(viewModel.getCurrentLotId());
+                });
+            } catch (IOException exception) {
+                throw new IllegalStateException("Unable to return to inspection lots.", exception);
+            }
+        });
     }
 
     private void signOutFromMenu() {
