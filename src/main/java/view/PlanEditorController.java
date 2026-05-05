@@ -581,8 +581,9 @@ public class PlanEditorController {
 
     @FXML
     private void onOpenPlan() {
-        InspectionPlan selectedPlan = promptForPlanSelection();
+        InspectionPlan selectedPlan = savedPlansListView.getSelectionModel().getSelectedItem();
         if (selectedPlan == null) {
+            showInformation("Select a saved plan first.");
             return;
         }
         requestProceedWithPotentialUnsavedChanges("open another plan", true, () -> {
@@ -1697,7 +1698,7 @@ public class PlanEditorController {
 
     private void bindMenuActions() {
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.FILE_NEW_PLAN, this::onNewPlan);
-        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.FILE_OPEN_PLAN, this::onOpenPlan);
+        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.FILE_OPEN_PLAN, this::onOpenPlanFromMenu);
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.FILE_SAVE, this::onSavePlan);
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.FILE_SAVE_AS_REVISION, this::onCreateRevision);
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.FILE_IMPORT_DRAWING_PAGE, this::onImportDrawing);
@@ -1712,7 +1713,7 @@ public class PlanEditorController {
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.VIEW_FIT_TO_PAGE, this::fitImageToViewport);
 
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.PLAN_SAVE_DRAFT, this::onSavePlan);
-        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.PLAN_OPEN_PLAN, this::onOpenPlan);
+        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.PLAN_OPEN_PLAN, this::onOpenPlanFromMenu);
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.PLAN_DELETE_PLAN, this::onDeletePlan);
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.PLAN_COMPLETE_PLAN, this::onCompletePlan);
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.PLAN_CREATE_REVISION, this::onCreateRevision);
@@ -1734,6 +1735,25 @@ public class PlanEditorController {
         } catch (Exception exception) {
             throw new IllegalStateException("Unable to export PDF.", exception);
         }
+    }
+
+    private void onOpenPlanFromMenu() {
+        InspectionPlan selectedPlan = promptForPlanSelection();
+        if (selectedPlan == null) {
+            return;
+        }
+        requestProceedWithPotentialUnsavedChanges("open another plan", true, () -> {
+            repositoryBusy.set(true);
+            BackgroundTaskRunner.run("plan-open", () -> viewModel.loadPlanFromRepository(selectedPlan.getId()), loadedPlan -> {
+                repositoryBusy.set(false);
+                viewModel.applyLoadedPlan(loadedPlan);
+                viewModel.addOrUpdateSavedPlan(loadedPlan);
+                refreshLoadedPlanView();
+            }, failure -> {
+                repositoryBusy.set(false);
+                showFailure(failure, "Unable to open the selected plan.");
+            });
+        });
     }
 
     private void signOutFromMenu() {

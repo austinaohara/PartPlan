@@ -116,8 +116,9 @@ public class InspectionLotBrowserController {
 
     @FXML
     private void onOpenLot() throws IOException {
-        InspectionLotSummary selectedLot = promptForLotSelection();
+        InspectionLotSummary selectedLot = savedLotsTableView.getSelectionModel().getSelectedItem();
         if (selectedLot == null) {
+            showInformation("Select an inspection lot first.");
             return;
         }
 
@@ -126,16 +127,25 @@ public class InspectionLotBrowserController {
 
     @FXML
     private void onDeleteLot() {
-        deleteSelectedLot();
+        InspectionLotSummary selectedLot = savedLotsTableView.getSelectionModel().getSelectedItem();
+        if (selectedLot == null) {
+            showInformation("Select an inspection lot first.");
+            return;
+        }
+        deleteLot(selectedLot);
     }
 
     @FXML
     private void onUpversionLot() {
         InspectionLotSummary selectedLot = savedLotsTableView.getSelectionModel().getSelectedItem();
         if (selectedLot == null) {
+            showInformation("Select an inspection lot first.");
             return;
         }
+        upversionLot(selectedLot);
+    }
 
+    private void upversionLot(InspectionLotSummary selectedLot) {
         InspectionPlan targetPlan = viewModel.findLatestUpversionTarget(selectedLot);
         if (targetPlan == null) {
             showInformation("No newer completed plan version is available for this inspection lot.");
@@ -247,7 +257,7 @@ public class InspectionLotBrowserController {
             return;
         }
 
-        deleteSelectedLot();
+        deleteLot(savedLotsTableView.getSelectionModel().getSelectedItem());
         event.consume();
     }
 
@@ -292,8 +302,7 @@ public class InspectionLotBrowserController {
         return name + " v" + plan.getVersion();
     }
 
-    private void deleteSelectedLot() {
-        InspectionLotSummary selectedLot = savedLotsTableView.getSelectionModel().getSelectedItem();
+    private void deleteLot(InspectionLotSummary selectedLot) {
         if (selectedLot == null) {
             return;
         }
@@ -486,17 +495,37 @@ public class InspectionLotBrowserController {
     private void bindMenuActions() {
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.LOT_CREATE_LOT, this::onCreateLot);
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.LOT_OPEN_SELECTED_LOT, this::onOpenLotFromMenu);
-        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.LOT_DELETE_LOT, this::onDeleteLot);
-        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.LOT_UPVERSION_LOT, this::onUpversionLot);
+        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.LOT_DELETE_LOT, this::onDeleteLotFromMenu);
+        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.LOT_UPVERSION_LOT, this::onUpversionLotFromMenu);
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.TOOLS_REFRESH_REMOTE_DATA, this::onRefreshData);
     }
 
     private void onOpenLotFromMenu() {
         try {
-            onOpenLot();
+            InspectionLotSummary selectedLot = promptForLotSelection();
+            if (selectedLot == null) {
+                return;
+            }
+            openPartEditor(savedLotsTableView, selectedLot.getId());
         } catch (IOException exception) {
             throw new IllegalStateException("Unable to open the selected inspection lot.", exception);
         }
+    }
+
+    private void onDeleteLotFromMenu() {
+        InspectionLotSummary selectedLot = promptForLotSelection();
+        if (selectedLot == null) {
+            return;
+        }
+        deleteLot(selectedLot);
+    }
+
+    private void onUpversionLotFromMenu() {
+        InspectionLotSummary selectedLot = promptForLotSelection();
+        if (selectedLot == null) {
+            return;
+        }
+        upversionLot(selectedLot);
     }
 
     private void signOutFromMenu() {
