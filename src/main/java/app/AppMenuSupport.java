@@ -112,10 +112,17 @@ public final class AppMenuSupport {
     private static Menu buildFileMenu(MenuContext menuContext, MenuCallbacks callbacks, Map<MenuAction, MenuItem> menuItems) {
         Menu fileMenu = new Menu("File");
         switch (menuContext) {
-            case PLAN_EDITOR -> fileMenu.getItems().addAll(
-                    disabledItem(MenuAction.FILE_NEW_PLAN, "New Plan", menuItems),
+            case PLAN_BROWSER -> fileMenu.getItems().addAll(
+                    disabledItem(MenuAction.FILE_NEW_PLAN, "New Plan...", menuItems),
                     disabledItem(MenuAction.FILE_OPEN_PLAN, "Open Plan...", menuItems),
                     new SeparatorMenuItem(),
+                    disabledItem(MenuAction.PLAN_DELETE_PLAN, "Delete Plan", menuItems),
+                    disabledItem(MenuAction.TOOLS_REFRESH_REMOTE_DATA, "Refresh", menuItems),
+                    new SeparatorMenuItem(),
+                    actionItem(MenuAction.FILE_SIGN_OUT, "Sign Out", callbacks.onSignOut(), menuItems),
+                    actionItem("Exit", Platform::exit)
+            );
+            case PLAN_EDITOR -> fileMenu.getItems().addAll(
                     disabledItem(MenuAction.FILE_SAVE, "Save Draft", menuItems),
                     disabledItem(MenuAction.FILE_IMPORT_DRAWING_PAGE, "Import Drawing/Page...", menuItems),
                     exportMenu(menuItems),
@@ -166,7 +173,11 @@ public final class AppMenuSupport {
     private static Menu buildNavigationMenu(MenuContext menuContext, Map<MenuAction, MenuItem> menuItems) {
         Menu navigationMenu = new Menu("Navigation");
         switch (menuContext) {
-            case PLAN_EDITOR, LOT_BROWSER -> navigationMenu.getItems().addAll(
+            case PLAN_BROWSER, LOT_BROWSER -> navigationMenu.getItems().addAll(
+                    disabledItem(MenuAction.NAV_HOME, "Home", menuItems)
+            );
+            case PLAN_EDITOR -> navigationMenu.getItems().addAll(
+                    disabledItem(MenuAction.NAV_PLANS, "Inspection Plans", menuItems),
                     disabledItem(MenuAction.NAV_HOME, "Home", menuItems)
             );
             case LOT_EDITOR -> navigationMenu.getItems().addAll(
@@ -182,7 +193,7 @@ public final class AppMenuSupport {
     private static Menu buildViewMenu(Map<MenuAction, MenuItem> menuItems) {
         Menu viewMenu = new Menu("View");
         viewMenu.getItems().addAll(
-                disabledItem(MenuAction.VIEW_SAVED_PLANS_PANEL, "Saved Plans Panel", menuItems),
+                disabledItem(MenuAction.VIEW_SAVED_PLANS_PANEL, "Plan Outline Panel", menuItems),
                 disabledItem(MenuAction.VIEW_BUBBLE_DATA_PANEL, "Bubble Data Panel", menuItems),
                 new SeparatorMenuItem(),
                 disabledItem(MenuAction.VIEW_ZOOM_IN, "Zoom In", menuItems),
@@ -196,7 +207,6 @@ public final class AppMenuSupport {
     private static Menu buildPlanMenu(Map<MenuAction, MenuItem> menuItems) {
         Menu planMenu = new Menu("Plan");
         planMenu.getItems().addAll(
-                disabledItem(MenuAction.PLAN_DELETE_PLAN, "Delete Plan", menuItems),
                 disabledItem(MenuAction.PLAN_COMPLETE_PLAN, "Complete Plan", menuItems),
                 disabledItem(MenuAction.PLAN_CREATE_REVISION, "Create Revision", menuItems),
                 new SeparatorMenuItem(),
@@ -325,6 +335,7 @@ public final class AppMenuSupport {
 
     public enum MenuContext {
         GENERAL(false, false, false),
+        PLAN_BROWSER(false, false, true),
         PLAN_EDITOR(true, true, true),
         LOT_BROWSER(false, false, true),
         LOT_EDITOR(false, false, true);
@@ -362,6 +373,7 @@ public final class AppMenuSupport {
         FILE_EXPORT_CSV,
         FILE_EXPORT_PDF,
         FILE_SIGN_OUT,
+        NAV_PLANS,
         NAV_HOME,
         NAV_INSPECTION_LOTS,
         EDIT_UNDO,

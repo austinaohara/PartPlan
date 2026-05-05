@@ -29,11 +29,8 @@
             </padding>
             <Label styleClass="screen-title" text="Plan Editor" />
             <HBox alignment="CENTER_LEFT" spacing="12.0">
-                <Button mnemonicParsing="false" onAction="#onReturnToHub" styleClass="secondary-button" text="Return to Hub" />
-                <Button mnemonicParsing="false" onAction="#onNewPlan" styleClass="secondary-button" text="New Plan" />
+                <Button mnemonicParsing="false" onAction="#onReturnToPlans" styleClass="secondary-button" text="Return to Plans" />
                 <Button fx:id="savePlanButton" mnemonicParsing="false" onAction="#onSavePlan" styleClass="primary-button" text="Save Draft" />
-                <Button mnemonicParsing="false" onAction="#onOpenPlan" styleClass="secondary-button" text="Open Plan..." />
-                <Button fx:id="deletePlanButton" mnemonicParsing="false" onAction="#onDeletePlan" styleClass="secondary-button" text="Delete Plan" />
                 <Button fx:id="completePlanButton" mnemonicParsing="false" onAction="#onCompletePlan" styleClass="primary-button" text="Complete Plan" />
                 <Button fx:id="createRevisionButton" mnemonicParsing="false" onAction="#onCreateRevision" styleClass="secondary-button" text="Create Revision" />
                 <Button fx:id="addPageButton" mnemonicParsing="false" onAction="#onImportDrawing" styleClass="primary-button" text="Add Page" />
@@ -70,7 +67,7 @@
             <VBox fx:id="leftPanel" prefWidth="310.0" styleClass="tool-window">
                 <!-- Title bar: title on left, X on right -->
                 <HBox alignment="CENTER_LEFT" styleClass="tool-window-header">
-                    <Label styleClass="tool-window-title" text="Saved Plans" HBox.hgrow="ALWAYS" />
+                    <Label styleClass="tool-window-title" text="Plan Outline" HBox.hgrow="ALWAYS" />
                     <HBox HBox.hgrow="ALWAYS" />
                     <Button onAction="#onToggleLeftPanel" styleClass="tool-window-close-btn" text="X" />
                 </HBox>
@@ -78,9 +75,6 @@
                     <padding>
                         <Insets bottom="16.0" left="16.0" right="16.0" top="12.0" />
                     </padding>
-                    <ListView fx:id="savedPlansListView" prefHeight="280.0" styleClass="saved-plans-list" />
-                    <Separator />
-                    <Label styleClass="tool-window-section-title" text="Current Plan" />
                     <Label styleClass="field-label" text="Pages" />
                     <ListView fx:id="planPagesListView" prefHeight="150.0" styleClass="saved-plans-list" />
                     <Label styleClass="field-label" text="Bubbles" />
@@ -104,7 +98,7 @@
             <!-- Collapsed left strip -->
             <VBox fx:id="leftCollapsedTab" alignment="TOP_CENTER" managed="false" onMouseClicked="#onToggleLeftPanel" prefWidth="28.0" styleClass="tool-strip" visible="false">
                 <Group>
-                    <Label rotate="-90" styleClass="tool-strip-label" text="Saved Plans" />
+                    <Label rotate="-90" styleClass="tool-strip-label" text="Plan Outline" />
                 </Group>
             </VBox>
         </HBox>

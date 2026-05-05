@@ -50,7 +50,7 @@ public class WelcomeController {
 
     @FXML
     private void onOpenPlanEditor(ActionEvent event) throws IOException {
-        AppNavigator.swapRoot((Node) event.getSource(), "/fxml/plan-editor.fxml", "PartPlan - Plan Editor");
+        AppNavigator.swapRoot((Node) event.getSource(), "/fxml/plan-browser.fxml", "PartPlan - Inspection Plans");
     }
 
     @FXML
