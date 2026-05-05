@@ -239,6 +239,7 @@ public class PlanEditorController {
                 this::openFirebaseSettingsFromMenu,
                 this::onOpenAutoBalloonSettings
         ));
+        bindMenuActions();
         root.disableProperty().bind(repositoryBusy);
         planNameField.setText(displayPlanName(viewModel.getPlanName()));
         planStatusValueLabel.textProperty().bind(viewModel.planStatusProperty());
@@ -1643,6 +1644,47 @@ public class PlanEditorController {
             case DISCARD -> continuation.run();
             case CANCEL -> {
             }
+        }
+    }
+
+    private void bindMenuActions() {
+        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.FILE_NEW_PLAN, this::onNewPlan);
+        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.FILE_OPEN_PLAN, this::onOpenPlan);
+        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.FILE_SAVE, this::onSavePlan);
+        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.FILE_SAVE_AS_REVISION, this::onCreateRevision);
+        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.FILE_IMPORT_DRAWING_PAGE, this::onImportDrawing);
+        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.FILE_EXPORT_CSV, this::onExportCsvFromMenu);
+        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.FILE_EXPORT_PDF, this::onExportPdfFromMenu);
+
+        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.VIEW_SAVED_PLANS_PANEL, this::onToggleLeftPanel);
+        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.VIEW_BUBBLE_DATA_PANEL, this::onToggleRightPanel);
+        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.VIEW_ZOOM_IN, this::zoomIn);
+        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.VIEW_ZOOM_OUT, this::zoomOut);
+        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.VIEW_RESET_ZOOM, this::resetViewport);
+        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.VIEW_FIT_TO_PAGE, this::fitImageToViewport);
+
+        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.PLAN_SAVE_DRAFT, this::onSavePlan);
+        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.PLAN_OPEN_PLAN, this::onOpenPlan);
+        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.PLAN_DELETE_PLAN, this::onDeletePlan);
+        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.PLAN_COMPLETE_PLAN, this::onCompletePlan);
+        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.PLAN_CREATE_REVISION, this::onCreateRevision);
+        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.PLAN_OPEN_DATA_EDITOR, this::OnOpenDataEditor);
+        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.PLAN_AUTO_BALLOON_PAGE, this::onAutoBalloonPage);
+    }
+
+    private void onExportCsvFromMenu() {
+        try {
+            onExportCsv();
+        } catch (Exception exception) {
+            throw new IllegalStateException("Unable to export CSV.", exception);
+        }
+    }
+
+    private void onExportPdfFromMenu() {
+        try {
+            onExportPdf();
+        } catch (Exception exception) {
+            throw new IllegalStateException("Unable to export PDF.", exception);
         }
     }
 

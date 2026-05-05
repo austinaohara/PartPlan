@@ -18,9 +18,12 @@ import javafx.stage.Window;
 import view.AppNavigator;
 
 import java.io.IOException;
+import java.util.EnumMap;
+import java.util.Map;
 
 public final class AppMenuSupport {
     private static final String MENU_INSTALLED_KEY = "app.menu.installed";
+    private static final String MENU_ITEMS_KEY = "app.menu.items";
 
     private AppMenuSupport() {
     }
@@ -42,6 +45,23 @@ public final class AppMenuSupport {
             rootPane.setTop(topContainer);
         }
         rootPane.getProperties().put(MENU_INSTALLED_KEY, Boolean.TRUE);
+    }
+
+    public static void bindAction(BorderPane rootPane, MenuAction action, Runnable handler) {
+        if (rootPane == null || action == null) {
+            return;
+        }
+        MenuItem menuItem = getRegisteredMenuItems(rootPane).get(action);
+        if (menuItem == null) {
+            return;
+        }
+        if (handler == null) {
+            menuItem.setDisable(true);
+            menuItem.setOnAction(null);
+            return;
+        }
+        menuItem.setDisable(false);
+        menuItem.setOnAction(event -> handler.run());
     }
 
     public static void openOpenAiSettingsWindow(Node ownerNode) {
@@ -70,110 +90,112 @@ public final class AppMenuSupport {
     }
 
     private static MenuBar buildMenuBar(MenuContext menuContext, MenuCallbacks callbacks) {
+        Map<MenuAction, MenuItem> menuItems = new EnumMap<>(MenuAction.class);
         MenuBar menuBar = new MenuBar();
-        menuBar.getMenus().add(buildFileMenu(callbacks));
-        menuBar.getMenus().add(buildEditMenu());
+        menuBar.getProperties().put(MENU_ITEMS_KEY, menuItems);
+        menuBar.getMenus().add(buildFileMenu(callbacks, menuItems));
+        menuBar.getMenus().add(buildEditMenu(menuItems));
         if (menuContext.includesViewMenu()) {
-            menuBar.getMenus().add(buildViewMenu());
+            menuBar.getMenus().add(buildViewMenu(menuItems));
         }
         if (menuContext.includesPlanMenu()) {
-            menuBar.getMenus().add(buildPlanMenu());
+            menuBar.getMenus().add(buildPlanMenu(menuItems));
         }
         if (menuContext.includesLotMenu()) {
-            menuBar.getMenus().add(buildLotMenu());
+            menuBar.getMenus().add(buildLotMenu(menuItems));
         }
-        menuBar.getMenus().add(buildToolsMenu(callbacks));
+        menuBar.getMenus().add(buildToolsMenu(callbacks, menuItems));
         menuBar.getMenus().add(buildHelpMenu());
         return menuBar;
     }
 
-    private static Menu buildFileMenu(MenuCallbacks callbacks) {
+    private static Menu buildFileMenu(MenuCallbacks callbacks, Map<MenuAction, MenuItem> menuItems) {
         Menu fileMenu = new Menu("File");
         fileMenu.getItems().addAll(
-                disabledItem("New Plan"),
-                disabledItem("Open Plan..."),
-                disabledItem("Open Inspection Lots"),
+                disabledItem(MenuAction.FILE_NEW_PLAN, "New Plan", menuItems),
+                disabledItem(MenuAction.FILE_OPEN_PLAN, "Open Plan...", menuItems),
+                disabledItem(MenuAction.FILE_OPEN_INSPECTION_LOTS, "Open Inspection Lots", menuItems),
                 new SeparatorMenuItem(),
-                disabledItem("Save"),
-                disabledItem("Save As Revision"),
-                disabledItem("Import Drawing/Page..."),
-                exportMenu(),
+                disabledItem(MenuAction.FILE_SAVE, "Save", menuItems),
+                disabledItem(MenuAction.FILE_SAVE_AS_REVISION, "Save As Revision", menuItems),
+                disabledItem(MenuAction.FILE_IMPORT_DRAWING_PAGE, "Import Drawing/Page...", menuItems),
+                exportMenu(menuItems),
                 new SeparatorMenuItem(),
-                actionItem("Sign Out", callbacks.onSignOut()),
+                actionItem(MenuAction.FILE_SIGN_OUT, "Sign Out", callbacks.onSignOut(), menuItems),
                 actionItem("Exit", Platform::exit)
         );
         return fileMenu;
     }
 
-    private static Menu buildEditMenu() {
+    private static Menu buildEditMenu(Map<MenuAction, MenuItem> menuItems) {
         Menu editMenu = new Menu("Edit");
         editMenu.getItems().addAll(
-                disabledItem("Undo"),
-                disabledItem("Redo"),
+                disabledItem(MenuAction.EDIT_UNDO, "Undo", menuItems),
+                disabledItem(MenuAction.EDIT_REDO, "Redo", menuItems),
                 new SeparatorMenuItem(),
-                disabledItem("Copy"),
-                disabledItem("Delete"),
-                disabledItem("Find..."),
-                disabledItem("Clear Selection")
+                disabledItem(MenuAction.EDIT_COPY, "Copy", menuItems),
+                disabledItem(MenuAction.EDIT_DELETE, "Delete", menuItems),
+                disabledItem(MenuAction.EDIT_FIND, "Find...", menuItems),
+                disabledItem(MenuAction.EDIT_CLEAR_SELECTION, "Clear Selection", menuItems)
         );
         return editMenu;
     }
 
-    private static Menu buildViewMenu() {
+    private static Menu buildViewMenu(Map<MenuAction, MenuItem> menuItems) {
         Menu viewMenu = new Menu("View");
         viewMenu.getItems().addAll(
-                disabledItem("Saved Plans Panel"),
-                disabledItem("Bubble Data Panel"),
+                disabledItem(MenuAction.VIEW_SAVED_PLANS_PANEL, "Saved Plans Panel", menuItems),
+                disabledItem(MenuAction.VIEW_BUBBLE_DATA_PANEL, "Bubble Data Panel", menuItems),
                 new SeparatorMenuItem(),
-                disabledItem("Zoom In"),
-                disabledItem("Zoom Out"),
-                disabledItem("Reset Zoom"),
-                disabledItem("Fit to Page")
+                disabledItem(MenuAction.VIEW_ZOOM_IN, "Zoom In", menuItems),
+                disabledItem(MenuAction.VIEW_ZOOM_OUT, "Zoom Out", menuItems),
+                disabledItem(MenuAction.VIEW_RESET_ZOOM, "Reset Zoom", menuItems),
+                disabledItem(MenuAction.VIEW_FIT_TO_PAGE, "Fit to Page", menuItems)
         );
         return viewMenu;
     }
 
-    private static Menu buildPlanMenu() {
+    private static Menu buildPlanMenu(Map<MenuAction, MenuItem> menuItems) {
         Menu planMenu = new Menu("Plan");
         planMenu.getItems().addAll(
-                disabledItem("Save Draft"),
-                disabledItem("Open Plan..."),
-                disabledItem("Delete Plan"),
-                disabledItem("Complete Plan"),
-                disabledItem("Create Revision"),
+                disabledItem(MenuAction.PLAN_SAVE_DRAFT, "Save Draft", menuItems),
+                disabledItem(MenuAction.PLAN_OPEN_PLAN, "Open Plan...", menuItems),
+                disabledItem(MenuAction.PLAN_DELETE_PLAN, "Delete Plan", menuItems),
+                disabledItem(MenuAction.PLAN_COMPLETE_PLAN, "Complete Plan", menuItems),
+                disabledItem(MenuAction.PLAN_CREATE_REVISION, "Create Revision", menuItems),
                 new SeparatorMenuItem(),
-                disabledItem("Open in Data Editor"),
-                disabledItem("Auto-Balloon Page"),
-                disabledItem("Next Page"),
-                disabledItem("Previous Page")
+                disabledItem(MenuAction.PLAN_OPEN_DATA_EDITOR, "Open in Data Editor", menuItems),
+                disabledItem(MenuAction.PLAN_AUTO_BALLOON_PAGE, "Auto-Balloon Page", menuItems),
+                disabledItem(MenuAction.PLAN_NEXT_PAGE, "Next Page", menuItems),
+                disabledItem(MenuAction.PLAN_PREVIOUS_PAGE, "Previous Page", menuItems)
         );
         return planMenu;
     }
 
-    private static Menu buildLotMenu() {
+    private static Menu buildLotMenu(Map<MenuAction, MenuItem> menuItems) {
         Menu lotMenu = new Menu("Lot");
         lotMenu.getItems().addAll(
-                disabledItem("Create Lot"),
-                disabledItem("Open Selected Lot"),
-                disabledItem("Save Lot"),
-                disabledItem("Delete Lot"),
-                disabledItem("Upversion Lot"),
+                disabledItem(MenuAction.LOT_CREATE_LOT, "Create Lot", menuItems),
+                disabledItem(MenuAction.LOT_OPEN_SELECTED_LOT, "Open Selected Lot", menuItems),
+                disabledItem(MenuAction.LOT_SAVE_LOT, "Save Lot", menuItems),
+                disabledItem(MenuAction.LOT_DELETE_LOT, "Delete Lot", menuItems),
+                disabledItem(MenuAction.LOT_UPVERSION_LOT, "Upversion Lot", menuItems),
                 new SeparatorMenuItem(),
-                disabledItem("Previous Part"),
-                disabledItem("Next Part"),
-                disabledItem("Go To Part...")
+                disabledItem(MenuAction.LOT_PREVIOUS_PART, "Previous Part", menuItems),
+                disabledItem(MenuAction.LOT_NEXT_PART, "Next Part", menuItems),
+                disabledItem(MenuAction.LOT_GO_TO_PART, "Go To Part...", menuItems)
         );
         return lotMenu;
     }
 
-    private static Menu buildToolsMenu(MenuCallbacks callbacks) {
+    private static Menu buildToolsMenu(MenuCallbacks callbacks, Map<MenuAction, MenuItem> menuItems) {
         Menu toolsMenu = new Menu("Tools");
         toolsMenu.getItems().addAll(
-                actionItem("Firebase Settings...", callbacks.onOpenFirebaseSettings()),
-                actionItem("OpenAI Settings...", callbacks.onOpenOpenAiSettings()),
+                actionItem(MenuAction.TOOLS_FIREBASE_SETTINGS, "Firebase Settings...", callbacks.onOpenFirebaseSettings(), menuItems),
+                actionItem(MenuAction.TOOLS_OPENAI_SETTINGS, "OpenAI Settings...", callbacks.onOpenOpenAiSettings(), menuItems),
                 new SeparatorMenuItem(),
-                disabledItem("Refresh Remote Data"),
-                disabledItem("Reauthenticate")
+                disabledItem(MenuAction.TOOLS_REFRESH_REMOTE_DATA, "Refresh Remote Data", menuItems),
+                disabledItem(MenuAction.TOOLS_REAUTHENTICATE, "Reauthenticate", menuItems)
         );
         return toolsMenu;
     }
@@ -195,11 +217,11 @@ public final class AppMenuSupport {
         return helpMenu;
     }
 
-    private static Menu exportMenu() {
+    private static Menu exportMenu(Map<MenuAction, MenuItem> menuItems) {
         Menu exportMenu = new Menu("Export");
         exportMenu.getItems().addAll(
-                disabledItem("CSV"),
-                disabledItem("PDF")
+                disabledItem(MenuAction.FILE_EXPORT_CSV, "CSV", menuItems),
+                disabledItem(MenuAction.FILE_EXPORT_PDF, "PDF", menuItems)
         );
         return exportMenu;
     }
@@ -214,10 +236,41 @@ public final class AppMenuSupport {
         return item;
     }
 
-    private static MenuItem disabledItem(String text) {
+    private static MenuItem actionItem(MenuAction action, String text, Runnable runnable, Map<MenuAction, MenuItem> menuItems) {
+        MenuItem item = actionItem(text, runnable);
+        registerMenuItem(action, item, menuItems);
+        return item;
+    }
+
+    private static MenuItem disabledItem(MenuAction action, String text, Map<MenuAction, MenuItem> menuItems) {
         MenuItem item = new MenuItem(text);
         item.setDisable(true);
+        registerMenuItem(action, item, menuItems);
         return item;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<MenuAction, MenuItem> getRegisteredMenuItems(BorderPane rootPane) {
+        Object top = rootPane.getTop();
+        if (top instanceof MenuBar menuBar) {
+            Object menuItems = menuBar.getProperties().get(MENU_ITEMS_KEY);
+            if (menuItems instanceof Map<?, ?> map) {
+                return (Map<MenuAction, MenuItem>) map;
+            }
+        }
+        if (top instanceof VBox topContainer && !topContainer.getChildren().isEmpty() && topContainer.getChildren().getFirst() instanceof MenuBar menuBar) {
+            Object menuItems = menuBar.getProperties().get(MENU_ITEMS_KEY);
+            if (menuItems instanceof Map<?, ?> map) {
+                return (Map<MenuAction, MenuItem>) map;
+            }
+        }
+        return Map.of();
+    }
+
+    private static void registerMenuItem(MenuAction action, MenuItem menuItem, Map<MenuAction, MenuItem> menuItems) {
+        if (action != null && menuItems != null) {
+            menuItems.put(action, menuItem);
+        }
     }
 
     private static void showAboutDialog() {
@@ -227,7 +280,7 @@ public final class AppMenuSupport {
         alert.setContentText("""
                 PartPlan manages inspection plans, auto-ballooning, and lot measurement data.
 
-                This shared menu is being rolled out in phases. Plan, lot, edit, and view actions will be wired next.
+                Shared menu wiring is being rolled out in phases. Some screen-specific actions may still be disabled.
                 """);
         alert.showAndWait();
     }
@@ -277,5 +330,50 @@ public final class AppMenuSupport {
         public boolean includesLotMenu() {
             return includesLotMenu;
         }
+    }
+
+    public enum MenuAction {
+        FILE_NEW_PLAN,
+        FILE_OPEN_PLAN,
+        FILE_OPEN_INSPECTION_LOTS,
+        FILE_SAVE,
+        FILE_SAVE_AS_REVISION,
+        FILE_IMPORT_DRAWING_PAGE,
+        FILE_EXPORT_CSV,
+        FILE_EXPORT_PDF,
+        FILE_SIGN_OUT,
+        EDIT_UNDO,
+        EDIT_REDO,
+        EDIT_COPY,
+        EDIT_DELETE,
+        EDIT_FIND,
+        EDIT_CLEAR_SELECTION,
+        VIEW_SAVED_PLANS_PANEL,
+        VIEW_BUBBLE_DATA_PANEL,
+        VIEW_ZOOM_IN,
+        VIEW_ZOOM_OUT,
+        VIEW_RESET_ZOOM,
+        VIEW_FIT_TO_PAGE,
+        PLAN_SAVE_DRAFT,
+        PLAN_OPEN_PLAN,
+        PLAN_DELETE_PLAN,
+        PLAN_COMPLETE_PLAN,
+        PLAN_CREATE_REVISION,
+        PLAN_OPEN_DATA_EDITOR,
+        PLAN_AUTO_BALLOON_PAGE,
+        PLAN_NEXT_PAGE,
+        PLAN_PREVIOUS_PAGE,
+        LOT_CREATE_LOT,
+        LOT_OPEN_SELECTED_LOT,
+        LOT_SAVE_LOT,
+        LOT_DELETE_LOT,
+        LOT_UPVERSION_LOT,
+        LOT_PREVIOUS_PART,
+        LOT_NEXT_PART,
+        LOT_GO_TO_PART,
+        TOOLS_FIREBASE_SETTINGS,
+        TOOLS_OPENAI_SETTINGS,
+        TOOLS_REFRESH_REMOTE_DATA,
+        TOOLS_REAUTHENTICATE
     }
 }
