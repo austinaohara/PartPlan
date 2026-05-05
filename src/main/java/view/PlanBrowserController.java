@@ -62,8 +62,6 @@ public class PlanBrowserController {
     @FXML
     private TableColumn<InspectionPlan, String> planVersionColumn;
     @FXML
-    private TableColumn<InspectionPlan, Number> planPagesColumn;
-    @FXML
     private TableColumn<InspectionPlan, String> planUpdatedColumn;
     @FXML
     private Button openPlanButton;
@@ -148,7 +146,6 @@ public class PlanBrowserController {
         planNameColumn.setCellValueFactory(data -> new ReadOnlyStringWrapper(displayPlanName(data.getValue())));
         planStatusColumn.setCellValueFactory(data -> new ReadOnlyStringWrapper(data.getValue().isComplete() ? "Complete" : "Pending"));
         planVersionColumn.setCellValueFactory(data -> new ReadOnlyStringWrapper(displayPlanVersion(data.getValue())));
-        planPagesColumn.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(data.getValue().getPages().size()));
         planUpdatedColumn.setCellValueFactory(data -> new ReadOnlyStringWrapper(formatTimestamp(data.getValue().getUpdatedAt())));
 
         savedPlansTableView.setRowFactory(tableView -> {
