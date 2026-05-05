@@ -1,5 +1,6 @@
 package app;
 
+import javafx.beans.value.ObservableBooleanValue;
 import javafx.application.Platform;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Node;
@@ -62,6 +63,22 @@ public final class AppMenuSupport {
         }
         menuItem.setDisable(false);
         menuItem.setOnAction(event -> handler.run());
+    }
+
+    public static void bindDisable(BorderPane rootPane, MenuAction action, ObservableBooleanValue disabled) {
+        if (rootPane == null || action == null) {
+            return;
+        }
+        MenuItem menuItem = getRegisteredMenuItems(rootPane).get(action);
+        if (menuItem == null) {
+            return;
+        }
+        menuItem.disableProperty().unbind();
+        if (disabled == null) {
+            menuItem.setDisable(false);
+            return;
+        }
+        menuItem.disableProperty().bind(disabled);
     }
 
     public static void openOpenAiSettingsWindow(Node ownerNode) {

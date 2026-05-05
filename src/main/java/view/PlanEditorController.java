@@ -12,6 +12,7 @@ import javafx.collections.ListChangeListener;
 import javafx.collections.transformation.FilteredList;
 import javafx.collections.transformation.SortedList;
 import javafx.event.ActionEvent;
+import javafx.event.EventHandler;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
@@ -77,8 +78,10 @@ public class PlanEditorController {
     private double zoomLevel = DEFAULT_ZOOM;
     private final InspectionExportService exportService = new InspectionExportService();
     private Window guardedWindow;
+    private Scene registeredShortcutScene;
     private boolean allowWindowClose;
-    private final javafx.event.EventHandler<WindowEvent> closeRequestHandler = this::handleCloseRequest;
+    private final EventHandler<WindowEvent> closeRequestHandler = this::handleCloseRequest;
+    private final EventHandler<KeyEvent> hotkeyHandler = this::handleHotkeys;
 
     private void handleCloseRequest(WindowEvent event) {
         if (allowWindowClose) {
@@ -267,7 +270,7 @@ public class PlanEditorController {
         bubbleOverlayPane.setOnMouseDragged(this::handleBubbleOverlayDrag);
         bubbleOverlayPane.setOnMouseReleased(this::handleBubbleOverlayRelease);
         root.sceneProperty().addListener((observable, oldScene, newScene) -> {
-            registerShortcuts(newScene);
+            registerShortcuts(oldScene, newScene);
             registerWindowCloseGuard(newScene);
         });
         viewModel.planNameProperty().addListener((observable, oldValue, newValue) -> refreshPlanHeader());
@@ -435,14 +438,29 @@ public class PlanEditorController {
 
     @FXML
     private void onSavePlan() {
-        saveCurrentPlanAsync(null);
+        requestSaveCurrentPlan(null);
+    }
+
+    private void requestSaveCurrentPlan(Runnable onSuccessContinuation) {
+        if (repositoryBusy.get() || viewModel.saveInProgressProperty().get()) {
+            showInformation("Please wait for the current database operation to finish.");
+            return;
+        }
+        if (!viewModel.isCurrentPlanEditable()) {
+            showReadOnlyPlanMessage();
+            return;
+        }
+        if (!viewModel.hasUnsavedChanges()) {
+            if (onSuccessContinuation != null) {
+                onSuccessContinuation.run();
+            }
+            return;
+        }
+
+        saveCurrentPlanAsync(onSuccessContinuation);
     }
 
     private void saveCurrentPlanAsync(Runnable onSuccessContinuation) {
-        if (!viewModel.isCurrentPlanEditable()) {
-            showInformation("Complete plans are read-only. Create a revision to make changes.");
-            return;
-        }
         InspectionPlan snapshot;
         try {
             snapshot = viewModel.beginSaveSnapshot();
@@ -828,9 +846,18 @@ public class PlanEditorController {
         if (Files.isDirectory(imageDirectory)) fileChooser.setInitialDirectory(imageDirectory.toFile());
     }
 
-    private void registerShortcuts(Scene scene) {
-        if (scene == null) return;
-        scene.addEventFilter(KeyEvent.KEY_PRESSED, this::handleHotkeys);
+    private void registerShortcuts(Scene oldScene, Scene newScene) {
+        if (oldScene != null && oldScene != newScene) {
+            oldScene.removeEventFilter(KeyEvent.KEY_PRESSED, hotkeyHandler);
+            if (registeredShortcutScene == oldScene) {
+                registeredShortcutScene = null;
+            }
+        }
+        if (newScene == null || newScene == registeredShortcutScene) {
+            return;
+        }
+        newScene.addEventFilter(KeyEvent.KEY_PRESSED, hotkeyHandler);
+        registeredShortcutScene = newScene;
     }
 
     private void handleHotkeys(KeyEvent event) {
@@ -847,7 +874,7 @@ public class PlanEditorController {
 
         if (!event.isControlDown()) return;
         if (event.getCode() == KeyCode.S) {
-            onSavePlan();
+            requestSaveCurrentPlan(null);
             event.consume();
             return;
         }
@@ -973,6 +1000,10 @@ public class PlanEditorController {
         alert.setHeaderText(null);
         alert.setContentText(message);
         alert.showAndWait();
+    }
+
+    private void showReadOnlyPlanMessage() {
+        showInformation("Complete plans are read-only. Create a revision to make changes.");
     }
 
     private void showFailure(Throwable failure, String fallbackMessage) {
@@ -1641,7 +1672,7 @@ public class PlanEditorController {
         }
 
         switch (UnsavedChangesDialogs.promptToSaveDiscardOrCancel("plan", actionLabel)) {
-            case SAVE -> saveCurrentPlanAsync(continuation);
+            case SAVE -> requestSaveCurrentPlan(continuation);
             case DISCARD -> continuation.run();
             case CANCEL -> {
             }
@@ -1669,6 +1700,24 @@ public class PlanEditorController {
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.PLAN_CREATE_REVISION, this::onCreateRevision);
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.PLAN_OPEN_DATA_EDITOR, this::onOpenBubbleTable);
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.PLAN_AUTO_BALLOON_PAGE, this::onAutoBalloonPage);
+
+        AppMenuSupport.bindDisable(root, AppMenuSupport.MenuAction.FILE_SAVE,
+                viewModel.currentPlanEditableProperty().not()
+                        .or(viewModel.unsavedChangesProperty().not())
+                        .or(viewModel.saveInProgressProperty())
+                        .or(repositoryBusy));
+        AppMenuSupport.bindDisable(root, AppMenuSupport.MenuAction.FILE_RENAME_PLAN,
+                viewModel.currentPlanEditableProperty().not().or(repositoryBusy));
+        AppMenuSupport.bindDisable(root, AppMenuSupport.MenuAction.FILE_IMPORT_DRAWING_PAGE,
+                viewModel.currentPlanEditableProperty().not().or(repositoryBusy));
+        AppMenuSupport.bindDisable(root, AppMenuSupport.MenuAction.PLAN_COMPLETE_PLAN,
+                viewModel.currentPlanEditableProperty().not().or(repositoryBusy));
+        AppMenuSupport.bindDisable(root, AppMenuSupport.MenuAction.PLAN_CREATE_REVISION,
+                viewModel.currentPlanCompleteProperty().not().or(repositoryBusy));
+        AppMenuSupport.bindDisable(root, AppMenuSupport.MenuAction.PLAN_AUTO_BALLOON_PAGE,
+                viewModel.currentPlanEditableProperty().not()
+                        .or(viewModel.drawingLoadedProperty().not())
+                        .or(repositoryBusy));
     }
 
     private void onRenameCurrentPlanFromMenu() {

@@ -197,7 +197,25 @@ public class PartEditorController {
 
     @FXML
     private void onSaveLot() {
-        saveCurrentLotAsync(null);
+        requestSaveCurrentLot(null);
+    }
+
+    private void requestSaveCurrentLot(Runnable onSuccessContinuation) {
+        if (repositoryBusy.get() || viewModel.saveInProgressProperty().get()) {
+            showInformation("Please wait for the current database operation to finish.");
+            return;
+        }
+        if (!viewModel.lotLoadedProperty().get()) {
+            return;
+        }
+        if (!viewModel.unsavedChangesProperty().get()) {
+            if (onSuccessContinuation != null) {
+                onSuccessContinuation.run();
+            }
+            return;
+        }
+
+        saveCurrentLotAsync(onSuccessContinuation);
     }
 
     private void saveCurrentLotAsync(Runnable onSuccessContinuation) {
@@ -1011,7 +1029,7 @@ public class PartEditorController {
         }
 
         switch (UnsavedChangesDialogs.promptToSaveDiscardOrCancel("inspection lot", actionLabel)) {
-            case SAVE -> saveCurrentLotAsync(continuation);
+            case SAVE -> requestSaveCurrentLot(continuation);
             case DISCARD -> continuation.run();
             case CANCEL -> {
             }
@@ -1024,6 +1042,18 @@ public class PartEditorController {
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.LOT_UPVERSION_LOT, this::onUpversionLot);
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.NAV_INSPECTION_LOTS, this::returnToLotBrowserFromMenu);
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.NAV_HOME, this::returnToHubFromMenu);
+
+        AppMenuSupport.bindDisable(root, AppMenuSupport.MenuAction.LOT_SAVE_LOT,
+                viewModel.lotLoadedProperty().not()
+                        .or(viewModel.unsavedChangesProperty().not())
+                        .or(viewModel.saveInProgressProperty())
+                        .or(repositoryBusy));
+        AppMenuSupport.bindDisable(root, AppMenuSupport.MenuAction.FILE_RENAME_LOT,
+                viewModel.lotLoadedProperty().not().or(repositoryBusy));
+        AppMenuSupport.bindDisable(root, AppMenuSupport.MenuAction.LOT_UPVERSION_LOT,
+                viewModel.lotLoadedProperty().not()
+                        .or(viewModel.upversionAvailableProperty().not())
+                        .or(repositoryBusy));
     }
 
     private void onRenameCurrentLotFromMenu() {
