@@ -95,6 +95,9 @@ public final class AppMenuSupport {
         menuBar.getProperties().put(MENU_ITEMS_KEY, menuItems);
         menuBar.getMenus().add(buildFileMenu(menuContext, callbacks, menuItems));
         menuBar.getMenus().add(buildEditMenu(menuItems));
+        if (menuContext.includesNavigationMenu()) {
+            menuBar.getMenus().add(buildNavigationMenu(menuContext, menuItems));
+        }
         if (menuContext.includesViewMenu()) {
             menuBar.getMenus().add(buildViewMenu(menuItems));
         }
@@ -132,8 +135,6 @@ public final class AppMenuSupport {
                     actionItem("Exit", Platform::exit)
             );
             case LOT_EDITOR -> fileMenu.getItems().addAll(
-                    disabledItem(MenuAction.FILE_OPEN_INSPECTION_LOTS, "Open Inspection Lots", menuItems),
-                    new SeparatorMenuItem(),
                     disabledItem(MenuAction.LOT_SAVE_LOT, "Save Lot", menuItems),
                     disabledItem(MenuAction.LOT_UPVERSION_LOT, "Upversion Inspection Lot", menuItems),
                     new SeparatorMenuItem(),
@@ -160,6 +161,22 @@ public final class AppMenuSupport {
                 disabledItem(MenuAction.EDIT_CLEAR_SELECTION, "Clear Selection", menuItems)
         );
         return editMenu;
+    }
+
+    private static Menu buildNavigationMenu(MenuContext menuContext, Map<MenuAction, MenuItem> menuItems) {
+        Menu navigationMenu = new Menu("Navigation");
+        switch (menuContext) {
+            case PLAN_EDITOR, LOT_BROWSER -> navigationMenu.getItems().addAll(
+                    disabledItem(MenuAction.NAV_HOME, "Home", menuItems)
+            );
+            case LOT_EDITOR -> navigationMenu.getItems().addAll(
+                    disabledItem(MenuAction.NAV_INSPECTION_LOTS, "Inspection Lots", menuItems),
+                    disabledItem(MenuAction.NAV_HOME, "Home", menuItems)
+            );
+            case GENERAL -> {
+            }
+        }
+        return navigationMenu;
     }
 
     private static Menu buildViewMenu(Map<MenuAction, MenuItem> menuItems) {
@@ -307,17 +324,19 @@ public final class AppMenuSupport {
     }
 
     public enum MenuContext {
-        GENERAL(false, false),
-        PLAN_EDITOR(true, true),
-        LOT_BROWSER(false, false),
-        LOT_EDITOR(false, false);
+        GENERAL(false, false, false),
+        PLAN_EDITOR(true, true, true),
+        LOT_BROWSER(false, false, true),
+        LOT_EDITOR(false, false, true);
 
         private final boolean includesViewMenu;
         private final boolean includesPlanMenu;
+        private final boolean includesNavigationMenu;
 
-        MenuContext(boolean includesViewMenu, boolean includesPlanMenu) {
+        MenuContext(boolean includesViewMenu, boolean includesPlanMenu, boolean includesNavigationMenu) {
             this.includesViewMenu = includesViewMenu;
             this.includesPlanMenu = includesPlanMenu;
+            this.includesNavigationMenu = includesNavigationMenu;
         }
 
         public boolean includesViewMenu() {
@@ -326,6 +345,10 @@ public final class AppMenuSupport {
 
         public boolean includesPlanMenu() {
             return includesPlanMenu;
+        }
+
+        public boolean includesNavigationMenu() {
+            return includesNavigationMenu;
         }
     }
 
@@ -339,6 +362,8 @@ public final class AppMenuSupport {
         FILE_EXPORT_CSV,
         FILE_EXPORT_PDF,
         FILE_SIGN_OUT,
+        NAV_HOME,
+        NAV_INSPECTION_LOTS,
         EDIT_UNDO,
         EDIT_REDO,
         EDIT_COPY,

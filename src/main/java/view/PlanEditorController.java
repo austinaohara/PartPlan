@@ -607,6 +607,10 @@ public class PlanEditorController {
             showInformation("Select a saved plan first.");
             return;
         }
+        requestDeletePlan(selectedPlan);
+    }
+
+    private void requestDeletePlan(InspectionPlan selectedPlan) {
         InspectionPlan currentPlan = viewModel.getCurrentPlan();
         if (currentPlan != null
                 && selectedPlan.getId().equals(currentPlan.getId())
@@ -1704,6 +1708,7 @@ public class PlanEditorController {
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.FILE_IMPORT_DRAWING_PAGE, this::onImportDrawing);
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.FILE_EXPORT_CSV, this::onExportCsvFromMenu);
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.FILE_EXPORT_PDF, this::onExportPdfFromMenu);
+        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.NAV_HOME, this::returnToHubFromMenu);
 
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.VIEW_SAVED_PLANS_PANEL, this::onToggleLeftPanel);
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.VIEW_BUBBLE_DATA_PANEL, this::onToggleRightPanel);
@@ -1714,7 +1719,7 @@ public class PlanEditorController {
 
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.PLAN_SAVE_DRAFT, this::onSavePlan);
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.PLAN_OPEN_PLAN, this::onOpenPlanFromMenu);
-        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.PLAN_DELETE_PLAN, this::onDeletePlan);
+        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.PLAN_DELETE_PLAN, this::onDeletePlanFromMenu);
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.PLAN_COMPLETE_PLAN, this::onCompletePlan);
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.PLAN_CREATE_REVISION, this::onCreateRevision);
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.PLAN_OPEN_DATA_EDITOR, this::onOpenBubbleTable);
@@ -1753,6 +1758,24 @@ public class PlanEditorController {
                 repositoryBusy.set(false);
                 showFailure(failure, "Unable to open the selected plan.");
             });
+        });
+    }
+
+    private void onDeletePlanFromMenu() {
+        InspectionPlan selectedPlan = promptForPlanSelection();
+        if (selectedPlan == null) {
+            return;
+        }
+        requestDeletePlan(selectedPlan);
+    }
+
+    private void returnToHubFromMenu() {
+        requestProceedWithPotentialUnsavedChanges("return to the hub", true, () -> {
+            try {
+                AppNavigator.swapRoot(root, "/fxml/welcome.fxml", "PartPlan");
+            } catch (IOException exception) {
+                throw new IllegalStateException("Unable to return to the hub.", exception);
+            }
         });
     }
 

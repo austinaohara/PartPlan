@@ -497,6 +497,7 @@ public class InspectionLotBrowserController {
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.LOT_OPEN_SELECTED_LOT, this::onOpenLotFromMenu);
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.LOT_DELETE_LOT, this::onDeleteLotFromMenu);
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.LOT_UPVERSION_LOT, this::onUpversionLotFromMenu);
+        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.NAV_HOME, this::returnToHubFromMenu);
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.TOOLS_REFRESH_REMOTE_DATA, this::onRefreshData);
     }
 
@@ -534,6 +535,14 @@ public class InspectionLotBrowserController {
             AppNavigator.swapRoot(root, "/fxml/login.fxml", "PartPlan - Sign In");
         } catch (IOException exception) {
             throw new IllegalStateException("Unable to sign out.", exception);
+        }
+    }
+
+    private void returnToHubFromMenu() {
+        try {
+            AppNavigator.swapRoot(root, "/fxml/welcome.fxml", "PartPlan");
+        } catch (IOException exception) {
+            throw new IllegalStateException("Unable to return to the hub.", exception);
         }
     }
 

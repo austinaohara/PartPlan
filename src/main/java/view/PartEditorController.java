@@ -1047,11 +1047,10 @@ public class PartEditorController {
     }
 
     private void bindMenuActions() {
-        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.FILE_OPEN_INSPECTION_LOTS, this::returnToLotBrowserFromMenu);
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.LOT_SAVE_LOT, this::onSaveLot);
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.LOT_UPVERSION_LOT, this::onUpversionLot);
-        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.LOT_PREVIOUS_PART, this::onPreviousPart);
-        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.LOT_NEXT_PART, this::onNextPart);
+        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.NAV_INSPECTION_LOTS, this::returnToLotBrowserFromMenu);
+        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.NAV_HOME, this::returnToHubFromMenu);
     }
 
     private void returnToLotBrowserFromMenu() {
@@ -1063,6 +1062,16 @@ public class PartEditorController {
                 });
             } catch (IOException exception) {
                 throw new IllegalStateException("Unable to return to inspection lots.", exception);
+            }
+        });
+    }
+
+    private void returnToHubFromMenu() {
+        requestProceedWithPotentialUnsavedChanges("return to the hub", true, () -> {
+            try {
+                AppNavigator.swapRoot(root, "/fxml/welcome.fxml", "PartPlan");
+            } catch (IOException exception) {
+                throw new IllegalStateException("Unable to return to the hub.", exception);
             }
         });
     }
