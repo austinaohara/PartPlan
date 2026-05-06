@@ -4,7 +4,7 @@ PartPlan is a JavaFX desktop application for building inspection plans directly 
 
 The application is designed for environments where inspection requirements need to be reviewed visually, approved as controlled revisions, and reused consistently during production inspection. A plan begins as an editable draft, becomes a read-only released revision when complete, and then serves as the basis for inspection lots and recorded measurement results.
 
-> Screenshot placeholder: Insert a screenshot here of the home screen showing the main entry points into inspection plans and inspection lots.
+![Home Screen](/docs/screenshots/homescreen.png)
 >
 > Demonstration placeholder: Insert a link here to the final walkthrough video, presentation, or demonstration recording.
 
@@ -43,15 +43,14 @@ Users enter the inspection plan browser to create, open, rename, and review plan
 
 Each plan record shows the information needed to decide what to open next, including revision and release state.
 
-> Screenshot placeholder: Insert a screenshot here of the inspection plan browser with the saved plans table and create/open actions visible.
-
+![Inspection Plan Screen](/docs/screenshots/inspectionplan-library.png)
 ### 2. Build the plan on top of the drawing
 
 Inside the plan editor, users import drawing pages and place balloons directly on the image. Each balloon stores the data needed for inspection execution, including characteristic, inspection type, nominal value, tolerance limits, and notes. The editor also includes a bubble table so inspection data can be reviewed in a structured format without losing the visual relationship to the drawing.
 
 This is the core authoring space in the application. The drawing remains the focal point, while the supporting fields provide the metadata that turns a balloon into an inspection requirement.
 
-> Screenshot placeholder: Insert a screenshot here of the plan editor with a drawing page loaded, balloons placed, and the supporting inspection fields visible.
+![Plan Editor](/docs/screenshots/planeditor.png)
 
 ### 3. Use AI to accelerate first-pass ballooning
 
@@ -59,15 +58,14 @@ PartPlan includes an OpenAI-backed auto-balloon feature that analyzes a drawing 
 
 This feature is intended to reduce repetitive setup work, not replace engineering judgment. Users remain responsible for confirming the accuracy of the generated balloons before the plan is released.
 
-> Insert GIF of pressing the auto balloon button and showing the results, then fixing any errors 
- 
+![AI Auto-Balloon](/docs/screenshots/gifs/ai-autoballoon.gif) 
 ### 4. Release the plan as a controlled revision
 
 When a draft is ready, the plan can be completed. Completion locks that revision as read-only so it cannot be edited accidentally after release. If the drawing needs to change later, the application creates a new revision instead of modifying the completed plan in place.
 
 That control matters because inspection lots are built from completed plans. The application therefore preserves a clean line between plan authoring and approved inspection use.
 
-> Insert GIF of pressing complete button
+![Complete Button](/docs/screenshots/gifs/completeplan.gif)
 
 ### 5. Create lots from approved plans
 
@@ -93,7 +91,7 @@ This makes PartPlan useful beyond plan creation. It becomes the place where insp
 
 PartPlan uses Firebase Authentication for access control. Users enter the application through a dedicated sign-in screen and can either sign in with an existing email/password account or create a new account directly from the same page. That keeps onboarding simple while still giving the application a real user boundary instead of acting like a shared anonymous desktop tool.
 
-> GIF of showing the signed out screen, then logging in
+![Login Demo](/docs/screenshots/gifs/signin.gif)
 
 ### User-scoped plan and lot data
 
