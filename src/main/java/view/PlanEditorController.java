@@ -38,11 +38,7 @@ import javafx.stage.Window;
 import javafx.stage.WindowEvent;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
-import model.InspectionPlan;
-import model.InspectionLotSummary;
-import model.Bubble;
-import model.InspectionType;
-import model.PlanPage;
+import model.*;
 import service.autoballoon.AutoBalloonRequest;
 import service.auth.AuthService;
 import service.export.ExportFormat;
@@ -336,6 +332,8 @@ public class PlanEditorController {
                 super.updateItem(item, empty);
                 if (empty || item == null) {
                     setText(null);
+                    setGraphic(null);
+                    setStyle(null);
                     return;
                 }
                 String label = item.getLabel() == null || item.getLabel().isBlank()
@@ -345,6 +343,27 @@ public class PlanEditorController {
                 setText(characteristic == null || characteristic.isBlank()
                         ? label
                         : label + " — " + characteristic);
+
+                Circle dot = new Circle(5);
+                switch (item.getStatus()) {
+                    case OPEN -> {
+                        dot.setFill(Color.web("#808080"));
+                        setStyle("");
+                    }
+                    case REVIEW -> {
+                        dot.setFill(Color.web("#ffff00"));
+                        setStyle("");
+                    }
+                    case PASS -> {
+                        dot.setFill(Color.web("#00ff00"));
+                        setStyle("");
+                    }
+                    case FAIL -> {
+                        dot.setFill(Color.web("#ff0000"));
+                        setStyle("");
+                    }
+                }
+                setGraphic(dot);
             }
         });
         bubbleListView.getSelectionModel().selectedItemProperty()
@@ -1161,20 +1180,35 @@ public class PlanEditorController {
 
         double scale = getDisplayScale();
         for (Bubble bubble : viewModel.getPageBubbles()) {
-            Color bubbleColor = toFxColor(bubble.getColor());
+            boolean isSelected = viewModel.getSelectedBubble() != null
+                    && bubble.getId().equals(viewModel.getSelectedBubble().getId());
+            Color baseColor = switch (bubble.getStatus()) {
+                case OPEN -> Color.web("#808080");//grey
+
+                case REVIEW -> Color.web("#ffff00");//yellow
+
+                case PASS -> Color.web("#00ff00");//green
+
+                case FAIL -> Color.web("#ff0000");//red
+            };
             Circle circle = new Circle(
                     bubble.getX() * scale,
                     bubble.getY() * scale,
                     bubble.getRadius() * scale
             );
-            circle.setFill(viewModel.getSelectedBubble() != null && bubble.getId().equals(viewModel.getSelectedBubble().getId())
-                    ? Color.color(bubbleColor.getRed(), bubbleColor.getGreen(), bubbleColor.getBlue(), 0.20)
-                    : Color.TRANSPARENT);
-            circle.setStroke(bubbleColor);
-            circle.setStrokeWidth(viewModel.getSelectedBubble() != null && bubble.getId().equals(viewModel.getSelectedBubble().getId()) ? 3.0 : 2.0);
+
+            double fillOpacity = switch (bubble.getStatus()) {
+                case OPEN -> 0.15;
+                case REVIEW -> 0.25;
+                case PASS -> isSelected ? 0.20 : 0.0;
+                case FAIL -> 0.35;
+            };
+            circle.setFill(fillOpacity > 0 ? Color.color(baseColor.getRed(), baseColor.getGreen(), baseColor.getBlue(), fillOpacity) : Color.TRANSPARENT);
+            circle.setStroke(baseColor);
+            circle.setStrokeWidth(isSelected || bubble.getStatus() != BubbleStatus.PASS ? 3.0 : 2.0);
 
             Text text = new Text(circle.getCenterX(), circle.getCenterY(), bubble.getLabel());
-            text.setFill(bubbleColor);
+            text.setFill(baseColor);
             text.setFont(Font.font("Segoe UI", FontWeight.BOLD, bubbleLabelFontSize(bubble, scale)));
             text.setMouseTransparent(true);
             text.applyCss();
@@ -1890,7 +1924,7 @@ public class PlanEditorController {
 
         return """
                 %s
-
+                
                 This will also delete %d inspection %s for this exact plan version:
                 - %s%s
                 """.formatted(

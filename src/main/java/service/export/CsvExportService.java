@@ -28,10 +28,8 @@ public class CsvExportService implements Exporter {
                 csv.append(value(bubble.getUpperTolerance())).append(",");
                 csv.append(value(bubble.getMeasuredValue())).append(",");
                 csv.append(bubble.getStatus()).append("\n");
-
-                Files.writeString(output, csv.toString());
-
             }
+            Files.writeString(output, csv.toString());
         } catch (IOException e) {
             throw new RuntimeException("Failed to export CSV", e);
         }

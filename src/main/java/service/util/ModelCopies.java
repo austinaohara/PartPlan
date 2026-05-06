@@ -135,6 +135,8 @@ public final class ModelCopies {
                 definition.getId(),
                 definition.getName(),
                 definition.getSequenceNumber(),
+                definition.getInspectionType(),
+                definition.getExpectedPassFail(),
                 definition.getNominalValue(),
                 definition.getLowerTolerance(),
                 definition.getUpperTolerance(),
