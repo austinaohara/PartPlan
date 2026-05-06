@@ -383,7 +383,7 @@ public class PartEditorController {
         });
 
         partMeasurementColumn.setCellValueFactory(data -> data.getValue().measurementValueProperty());
-        partMeasurementColumn.setCellFactory(TextFieldTableCell.forTableColumn());
+        partMeasurementColumn.setCellFactory(column -> new ToleranceCheckedMeasurementCell());
         partMeasurementColumn.setOnEditCommit(event -> {
             PartBubbleRowViewModel row = event.getRowValue();
             viewModel.updateCurrentPartMeasurement(row.getBubbleId(), event.getNewValue());
@@ -457,7 +457,7 @@ public class PartEditorController {
             bubbleColumn.setUserData(bubble.getId());
             bubbleColumn.setGraphic(buildBubbleHeader(bubble));
             bubbleColumn.setText("");
-            bubbleColumn.setCellFactory(column -> new MasterMeasurementTableCell(bubble.getId()));
+            bubbleColumn.setCellFactory(column -> new MasterMeasurementTableCell(bubble.getId(), bubble.getNominalValue(), bubble.getLowerTolerance(), bubble.getUpperTolerance()));
             bubbleColumn.setOnEditCommit(event -> {
                 viewModel.updatePartMeasurement(event.getRowValue(), bubble.getId(), event.getNewValue());
                 partTableView.refresh();
@@ -576,7 +576,7 @@ public class PartEditorController {
                 Lot: %s
                 Current plan: %s v%d
                 New plan: %s v%d
-
+                
                 Measurements and comments are preserved for matching bubble IDs. New bubbles will start blank, and removed bubbles will be dropped from the lot.
                 """.formatted(
                 lot.getName(),
@@ -844,14 +844,20 @@ public class PartEditorController {
 
     private final class MasterMeasurementTableCell extends TableCell<PartRecord, String> {
         private final String bubbleId;
+        private final String nominalValue;
+        private final String lowerTolerance;
+        private final String upperTolerance;
         private final Label valueLabel = new Label();
         private final Label commentMarker = new Label("*");
         private final StackPane displayPane = new StackPane();
         private TextField textField;
         private MasterCommentCellKey registeredKey;
 
-        private MasterMeasurementTableCell(String bubbleId) {
+        private MasterMeasurementTableCell(String bubbleId, String nominalValue, String lowerTolerance, String upperTolerance) {
             this.bubbleId = bubbleId;
+            this.nominalValue = nominalValue;
+            this.lowerTolerance = lowerTolerance;
+            this.upperTolerance = upperTolerance;
 
             valueLabel.setMaxWidth(Double.MAX_VALUE);
             commentMarker.getStyleClass().add("master-comment-marker");
@@ -942,14 +948,43 @@ public class PartEditorController {
         private void updateDisplay() {
             PartRecord part = getTableRow() == null ? null : getTableRow().getItem();
             String comment = part == null ? "" : part.getComment(bubbleId);
+            String value = getItem() == null ? "" : getItem();
 
-            valueLabel.setText(getItem() == null ? "" : getItem());
+            valueLabel.setText(value);
             valueLabel.setPadding(new Insets(0.0, 12.0, 0.0, 0.0));
             commentMarker.setVisible(comment != null && !comment.isBlank());
             commentMarker.setManaged(commentMarker.isVisible());
             setTooltip(buildCommentTooltip(comment));
             setGraphic(displayPane);
             setText(null);
+            Boolean inTolerance = evaluateTolerance(value);
+            if (inTolerance == null) {
+                setStyle("");
+            } else if (inTolerance) {
+                setStyle("-fx-background-color: #C8E6C9;");
+                valueLabel.setStyle("-fx-text-fill: #1B5E20; -fx-font-weight: bold;");
+            } else {
+                setStyle("-fx-background-color: #FFCDD2;");
+                valueLabel.setStyle("-fx-text-fill: #B71C1C; -fx-font-weight: bold;");
+            }
+        }
+
+        private Boolean evaluateTolerance(String measurementText) {
+            if (measurementText == null || measurementText.isBlank()) {
+                return null;
+            }
+            if (nominalValue == null || nominalValue.isBlank()) {
+                return null;
+            }
+            try {
+                double measured = Double.parseDouble(measurementText.trim());
+                double nominal = Double.parseDouble(nominalValue.trim());
+                double lower = (lowerTolerance == null || lowerTolerance.isBlank()) ? 0.0 : Double.parseDouble(lowerTolerance.trim());
+                double upper = (upperTolerance == null || upperTolerance.isBlank()) ? 0.0 : Double.parseDouble(upperTolerance.trim());
+                return measured >= (nominal - lower) && measured <= (nominal + upper);
+            } catch (NumberFormatException e) {
+                return null;
+            }
         }
 
         private void createTextField() {
@@ -1183,5 +1218,62 @@ public class PartEditorController {
             metadata.append(" · Next: ").append(nextVersionText.trim());
         }
         lotMetadataLabel.setText(metadata.toString());
+    }
+
+    private static final class ToleranceCheckedMeasurementCell
+            extends TextFieldTableCell<PartBubbleRowViewModel, String> {
+
+        private static final String STYLE_PASS =
+                "-fx-background-color: #C8E6C9; -fx-text-fill: #1B5E20; -fx-font-weight: bold;";
+        private static final String STYLE_FAIL =
+                "-fx-background-color: #FFCDD2; -fx-text-fill: #B71C1C; -fx-font-weight: bold;";
+
+        ToleranceCheckedMeasurementCell() {
+            super(new javafx.util.converter.DefaultStringConverter());
+        }
+
+        @Override
+        public void updateItem(String item, boolean empty) {
+            super.updateItem(item, empty);
+
+            if (empty || item == null || item.isBlank()) {
+                setStyle("");
+                return;
+            }
+
+            PartBubbleRowViewModel row = getTableRow() == null ? null : getTableRow().getItem();
+            if (row == null) {
+                setStyle("");
+                return;
+            }
+
+            Boolean inTolerance = evaluateTolerance(row, item);
+            setStyle(inTolerance == null ? "" : (inTolerance ? STYLE_PASS : STYLE_FAIL));
+        }
+
+        private Boolean evaluateTolerance(PartBubbleRowViewModel row, String measurementText) {
+            String nominalText = row.getNominalValue();
+            if (nominalText == null || nominalText.isBlank()) {
+                return null;
+            }
+            try {
+                double measured = Double.parseDouble(measurementText.trim());
+                double nominal = Double.parseDouble(nominalText.trim());
+                double lowerTol = parseOrZero(row.getLowerTolerance());
+                double upperTol = parseOrZero(row.getUpperTolerance());
+                return measured >= (nominal - lowerTol) && measured <= (nominal + upperTol);
+            } catch (NumberFormatException ex) {
+                return null;
+            }
+        }
+
+        private double parseOrZero(String text) {
+            if (text == null || text.isBlank()) return 0.0;
+            try {
+                return Double.parseDouble(text.trim());
+            } catch (NumberFormatException ex) {
+                return 0.0;
+            }
+        }
     }
 }

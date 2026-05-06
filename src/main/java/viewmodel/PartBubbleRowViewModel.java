@@ -13,6 +13,9 @@ public class PartBubbleRowViewModel {
     private final StringProperty requirement = new SimpleStringProperty();
     private final StringProperty measurementValue = new SimpleStringProperty();
     private final StringProperty commentValue = new SimpleStringProperty();
+    private final String nominalValue;
+    private final String lowerTolerance;
+    private final String upperTolerance;
 
     public PartBubbleRowViewModel(
             String bubbleId,
@@ -26,6 +29,9 @@ public class PartBubbleRowViewModel {
             String commentValue
     ) {
         this.bubbleId = bubbleId;
+        this.nominalValue = nominalValue;
+        this.lowerTolerance = lowerTolerance;
+        this.upperTolerance = upperTolerance;
         this.sequenceNumber.set(sequenceNumber);
         this.bubbleName.set(bubbleName);
         this.note.set(note);
@@ -93,6 +99,12 @@ public class PartBubbleRowViewModel {
     public void setCommentValue(String value) {
         commentValue.set(value);
     }
+
+    public String getNominalValue()   { return nominalValue;   }
+
+    public String getLowerTolerance() { return lowerTolerance; }
+
+    public String getUpperTolerance() { return upperTolerance; }
 
     private String buildRequirement(
             String bubbleName,
