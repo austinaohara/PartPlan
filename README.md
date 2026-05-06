@@ -18,7 +18,6 @@ The application is designed for environments where inspection requirements need 
 - [Local Configuration](#local-configuration)
 - [Codebase at a Glance](#codebase-at-a-glance)
 - [Team Roles](#team-roles)
-- [Operational Notes](#operational-notes)
 
 ---
 
@@ -101,15 +100,6 @@ PartPlan uses Firebase Authentication for access control. Users enter the applic
 Once authenticated, each user works inside their own Firestore-backed data space. Inspection plans, plan revisions, inspection lots, part measurements, and lot comments are all stored under the authenticated user record rather than in one flat shared pool. In practical terms, every plan family and every inspection lot belongs to a user account and stays attached to that account throughout the workflow.
 
 This matters because it preserves ownership, avoids accidental cross-user overlap, and makes the application workable for more than one business at a time. Different organizations, suppliers, or internal teams can use the same deployed system without mixing plan libraries or inspection records.
-
-### Why Firebase fits this project
-
-Firebase gives the project two things that matter immediately:
-
-- a straightforward registration and sign-in experience
-- cloud persistence that follows the authenticated user across sessions
-
-That means a released plan is not just saved on one machine. It remains available to the same signed-in user later, along with its revisions, linked inspection lots, saved measurements, and comments. Combined with the read-only completion workflow, this gives PartPlan a controlled and traceable data model instead of a local-file workflow with manual handoff risk.
 
 ---
 
@@ -237,9 +227,3 @@ Update this section with the final project roster before submission.
 
 ---
 
-## Operational Notes
-
-- Completed plans are intentionally read-only.
-- Any further changes after completion should be made through a new revision.
-- AI-generated balloons should always be reviewed before final save or release.
-- Firebase and OpenAI features require valid credentials and network access.
