@@ -73,7 +73,7 @@ Inspection lots are created from completed plan revisions, not from drafts. That
 
 The inspection lot browser provides the same management role for lots that the plan browser provides for plans: users can create, open, rename, delete, and upversion lots from a dedicated selection screen instead of mixing those actions into the editing workspace.
 
-> Screenshot placeholder: Insert a screenshot here of the inspection lot browser with lots linked to completed plans.
+![Lot Entry](/docs/screenshots/lotselector.png)
 
 ### 6. Record measurements and comments during execution
 
@@ -81,7 +81,7 @@ Once a lot is open, users can enter inspection results part by part or work from
 
 This makes PartPlan useful beyond plan creation. It becomes the place where inspection intent and inspection execution meet.
 
-> Insert GIF of putting data onto the table
+![Data Entry](/docs/screenshots/gifs/lotentry.gif)
 
 ---
 
