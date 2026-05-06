@@ -59,15 +59,15 @@ PartPlan includes an OpenAI-backed auto-balloon feature that analyzes a drawing 
 
 This feature is intended to reduce repetitive setup work, not replace engineering judgment. Users remain responsible for confirming the accuracy of the generated balloons before the plan is released.
 
-> Screenshot placeholder: Insert a screenshot here of the auto-balloon workflow with generated balloon candidates shown on the drawing.
-
+> Insert GIF of pressing the auto balloon button and showing the results, then fixing any errors 
+ 
 ### 4. Release the plan as a controlled revision
 
 When a draft is ready, the plan can be completed. Completion locks that revision as read-only so it cannot be edited accidentally after release. If the drawing needs to change later, the application creates a new revision instead of modifying the completed plan in place.
 
 That control matters because inspection lots are built from completed plans. The application therefore preserves a clean line between plan authoring and approved inspection use.
 
-> Screenshot placeholder: Insert a screenshot here of a completed plan showing revision information and read-only status in the editor.
+> Insert GIF of pressing complete button
 
 ### 5. Create lots from approved plans
 
@@ -83,7 +83,7 @@ Once a lot is open, users can enter inspection results part by part or work from
 
 This makes PartPlan useful beyond plan creation. It becomes the place where inspection intent and inspection execution meet.
 
-> Screenshot placeholder: Insert a screenshot here of the inspection lot editor, including the part-based view or master table view with comments visible.
+> Insert GIF of putting data onto the table
 
 ---
 
@@ -93,7 +93,7 @@ This makes PartPlan useful beyond plan creation. It becomes the place where insp
 
 PartPlan uses Firebase Authentication for access control. Users enter the application through a dedicated sign-in screen and can either sign in with an existing email/password account or create a new account directly from the same page. That keeps onboarding simple while still giving the application a real user boundary instead of acting like a shared anonymous desktop tool.
 
-> Screenshot placeholder: Insert a screenshot here of the sign-in screen showing both the Sign In and Create Account actions.
+> GIF of showing the signed out screen, then logging in
 
 ### User-scoped plan and lot data
 
