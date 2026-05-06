@@ -393,7 +393,13 @@ public class PartEditorController {
         partMeasurementColumn.setCellFactory(column -> new ToleranceCheckedMeasurementCell());
         partMeasurementColumn.setOnEditCommit(event -> {
             PartBubbleRowViewModel row = event.getRowValue();
-            viewModel.updateCurrentPartMeasurement(row.getBubbleId(), event.getNewValue());
+            String normalizedValue = normalizeMeasurementInput(event.getNewValue(), row.getInspectionType());
+            if (normalizedValue == null) {
+                partTableView.refresh();
+                selectBubbleCell(row.getBubbleId(), partMeasurementColumn);
+                return;
+            }
+            viewModel.updateCurrentPartMeasurement(row.getBubbleId(), normalizedValue);
             masterTableView.refresh();
             selectBubbleCell(row.getBubbleId(), partMeasurementColumn);
         });
@@ -466,7 +472,13 @@ public class PartEditorController {
             bubbleColumn.setText("");
             bubbleColumn.setCellFactory(column -> new MasterMeasurementTableCell(bubble));
             bubbleColumn.setOnEditCommit(event -> {
-                viewModel.updatePartMeasurement(event.getRowValue(), bubble.getId(), event.getNewValue());
+                String normalizedValue = normalizeMeasurementInput(event.getNewValue(), bubble.getInspectionType());
+                if (normalizedValue == null) {
+                    masterTableView.refresh();
+                    selectTableCell(masterTableView, event.getTablePosition().getRow(), event.getTableColumn());
+                    return;
+                }
+                viewModel.updatePartMeasurement(event.getRowValue(), bubble.getId(), normalizedValue);
                 partTableView.refresh();
                 masterTableView.refresh();
                 selectTableCell(masterTableView, event.getTablePosition().getRow(), event.getTableColumn());
@@ -559,10 +571,10 @@ public class PartEditorController {
 
     private String buildHeaderText(PartBubbleDefinition bubble) {
         if (bubble.getInspectionType() == InspectionType.PASS_FAIL) {
-            return "%s%nExpected %s".formatted(
-                    bubble.getName(),
-                    Boolean.FALSE.equals(bubble.getExpectedPassFail()) ? "FAIL" : "PASS"
-            );
+            String note = bubble.getNote() == null ? "" : bubble.getNote().trim();
+            return note.isBlank()
+                    ? "%s%nP/F".formatted(bubble.getName())
+                    : "%s%n%s%nP/F".formatted(bubble.getName(), note);
         }
 
         return "%s%nNom %s%n+%s / -%s".formatted(
@@ -757,6 +769,9 @@ public class PartEditorController {
     private <S> void configureTableCellSelection(TableView<S> tableView) {
         tableView.getSelectionModel().setCellSelectionEnabled(true);
         tableView.getSelectionModel().setSelectionMode(SelectionMode.SINGLE);
+        if (!tableView.getStyleClass().contains("cell-outline-table")) {
+            tableView.getStyleClass().add("cell-outline-table");
+        }
         tableView.addEventFilter(KeyEvent.KEY_PRESSED, event -> handleTableKeyPressed(tableView, event));
     }
 
@@ -770,6 +785,12 @@ public class PartEditorController {
                 && event.isShiftDown()
                 && event.getCode() == KeyCode.C) {
             openMasterCommentEditorForSelection();
+            event.consume();
+            return;
+        }
+
+        if (event.getCode() == KeyCode.DELETE || event.getCode() == KeyCode.BACK_SPACE) {
+            clearFocusedCell(tableView);
             event.consume();
             return;
         }
@@ -825,6 +846,74 @@ public class PartEditorController {
                 input.positionCaret(input.getText().length());
             }
         });
+    }
+
+    private <S> void clearFocusedCell(TableView<S> tableView) {
+        TablePosition<S, ?> focusedCell = tableView.getFocusModel().getFocusedCell();
+        if (focusedCell == null || focusedCell.getRow() < 0) {
+            return;
+        }
+
+        TableColumn<S, ?> column = focusedCell.getTableColumn();
+        if (column == null || !column.isEditable()) {
+            return;
+        }
+
+        if (tableView == partTableView) {
+            @SuppressWarnings("unchecked")
+            TablePosition<PartBubbleRowViewModel, ?> partFocusedCell =
+                    (TablePosition<PartBubbleRowViewModel, ?>) focusedCell;
+            clearFocusedPartCell(partFocusedCell);
+            return;
+        }
+
+        if (tableView == masterTableView) {
+            clearFocusedMasterCell(focusedCell);
+        }
+    }
+
+    private void clearFocusedPartCell(TablePosition<PartBubbleRowViewModel, ?> focusedCell) {
+        PartBubbleRowViewModel row = focusedCell.getRow() >= partTableView.getItems().size()
+                ? null
+                : partTableView.getItems().get(focusedCell.getRow());
+        if (row == null) {
+            return;
+        }
+
+        if (focusedCell.getTableColumn() == partMeasurementColumn) {
+            viewModel.updateCurrentPartMeasurement(row.getBubbleId(), "");
+            partTableView.refresh();
+            masterTableView.refresh();
+            selectBubbleCell(row.getBubbleId(), partMeasurementColumn);
+            return;
+        }
+
+        if (focusedCell.getTableColumn() == partCommentColumn) {
+            row.setCommentValue("");
+            viewModel.updateCurrentPartComment(row.getBubbleId(), "");
+            partTableView.refresh();
+            masterTableView.refresh();
+            selectBubbleCell(row.getBubbleId(), partCommentColumn);
+        }
+    }
+
+    private void clearFocusedMasterCell(TablePosition<?, ?> focusedCell) {
+        if (focusedCell.getRow() >= masterTableView.getItems().size()) {
+            return;
+        }
+
+        PartRecord part = masterTableView.getItems().get(focusedCell.getRow());
+        @SuppressWarnings("unchecked")
+        TableColumn<PartRecord, ?> column = (TableColumn<PartRecord, ?>) focusedCell.getTableColumn();
+        String bubbleId = bubbleIdForColumn(column);
+        if (part == null || bubbleId == null || bubbleId.isBlank()) {
+            return;
+        }
+
+        viewModel.updatePartMeasurement(part, bubbleId, "");
+        partTableView.refresh();
+        masterTableView.refresh();
+        selectTableCell(masterTableView, focusedCell.getRow(), column);
     }
 
     private boolean isInlineEditCharacter(KeyEvent event) {
@@ -1303,6 +1392,29 @@ public class PartEditorController {
             case "fail", "f", "false", "no", "n", "ng", "reject", "rejected", "bad", "0" -> false;
             default -> null;
         };
+    }
+
+    private String normalizeMeasurementInput(String rawValue, InspectionType inspectionType) {
+        String normalized = rawValue == null ? "" : rawValue.trim();
+        if (normalized.isBlank()) {
+            return "";
+        }
+
+        if (inspectionType == InspectionType.PASS_FAIL) {
+            String lowered = normalized.toLowerCase();
+            return switch (lowered) {
+                case "p", "pass" -> "PASS";
+                case "f", "fail" -> "FAIL";
+                default -> null;
+            };
+        }
+
+        try {
+            Double.parseDouble(normalized);
+            return normalized;
+        } catch (NumberFormatException exception) {
+            return null;
+        }
     }
 
     private static String styleForState(MeasurementState state) {

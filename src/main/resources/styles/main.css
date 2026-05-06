@@ -516,3 +516,16 @@
     -fx-alignment: center;
     -fx-text-alignment: center;
 }
+
+.cell-outline-table:focused .table-cell:selected,
+.cell-outline-table .table-cell:selected {
+    -fx-background-color: transparent;
+    -fx-border-color: #2f80ed;
+    -fx-border-width: 2px;
+    -fx-border-insets: -1px;
+}
+
+.cell-outline-table:focused .table-row-cell:selected,
+.cell-outline-table .table-row-cell:selected {
+    -fx-background-color: transparent;
+}
