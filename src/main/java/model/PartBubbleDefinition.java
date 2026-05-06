@@ -6,13 +6,15 @@ public class PartBubbleDefinition {
     private final String id;
     private String name;
     private int sequenceNumber;
+    private final InspectionType inspectionType;
+    private final Boolean expectedPassFail;
     private final String nominalValue;
     private final String lowerTolerance;
     private final String upperTolerance;
     private final String note;
 
     public PartBubbleDefinition(String name, int sequenceNumber) {
-        this(UUID.randomUUID().toString(), name, sequenceNumber, "", "", "", "");
+        this(UUID.randomUUID().toString(), name, sequenceNumber, InspectionType.NUMERIC, null, "", "", "", "");
     }
 
     public PartBubbleDefinition(
@@ -24,9 +26,25 @@ public class PartBubbleDefinition {
             String upperTolerance,
             String note
     ) {
+        this(id, name, sequenceNumber, InspectionType.NUMERIC, null, nominalValue, lowerTolerance, upperTolerance, note);
+    }
+
+    public PartBubbleDefinition(
+            String id,
+            String name,
+            int sequenceNumber,
+            InspectionType inspectionType,
+            Boolean expectedPassFail,
+            String nominalValue,
+            String lowerTolerance,
+            String upperTolerance,
+            String note
+    ) {
         this.id = id;
         this.name = name;
         this.sequenceNumber = sequenceNumber;
+        this.inspectionType = inspectionType == null ? InspectionType.NUMERIC : inspectionType;
+        this.expectedPassFail = expectedPassFail;
         this.nominalValue = nominalValue == null ? "" : nominalValue;
         this.lowerTolerance = lowerTolerance == null ? "" : lowerTolerance;
         this.upperTolerance = upperTolerance == null ? "" : upperTolerance;
@@ -51,6 +69,14 @@ public class PartBubbleDefinition {
 
     public void setSequenceNumber(int sequenceNumber) {
         this.sequenceNumber = sequenceNumber;
+    }
+
+    public InspectionType getInspectionType() {
+        return inspectionType;
+    }
+
+    public Boolean getExpectedPassFail() {
+        return expectedPassFail;
     }
 
     public String getNominalValue() {

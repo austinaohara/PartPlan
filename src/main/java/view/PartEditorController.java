@@ -52,6 +52,7 @@ import javafx.stage.WindowEvent;
 import javafx.util.StringConverter;
 import model.InspectionLot;
 import model.InspectionPlan;
+import model.InspectionType;
 import model.PartBubbleDefinition;
 import model.PartRecord;
 import service.auth.AuthService;
@@ -65,6 +66,12 @@ import java.util.function.Consumer;
 
 public class PartEditorController {
     private static final int MAX_LOT_SIZE = 1000;
+    private static final String STYLE_PASS_BACKGROUND = "-fx-background-color: #C8E6C9;";
+    private static final String STYLE_FAIL_BACKGROUND = "-fx-background-color: #FFCDD2;";
+    private static final String STYLE_INVALID_BACKGROUND = "-fx-background-color: #FFE0B2;";
+    private static final String STYLE_PASS_TEXT = "-fx-text-fill: #1B5E20; -fx-font-weight: bold;";
+    private static final String STYLE_FAIL_TEXT = "-fx-text-fill: #B71C1C; -fx-font-weight: bold;";
+    private static final String STYLE_INVALID_TEXT = "-fx-text-fill: #8A4B00; -fx-font-weight: bold;";
 
     private final PartEditorViewModel viewModel;
     private final AuthService authService;
@@ -457,7 +464,7 @@ public class PartEditorController {
             bubbleColumn.setUserData(bubble.getId());
             bubbleColumn.setGraphic(buildBubbleHeader(bubble));
             bubbleColumn.setText("");
-            bubbleColumn.setCellFactory(column -> new MasterMeasurementTableCell(bubble.getId(), bubble.getNominalValue(), bubble.getLowerTolerance(), bubble.getUpperTolerance()));
+            bubbleColumn.setCellFactory(column -> new MasterMeasurementTableCell(bubble));
             bubbleColumn.setOnEditCommit(event -> {
                 viewModel.updatePartMeasurement(event.getRowValue(), bubble.getId(), event.getNewValue());
                 partTableView.refresh();
@@ -551,6 +558,13 @@ public class PartEditorController {
     }
 
     private String buildHeaderText(PartBubbleDefinition bubble) {
+        if (bubble.getInspectionType() == InspectionType.PASS_FAIL) {
+            return "%s%nExpected %s".formatted(
+                    bubble.getName(),
+                    Boolean.FALSE.equals(bubble.getExpectedPassFail()) ? "FAIL" : "PASS"
+            );
+        }
+
         return "%s%nNom %s%n+%s / -%s".formatted(
                 bubble.getName(),
                 displaySpecValue(bubble.getNominalValue()),
@@ -843,21 +857,15 @@ public class PartEditorController {
     }
 
     private final class MasterMeasurementTableCell extends TableCell<PartRecord, String> {
-        private final String bubbleId;
-        private final String nominalValue;
-        private final String lowerTolerance;
-        private final String upperTolerance;
+        private final PartBubbleDefinition bubble;
         private final Label valueLabel = new Label();
         private final Label commentMarker = new Label("*");
         private final StackPane displayPane = new StackPane();
         private TextField textField;
         private MasterCommentCellKey registeredKey;
 
-        private MasterMeasurementTableCell(String bubbleId, String nominalValue, String lowerTolerance, String upperTolerance) {
-            this.bubbleId = bubbleId;
-            this.nominalValue = nominalValue;
-            this.lowerTolerance = lowerTolerance;
-            this.upperTolerance = upperTolerance;
+        private MasterMeasurementTableCell(PartBubbleDefinition bubble) {
+            this.bubble = bubble;
 
             valueLabel.setMaxWidth(Double.MAX_VALUE);
             commentMarker.getStyleClass().add("master-comment-marker");
@@ -890,7 +898,7 @@ public class PartEditorController {
                     return;
                 }
                 selectTableCell(masterTableView, getIndex(), getTableColumn());
-                showMasterCommentContextMenu(this, part, bubbleId, event.getScreenX(), event.getScreenY());
+                showMasterCommentContextMenu(this, part, bubble.getId(), event.getScreenX(), event.getScreenY());
                 event.consume();
             });
         }
@@ -947,7 +955,7 @@ public class PartEditorController {
 
         private void updateDisplay() {
             PartRecord part = getTableRow() == null ? null : getTableRow().getItem();
-            String comment = part == null ? "" : part.getComment(bubbleId);
+            String comment = part == null ? "" : part.getComment(bubble.getId());
             String value = getItem() == null ? "" : getItem();
 
             valueLabel.setText(value);
@@ -957,34 +965,19 @@ public class PartEditorController {
             setTooltip(buildCommentTooltip(comment));
             setGraphic(displayPane);
             setText(null);
-            Boolean inTolerance = evaluateTolerance(value);
-            if (inTolerance == null) {
-                setStyle("");
-            } else if (inTolerance) {
-                setStyle("-fx-background-color: #C8E6C9;");
-                valueLabel.setStyle("-fx-text-fill: #1B5E20; -fx-font-weight: bold;");
-            } else {
-                setStyle("-fx-background-color: #FFCDD2;");
-                valueLabel.setStyle("-fx-text-fill: #B71C1C; -fx-font-weight: bold;");
-            }
+            applyEvaluationStyle(evaluateMeasurementState(
+                    value,
+                    bubble.getInspectionType(),
+                    bubble.getExpectedPassFail(),
+                    bubble.getNominalValue(),
+                    bubble.getLowerTolerance(),
+                    bubble.getUpperTolerance()
+            ));
         }
 
-        private Boolean evaluateTolerance(String measurementText) {
-            if (measurementText == null || measurementText.isBlank()) {
-                return null;
-            }
-            if (nominalValue == null || nominalValue.isBlank()) {
-                return null;
-            }
-            try {
-                double measured = Double.parseDouble(measurementText.trim());
-                double nominal = Double.parseDouble(nominalValue.trim());
-                double lower = (lowerTolerance == null || lowerTolerance.isBlank()) ? 0.0 : Double.parseDouble(lowerTolerance.trim());
-                double upper = (upperTolerance == null || upperTolerance.isBlank()) ? 0.0 : Double.parseDouble(upperTolerance.trim());
-                return measured >= (nominal - lower) && measured <= (nominal + upper);
-            } catch (NumberFormatException e) {
-                return null;
-            }
+        private void applyEvaluationStyle(MeasurementState state) {
+            setStyle(styleForState(state));
+            valueLabel.setStyle(textStyleForState(state));
         }
 
         private void createTextField() {
@@ -1006,6 +999,7 @@ public class PartEditorController {
         private void registerCurrentCell() {
             unregisterCell();
             PartRecord part = getTableRow() == null ? null : getTableRow().getItem();
+            String bubbleId = bubble.getId();
             if (part == null || bubbleId == null || bubbleId.isBlank()) {
                 return;
             }
@@ -1223,11 +1217,6 @@ public class PartEditorController {
     private static final class ToleranceCheckedMeasurementCell
             extends TextFieldTableCell<PartBubbleRowViewModel, String> {
 
-        private static final String STYLE_PASS =
-                "-fx-background-color: #C8E6C9; -fx-text-fill: #1B5E20; -fx-font-weight: bold;";
-        private static final String STYLE_FAIL =
-                "-fx-background-color: #FFCDD2; -fx-text-fill: #B71C1C; -fx-font-weight: bold;";
-
         ToleranceCheckedMeasurementCell() {
             super(new javafx.util.converter.DefaultStringConverter());
         }
@@ -1247,33 +1236,100 @@ public class PartEditorController {
                 return;
             }
 
-            Boolean inTolerance = evaluateTolerance(row, item);
-            setStyle(inTolerance == null ? "" : (inTolerance ? STYLE_PASS : STYLE_FAIL));
+            setStyle(styleForState(evaluateMeasurementState(
+                    item,
+                    row.getInspectionType(),
+                    row.getExpectedPassFail(),
+                    row.getNominalValue(),
+                    row.getLowerTolerance(),
+                    row.getUpperTolerance()
+            )));
+        }
+    }
+
+    private static MeasurementState evaluateMeasurementState(
+            String measurementText,
+            InspectionType inspectionType,
+            Boolean expectedPassFail,
+            String nominalText,
+            String lowerToleranceText,
+            String upperToleranceText
+    ) {
+        if (measurementText == null || measurementText.isBlank()) {
+            return null;
         }
 
-        private Boolean evaluateTolerance(PartBubbleRowViewModel row, String measurementText) {
-            String nominalText = row.getNominalValue();
-            if (nominalText == null || nominalText.isBlank()) {
-                return null;
+        if (inspectionType == InspectionType.PASS_FAIL) {
+            Boolean actual = parsePassFailValue(measurementText);
+            if (actual == null) {
+                return MeasurementState.INVALID;
             }
-            try {
-                double measured = Double.parseDouble(measurementText.trim());
-                double nominal = Double.parseDouble(nominalText.trim());
-                double lowerTol = parseOrZero(row.getLowerTolerance());
-                double upperTol = parseOrZero(row.getUpperTolerance());
-                return measured >= (nominal - lowerTol) && measured <= (nominal + upperTol);
-            } catch (NumberFormatException ex) {
-                return null;
-            }
+            boolean expected = expectedPassFail == null || expectedPassFail;
+            return actual == expected ? MeasurementState.PASS : MeasurementState.FAIL;
         }
 
-        private double parseOrZero(String text) {
-            if (text == null || text.isBlank()) return 0.0;
-            try {
-                return Double.parseDouble(text.trim());
-            } catch (NumberFormatException ex) {
-                return 0.0;
-            }
+        if (nominalText == null || nominalText.isBlank()) {
+            return null;
         }
+
+        try {
+            double measured = Double.parseDouble(measurementText.trim());
+            double nominal = Double.parseDouble(nominalText.trim());
+            double lowerTolerance = parseNumericOrZero(lowerToleranceText);
+            double upperTolerance = parseNumericOrZero(upperToleranceText);
+            return measured >= (nominal - lowerTolerance) && measured <= (nominal + upperTolerance)
+                    ? MeasurementState.PASS
+                    : MeasurementState.FAIL;
+        } catch (NumberFormatException exception) {
+            return MeasurementState.INVALID;
+        }
+    }
+
+    private static double parseNumericOrZero(String text) {
+        if (text == null || text.isBlank()) {
+            return 0.0;
+        }
+        return Double.parseDouble(text.trim());
+    }
+
+    private static Boolean parsePassFailValue(String measurementText) {
+        if (measurementText == null) {
+            return null;
+        }
+
+        String normalized = measurementText.trim().toLowerCase();
+        return switch (normalized) {
+            case "pass", "p", "true", "yes", "y", "ok", "accept", "accepted", "good", "1" -> true;
+            case "fail", "f", "false", "no", "n", "ng", "reject", "rejected", "bad", "0" -> false;
+            default -> null;
+        };
+    }
+
+    private static String styleForState(MeasurementState state) {
+        if (state == null) {
+            return "";
+        }
+        return switch (state) {
+            case PASS -> STYLE_PASS_BACKGROUND + " " + STYLE_PASS_TEXT;
+            case FAIL -> STYLE_FAIL_BACKGROUND + " " + STYLE_FAIL_TEXT;
+            case INVALID -> STYLE_INVALID_BACKGROUND + " " + STYLE_INVALID_TEXT;
+        };
+    }
+
+    private static String textStyleForState(MeasurementState state) {
+        if (state == null) {
+            return "";
+        }
+        return switch (state) {
+            case PASS -> STYLE_PASS_TEXT;
+            case FAIL -> STYLE_FAIL_TEXT;
+            case INVALID -> STYLE_INVALID_TEXT;
+        };
+    }
+
+    private enum MeasurementState {
+        PASS,
+        FAIL,
+        INVALID
     }
 }

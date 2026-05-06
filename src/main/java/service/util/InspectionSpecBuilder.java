@@ -40,6 +40,8 @@ public final class InspectionSpecBuilder {
                             bubble.getId(),
                             name,
                             index + 1,
+                            bubble.getInspectionType(),
+                            bubble.getExpectedPassFail(),
                             formatNullableNumber(bubble.getNominalValue()),
                             formatNullableNumber(bubble.getLowerTolerance()),
                             formatNullableNumber(bubble.getUpperTolerance()),

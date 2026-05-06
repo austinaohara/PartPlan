@@ -4,6 +4,7 @@ import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
+import model.InspectionType;
 
 public class PartBubbleRowViewModel {
     private final String bubbleId;
@@ -13,6 +14,8 @@ public class PartBubbleRowViewModel {
     private final StringProperty requirement = new SimpleStringProperty();
     private final StringProperty measurementValue = new SimpleStringProperty();
     private final StringProperty commentValue = new SimpleStringProperty();
+    private final InspectionType inspectionType;
+    private final Boolean expectedPassFail;
     private final String nominalValue;
     private final String lowerTolerance;
     private final String upperTolerance;
@@ -21,6 +24,8 @@ public class PartBubbleRowViewModel {
             String bubbleId,
             int sequenceNumber,
             String bubbleName,
+            InspectionType inspectionType,
+            Boolean expectedPassFail,
             String nominalValue,
             String lowerTolerance,
             String upperTolerance,
@@ -29,6 +34,8 @@ public class PartBubbleRowViewModel {
             String commentValue
     ) {
         this.bubbleId = bubbleId;
+        this.inspectionType = inspectionType == null ? InspectionType.NUMERIC : inspectionType;
+        this.expectedPassFail = expectedPassFail;
         this.nominalValue = nominalValue;
         this.lowerTolerance = lowerTolerance;
         this.upperTolerance = upperTolerance;
@@ -105,6 +112,14 @@ public class PartBubbleRowViewModel {
     public String getLowerTolerance() { return lowerTolerance; }
 
     public String getUpperTolerance() { return upperTolerance; }
+
+    public InspectionType getInspectionType() {
+        return inspectionType;
+    }
+
+    public Boolean getExpectedPassFail() {
+        return expectedPassFail;
+    }
 
     private String buildRequirement(
             String bubbleName,

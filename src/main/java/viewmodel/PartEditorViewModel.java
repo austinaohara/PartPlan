@@ -339,6 +339,8 @@ public class PartEditorViewModel {
                         bubble.getId(),
                         bubble.getSequenceNumber(),
                         bubble.getName(),
+                        bubble.getInspectionType(),
+                        bubble.getExpectedPassFail(),
                         bubble.getNominalValue(),
                         bubble.getLowerTolerance(),
                         bubble.getUpperTolerance(),
