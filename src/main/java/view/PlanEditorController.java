@@ -1195,17 +1195,19 @@ public class PlanEditorController {
                     bubble.getY() * scale,
                     bubble.getRadius() * scale
             );
+            double bubbleStrokeWidth = isSelected ? 3.0 : 2.0;
 
             Circle selectionOutline = null;
             if (isSelected) {
+                double selectionOutlineStrokeWidth = 2.0;
                 Circle outline = new Circle(
                         circle.getCenterX(),
                         circle.getCenterY(),
-                        circle.getRadius() + Math.max(3.0, scale * 2.0)
+                        circle.getRadius() + (bubbleStrokeWidth + selectionOutlineStrokeWidth) / 2.0
                 );
                 outline.setFill(Color.TRANSPARENT);
                 outline.setStroke(Color.web("#183247"));
-                outline.setStrokeWidth(2.0);
+                outline.setStrokeWidth(selectionOutlineStrokeWidth);
                 outline.setMouseTransparent(true);
                 selectionOutline = outline;
             }
@@ -1214,7 +1216,7 @@ public class PlanEditorController {
 
             circle.setFill(Color.WHITE);
             circle.setStroke(baseColor);
-            circle.setStrokeWidth(isSelected ? 3.0 : 2.0);
+            circle.setStrokeWidth(bubbleStrokeWidth);
 
             Text text = new Text(circle.getCenterX(), circle.getCenterY(), bubble.getLabel());
             text.setFill(baseColor);
