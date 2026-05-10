@@ -42,6 +42,16 @@
     -fx-border-width: 0 1 0 0;
 }
 
+.panel-scroll-pane {
+    -fx-background-color: transparent;
+    -fx-background-insets: 0;
+    -fx-padding: 0;
+}
+
+.panel-scroll-pane > .viewport {
+    -fx-background-color: transparent;
+}
+
 .tool-window-header {
     -fx-background-color: #ebebeb;
     -fx-border-color: #c9cdd4;
