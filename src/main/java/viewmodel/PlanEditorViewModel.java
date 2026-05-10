@@ -574,7 +574,6 @@ public class PlanEditorViewModel {
 
         bubble.setX(x);
         bubble.setY(y);
-        refreshPageBubbles();
         markDirty();
     }
 

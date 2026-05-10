@@ -213,6 +213,7 @@ public class PlanEditorController {
     private FilteredList<Bubble> filteredBubbles;
     private SortedList<Bubble> sortedBubbles;
     private boolean syncingPageSelection;
+    private boolean suppressNextDrawingClick;
     private double defaultBubbleDiameter = 36.0;
     private String defaultBubbleColor = "#E53935";
     private String defaultCharacteristic = "";
@@ -1137,6 +1138,12 @@ public class PlanEditorController {
             return;
         }
 
+        if (suppressNextDrawingClick) {
+            suppressNextDrawingClick = false;
+            event.consume();
+            return;
+        }
+
         if (event.isShiftDown() && !viewModel.isCurrentPlanEditable()) {
             event.consume();
             return;
@@ -1182,30 +1189,29 @@ public class PlanEditorController {
         for (Bubble bubble : viewModel.getPageBubbles()) {
             boolean isSelected = viewModel.getSelectedBubble() != null
                     && bubble.getId().equals(viewModel.getSelectedBubble().getId());
-            Color baseColor = switch (bubble.getStatus()) {
-                case OPEN -> Color.web("#808080");//grey
-
-                case REVIEW -> Color.web("#ffff00");//yellow
-
-                case PASS -> Color.web("#00ff00");//green
-
-                case FAIL -> Color.web("#ff0000");//red
-            };
+            Color baseColor = toFxColor(bubble.getColor());
+            Circle selectionOutline = null;
             Circle circle = new Circle(
                     bubble.getX() * scale,
                     bubble.getY() * scale,
                     bubble.getRadius() * scale
             );
 
-            double fillOpacity = switch (bubble.getStatus()) {
-                case OPEN -> 0.15;
-                case REVIEW -> 0.25;
-                case PASS -> isSelected ? 0.20 : 0.0;
-                case FAIL -> 0.35;
-            };
-            circle.setFill(fillOpacity > 0 ? Color.color(baseColor.getRed(), baseColor.getGreen(), baseColor.getBlue(), fillOpacity) : Color.TRANSPARENT);
+            if (isSelected) {
+                selectionOutline = new Circle(
+                        circle.getCenterX(),
+                        circle.getCenterY(),
+                        circle.getRadius() + Math.max(3.0, scale * 2.0)
+                );
+                selectionOutline.setFill(Color.TRANSPARENT);
+                selectionOutline.setStroke(Color.web("#183247"));
+                selectionOutline.setStrokeWidth(2.0);
+                selectionOutline.setMouseTransparent(true);
+            }
+
+            circle.setFill(Color.WHITE);
             circle.setStroke(baseColor);
-            circle.setStrokeWidth(isSelected || bubble.getStatus() != BubbleStatus.PASS ? 3.0 : 2.0);
+            circle.setStrokeWidth(isSelected ? 3.0 : 2.0);
 
             Text text = new Text(circle.getCenterX(), circle.getCenterY(), bubble.getLabel());
             text.setFill(baseColor);
@@ -1259,6 +1265,9 @@ public class PlanEditorController {
                 mouseEvent.consume();
             });
 
+            if (selectionOutline != null) {
+                bubbleOverlayPane.getChildren().add(selectionOutline);
+            }
             bubbleOverlayPane.getChildren().addAll(circle, text);
         }
     }
@@ -1610,12 +1619,15 @@ public class PlanEditorController {
             return;
         }
 
+        Bubble releasedBubble = draggingBubble;
         if (bubbleDragged) {
             Point2D overlayPoint = bubbleOverlayPane.sceneToLocal(sceneX, sceneY);
-            updateBubblePosition(draggingBubble, overlayPoint.getX(), overlayPoint.getY());
+            updateBubblePosition(releasedBubble, overlayPoint.getX(), overlayPoint.getY());
             viewModel.persistBubbleLayout();
+            suppressNextDrawingClick = true;
         }
 
+        viewModel.selectBubble(releasedBubble);
         drawingScrollPane.setPannable(drawingPannableBeforeBubbleDrag);
         draggingBubble = null;
         bubbleDragged = false;
@@ -1630,6 +1642,7 @@ public class PlanEditorController {
         double clampedY = Math.max(radius, Math.min(overlayY, imageHeight - radius));
 
         viewModel.moveBubble(bubble, clampedX / scale, clampedY / scale);
+        renderBubbles();
     }
 
     private String formatPlanListEntry(InspectionPlan plan) {
