@@ -12,6 +12,9 @@
 <?import javafx.scene.layout.VBox?>
 
 <BorderPane prefHeight="360.0" prefWidth="560.0" stylesheets="@../styles/main.css,@../styles/auto-balloon-config.css" xmlns="http://javafx.com/javafx/20.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="AutoBalloonSettingsController">
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<BorderPane prefHeight="600.0" prefWidth="800.0" stylesheets="@../styles/main.css" xmlns="http://javafx.com/javafx/17.0.12" xmlns:fx="http://javafx.com/fxml/1" fx:controller="AutoBalloonSettingsController">
     <top>
         <VBox spacing="8.0" styleClass="top-bar">
             <padding>
@@ -47,7 +50,7 @@
                 </padding>
                 <Label styleClass="field-label" text="Model" />
                 <ComboBox fx:id="modelComboBox" />
-                <Label styleClass="editor-copy" text="Use a lower-cost model like gpt-5.4-mini, or switch to gpt-5.5 if you need better extraction quality." wrapText="true" />
+                <Label styleClass="editor-copy" text="Use a lower-cost model like gpt-5.4-mini, or switch to gpt-5.5 if you need better extraction quality." textOverrun="CLIP" wrapText="true" />
             </VBox>
 
             <VBox spacing="6.0">
