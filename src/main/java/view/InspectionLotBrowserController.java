@@ -544,6 +544,7 @@ public class InspectionLotBrowserController {
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.LOT_DELETE_LOT, this::onDeleteLotFromMenu);
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.LOT_UPVERSION_LOT, this::onUpversionLotFromMenu);
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.NAV_HOME, this::returnToHubFromMenu);
+        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.NAV_PLANS, this::returnToPlanBrowserFromMenu);
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.TOOLS_REFRESH_REMOTE_DATA, this::onRefreshData);
     }
 
@@ -597,6 +598,19 @@ public class InspectionLotBrowserController {
             AppNavigator.swapRoot(root, "/fxml/welcome.fxml", "PartPlan");
         } catch (IOException exception) {
             throw new IllegalStateException("Unable to return to the hub.", exception);
+        }
+    }
+
+    private void returnToPlanBrowserFromMenu() {
+        try {
+            InspectionLotSummary selectedLot = savedLotsTableView.getSelectionModel().getSelectedItem();
+            String targetPlanId = selectedLot == null ? null : selectedLot.getPlanId();
+            AppNavigator.swapRoot(root, "/fxml/plan-browser.fxml", "PartPlan - Inspection Plans", loader -> {
+                PlanBrowserController controller = loader.getController();
+                controller.selectPlan(targetPlanId);
+            });
+        } catch (IOException exception) {
+            throw new IllegalStateException("Unable to open inspection plans.", exception);
         }
     }
 

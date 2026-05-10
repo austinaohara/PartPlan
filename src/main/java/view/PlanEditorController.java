@@ -1743,6 +1743,7 @@ public class PlanEditorController {
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.FILE_EXPORT_CSV, this::onExportCsvFromMenu);
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.FILE_EXPORT_PDF, this::onExportPdfFromMenu);
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.NAV_PLANS, this::returnToPlanBrowserFromMenu);
+        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.NAV_INSPECTION_LOTS, this::returnToLotBrowserFromMenu);
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.NAV_HOME, this::returnToHubFromMenu);
 
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.VIEW_SAVED_PLANS_PANEL, this::onToggleLeftPanel);
@@ -1801,6 +1802,16 @@ public class PlanEditorController {
                 openPlanBrowser(root);
             } catch (IOException exception) {
                 throw new IllegalStateException("Unable to return to inspection plans.", exception);
+            }
+        });
+    }
+
+    private void returnToLotBrowserFromMenu() {
+        requestProceedWithPotentialUnsavedChanges("return to inspection lots", true, () -> {
+            try {
+                openLotBrowser(root);
+            } catch (IOException exception) {
+                throw new IllegalStateException("Unable to open inspection lots.", exception);
             }
         });
     }
@@ -1927,6 +1938,10 @@ public class PlanEditorController {
             PlanBrowserController controller = loader.getController();
             controller.selectPlan(currentPlanId);
         });
+    }
+
+    private void openLotBrowser(Node source) throws IOException {
+        AppNavigator.swapRoot(source, "/fxml/inspection-lot-browser.fxml", "PartPlan - Inspection Lots");
     }
 
     private String buildDeletePlanMessage(InspectionPlan plan, List<InspectionLotSummary> affectedLots) {

@@ -389,6 +389,7 @@ public class PlanBrowserController {
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.FILE_RENAME_PLAN, this::onRenamePlanFromMenu);
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.PLAN_DELETE_PLAN, this::onDeletePlanFromMenu);
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.NAV_HOME, this::returnToHubFromMenu);
+        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.NAV_INSPECTION_LOTS, this::returnToLotBrowserFromMenu);
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.TOOLS_REFRESH_REMOTE_DATA, this::onRefreshData);
     }
 
@@ -442,6 +443,14 @@ public class PlanBrowserController {
             AppNavigator.swapRoot(root, "/fxml/welcome.fxml", "PartPlan");
         } catch (IOException exception) {
             throw new IllegalStateException("Unable to return to the hub.", exception);
+        }
+    }
+
+    private void returnToLotBrowserFromMenu() {
+        try {
+            AppNavigator.swapRoot(root, "/fxml/inspection-lot-browser.fxml", "PartPlan - Inspection Lots");
+        } catch (IOException exception) {
+            throw new IllegalStateException("Unable to open inspection lots.", exception);
         }
     }
 

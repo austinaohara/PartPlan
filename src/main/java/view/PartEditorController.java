@@ -1340,6 +1340,7 @@ public class PartEditorController {
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.LOT_UPVERSION_LOT, this::onUpversionLot);
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.FILE_EXPORT_CSV, this::onExportCsvFromMenu);
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.FILE_EXPORT_PDF, this::onExportPdfFromMenu);
+        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.NAV_PLANS, this::returnToPlanBrowserFromMenu);
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.NAV_INSPECTION_LOTS, this::returnToLotBrowserFromMenu);
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.NAV_HOME, this::returnToHubFromMenu);
 
@@ -1404,6 +1405,21 @@ public class PartEditorController {
                 });
             } catch (IOException exception) {
                 throw new IllegalStateException("Unable to return to inspection lots.", exception);
+            }
+        });
+    }
+
+    private void returnToPlanBrowserFromMenu() {
+        requestProceedWithPotentialUnsavedChanges("return to inspection plans", true, () -> {
+            try {
+                InspectionLot currentLot = viewModel.getCurrentLot();
+                String currentPlanId = currentLot == null ? null : currentLot.getPlanId();
+                AppNavigator.swapRoot(root, "/fxml/plan-browser.fxml", "PartPlan - Inspection Plans", loader -> {
+                    PlanBrowserController controller = loader.getController();
+                    controller.selectPlan(currentPlanId);
+                });
+            } catch (IOException exception) {
+                throw new IllegalStateException("Unable to open inspection plans.", exception);
             }
         });
     }

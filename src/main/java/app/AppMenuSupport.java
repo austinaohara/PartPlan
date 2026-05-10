@@ -119,7 +119,10 @@ public final class AppMenuSupport {
             menuBar.getMenus().add(buildViewMenu(menuItems));
         }
         if (menuContext.includesPlanMenu()) {
-            menuBar.getMenus().add(buildPlanMenu(menuItems));
+            menuBar.getMenus().add(buildPlanMenu(menuContext, menuItems));
+        }
+        if (menuContext.includesLotMenu()) {
+            menuBar.getMenus().add(buildLotMenu(menuContext, menuItems));
         }
         menuBar.getMenus().add(buildToolsMenu(callbacks, menuItems));
         menuBar.getMenus().add(buildHelpMenu());
@@ -133,9 +136,6 @@ public final class AppMenuSupport {
                     disabledItem(MenuAction.FILE_NEW_PLAN, "New Plan...", menuItems),
                     disabledItem(MenuAction.FILE_OPEN_PLAN, "Open Plan...", menuItems),
                     disabledItem(MenuAction.FILE_RENAME_PLAN, "Rename Plan...", menuItems),
-                    new SeparatorMenuItem(),
-                    disabledItem(MenuAction.PLAN_DELETE_PLAN, "Delete Plan", menuItems),
-                    disabledItem(MenuAction.TOOLS_REFRESH_REMOTE_DATA, "Refresh", menuItems),
                     new SeparatorMenuItem(),
                     actionItem(MenuAction.FILE_SIGN_OUT, "Sign Out", callbacks.onSignOut(), menuItems),
                     actionItem("Exit", Platform::exit)
@@ -155,10 +155,6 @@ public final class AppMenuSupport {
                     disabledItem(MenuAction.LOT_OPEN_SELECTED_LOT, "Open Inspection Lot...", menuItems),
                     disabledItem(MenuAction.FILE_RENAME_LOT, "Rename Inspection Lot...", menuItems),
                     new SeparatorMenuItem(),
-                    disabledItem(MenuAction.LOT_DELETE_LOT, "Delete Inspection Lot", menuItems),
-                    disabledItem(MenuAction.LOT_UPVERSION_LOT, "Upversion Inspection Lot", menuItems),
-                    disabledItem(MenuAction.TOOLS_REFRESH_REMOTE_DATA, "Refresh", menuItems),
-                    new SeparatorMenuItem(),
                     actionItem(MenuAction.FILE_SIGN_OUT, "Sign Out", callbacks.onSignOut(), menuItems),
                     actionItem("Exit", Platform::exit)
             );
@@ -166,7 +162,6 @@ public final class AppMenuSupport {
                     disabledItem(MenuAction.FILE_RENAME_LOT, "Rename Inspection Lot...", menuItems),
                     new SeparatorMenuItem(),
                     disabledItem(MenuAction.LOT_SAVE_LOT, "Save Lot", menuItems),
-                    disabledItem(MenuAction.LOT_UPVERSION_LOT, "Upversion Inspection Lot", menuItems),
                     exportMenu(menuItems),
                     new SeparatorMenuItem(),
                     actionItem(MenuAction.FILE_SIGN_OUT, "Sign Out", callbacks.onSignOut(), menuItems),
@@ -196,21 +191,14 @@ public final class AppMenuSupport {
 
     private static Menu buildNavigationMenu(MenuContext menuContext, Map<MenuAction, MenuItem> menuItems) {
         Menu navigationMenu = new Menu("Navigation");
-        switch (menuContext) {
-            case PLAN_BROWSER, LOT_BROWSER -> navigationMenu.getItems().addAll(
-                    disabledItem(MenuAction.NAV_HOME, "Home", menuItems)
-            );
-            case PLAN_EDITOR -> navigationMenu.getItems().addAll(
-                    disabledItem(MenuAction.NAV_PLANS, "Inspection Plans", menuItems),
-                    disabledItem(MenuAction.NAV_HOME, "Home", menuItems)
-            );
-            case LOT_EDITOR -> navigationMenu.getItems().addAll(
-                    disabledItem(MenuAction.NAV_INSPECTION_LOTS, "Inspection Lots", menuItems),
-                    disabledItem(MenuAction.NAV_HOME, "Home", menuItems)
-            );
-            case GENERAL -> {
-            }
+        if (menuContext == MenuContext.GENERAL) {
+            return navigationMenu;
         }
+        navigationMenu.getItems().addAll(
+                disabledItem(MenuAction.NAV_HOME, "Home", menuItems),
+                disabledItem(MenuAction.NAV_PLANS, "Inspection Plans", menuItems),
+                disabledItem(MenuAction.NAV_INSPECTION_LOTS, "Inspection Lots", menuItems)
+        );
         return navigationMenu;
     }
 
@@ -228,18 +216,41 @@ public final class AppMenuSupport {
         return viewMenu;
     }
 
-    private static Menu buildPlanMenu(Map<MenuAction, MenuItem> menuItems) {
+    private static Menu buildPlanMenu(MenuContext menuContext, Map<MenuAction, MenuItem> menuItems) {
         Menu planMenu = new Menu("Plan");
-        planMenu.getItems().addAll(
-                disabledItem(MenuAction.PLAN_COMPLETE_PLAN, "Complete Plan", menuItems),
-                disabledItem(MenuAction.PLAN_CREATE_REVISION, "Create Revision", menuItems),
-                new SeparatorMenuItem(),
-                disabledItem(MenuAction.PLAN_OPEN_DATA_EDITOR, "Open Bubble Table", menuItems),
-                disabledItem(MenuAction.PLAN_AUTO_BALLOON_PAGE, "Auto-Balloon Page", menuItems),
-                disabledItem(MenuAction.PLAN_NEXT_PAGE, "Next Page", menuItems),
-                disabledItem(MenuAction.PLAN_PREVIOUS_PAGE, "Previous Page", menuItems)
-        );
+        switch (menuContext) {
+            case PLAN_BROWSER -> planMenu.getItems().addAll(
+                    disabledItem(MenuAction.PLAN_DELETE_PLAN, "Delete Plan", menuItems)
+            );
+            case PLAN_EDITOR -> planMenu.getItems().addAll(
+                    disabledItem(MenuAction.PLAN_COMPLETE_PLAN, "Complete Plan", menuItems),
+                    disabledItem(MenuAction.PLAN_CREATE_REVISION, "Create Revision", menuItems),
+                    new SeparatorMenuItem(),
+                    disabledItem(MenuAction.PLAN_OPEN_DATA_EDITOR, "Open Bubble Table", menuItems),
+                    disabledItem(MenuAction.PLAN_AUTO_BALLOON_PAGE, "Auto-Balloon Page", menuItems),
+                    disabledItem(MenuAction.PLAN_NEXT_PAGE, "Next Page", menuItems),
+                    disabledItem(MenuAction.PLAN_PREVIOUS_PAGE, "Previous Page", menuItems)
+            );
+            default -> {
+            }
+        }
         return planMenu;
+    }
+
+    private static Menu buildLotMenu(MenuContext menuContext, Map<MenuAction, MenuItem> menuItems) {
+        Menu lotMenu = new Menu("Lot");
+        switch (menuContext) {
+            case LOT_BROWSER -> lotMenu.getItems().addAll(
+                    disabledItem(MenuAction.LOT_DELETE_LOT, "Delete Inspection Lot", menuItems),
+                    disabledItem(MenuAction.LOT_UPVERSION_LOT, "Upversion Inspection Lot", menuItems)
+            );
+            case LOT_EDITOR -> lotMenu.getItems().addAll(
+                    disabledItem(MenuAction.LOT_UPVERSION_LOT, "Upversion Inspection Lot", menuItems)
+            );
+            default -> {
+            }
+        }
+        return lotMenu;
     }
 
     private static Menu buildToolsMenu(MenuCallbacks callbacks, Map<MenuAction, MenuItem> menuItems) {
@@ -358,19 +369,21 @@ public final class AppMenuSupport {
     }
 
     public enum MenuContext {
-        GENERAL(false, false, false),
-        PLAN_BROWSER(false, false, true),
-        PLAN_EDITOR(true, true, true),
-        LOT_BROWSER(false, false, true),
-        LOT_EDITOR(false, false, true);
+        GENERAL(false, false, false, false),
+        PLAN_BROWSER(false, true, false, true),
+        PLAN_EDITOR(true, true, false, true),
+        LOT_BROWSER(false, false, true, true),
+        LOT_EDITOR(false, false, true, true);
 
         private final boolean includesViewMenu;
         private final boolean includesPlanMenu;
+        private final boolean includesLotMenu;
         private final boolean includesNavigationMenu;
 
-        MenuContext(boolean includesViewMenu, boolean includesPlanMenu, boolean includesNavigationMenu) {
+        MenuContext(boolean includesViewMenu, boolean includesPlanMenu, boolean includesLotMenu, boolean includesNavigationMenu) {
             this.includesViewMenu = includesViewMenu;
             this.includesPlanMenu = includesPlanMenu;
+            this.includesLotMenu = includesLotMenu;
             this.includesNavigationMenu = includesNavigationMenu;
         }
 
@@ -380,6 +393,10 @@ public final class AppMenuSupport {
 
         public boolean includesPlanMenu() {
             return includesPlanMenu;
+        }
+
+        public boolean includesLotMenu() {
+            return includesLotMenu;
         }
 
         public boolean includesNavigationMenu() {
