@@ -466,6 +466,8 @@ public final class AppMenuSupport {
             );
             case LOT_EDITOR -> List.of(
                     new ShortcutEntry("Ctrl+S", "Save the current inspection lot."),
+                    new ShortcutEntry("Ctrl+Z", "Undo the last lot edit."),
+                    new ShortcutEntry("Ctrl+Y / Ctrl+Shift+Z", "Redo the last undone lot edit."),
                     new ShortcutEntry("Any printable key", "Start editing the focused cell and replace its contents."),
                     new ShortcutEntry("Enter / F2", "Edit the focused cell."),
                     new ShortcutEntry("Delete / Backspace", "Clear the focused editable cell."),

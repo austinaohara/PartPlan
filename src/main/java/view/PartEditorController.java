@@ -501,6 +501,11 @@ public class PartEditorController {
         masterTableView.setPlaceholder(new Label("Create or open an inspection lot to enter or review saved measurements."));
         masterTableView.setColumnResizePolicy(TableView.UNCONSTRAINED_RESIZE_POLICY);
         configureTableCellSelection(masterTableView);
+        masterTableView.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
+            if (newValue != null && newValue.getPartNumber() != viewModel.getCurrentPartNumber()) {
+                viewModel.selectPart(newValue.getPartNumber());
+            }
+        });
     }
 
     private void bindViewModel() {
@@ -1347,6 +1352,8 @@ public class PartEditorController {
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.LOT_UPVERSION_LOT, this::onUpversionLot);
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.FILE_EXPORT_CSV, this::onExportCsvFromMenu);
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.FILE_EXPORT_PDF, this::onExportPdfFromMenu);
+        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.EDIT_UNDO, this::performLotUndo);
+        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.EDIT_REDO, this::performLotRedo);
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.NAV_PLANS, this::returnToPlanBrowserFromMenu);
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.NAV_INSPECTION_LOTS, this::returnToLotBrowserFromMenu);
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.NAV_HOME, this::returnToHubFromMenu);
@@ -1356,6 +1363,10 @@ public class PartEditorController {
                         .or(viewModel.unsavedChangesProperty().not())
                         .or(viewModel.saveInProgressProperty())
                         .or(repositoryBusy));
+        AppMenuSupport.bindDisable(root, AppMenuSupport.MenuAction.EDIT_UNDO,
+                viewModel.canUndoProperty().not().or(repositoryBusy));
+        AppMenuSupport.bindDisable(root, AppMenuSupport.MenuAction.EDIT_REDO,
+                viewModel.canRedoProperty().not().or(repositoryBusy));
         AppMenuSupport.bindDisable(root, AppMenuSupport.MenuAction.FILE_EXPORT_CSV,
                 viewModel.lotLoadedProperty().not().or(repositoryBusy));
         AppMenuSupport.bindDisable(root, AppMenuSupport.MenuAction.FILE_EXPORT_PDF,
@@ -1366,6 +1377,37 @@ public class PartEditorController {
                 viewModel.lotLoadedProperty().not()
                         .or(viewModel.upversionAvailableProperty().not())
                         .or(repositoryBusy));
+    }
+
+    private void performLotUndo() {
+        if (repositoryBusy.get() || !viewModel.canUndo()) {
+            return;
+        }
+        try {
+            viewModel.undo();
+            syncLotEditorStateAfterHistoryChange();
+        } catch (IllegalStateException exception) {
+            showInformation(exception.getMessage());
+        }
+    }
+
+    private void performLotRedo() {
+        if (repositoryBusy.get() || !viewModel.canRedo()) {
+            return;
+        }
+        try {
+            viewModel.redo();
+            syncLotEditorStateAfterHistoryChange();
+        } catch (IllegalStateException exception) {
+            showInformation(exception.getMessage());
+        }
+    }
+
+    private void syncLotEditorStateAfterHistoryChange() {
+        syncLoadedLotState();
+        syncPartSelection();
+        partTableView.refresh();
+        masterTableView.refresh();
     }
 
     private void onExportCsvFromMenu() {
@@ -1507,6 +1549,22 @@ public class PartEditorController {
     }
 
     private void handleHotkeys(KeyEvent event) {
+        if (isUndoShortcut(event)) {
+            if (!isTextInputFocusOwner()) {
+                performLotUndo();
+                event.consume();
+            }
+            return;
+        }
+
+        if (isRedoShortcut(event)) {
+            if (!isTextInputFocusOwner()) {
+                performLotRedo();
+                event.consume();
+            }
+            return;
+        }
+
         if (!event.isControlDown() || event.isAltDown() || event.isMetaDown()) {
             return;
         }
@@ -1514,6 +1572,30 @@ public class PartEditorController {
             requestSaveCurrentLot(null);
             event.consume();
         }
+    }
+
+    private boolean isUndoShortcut(KeyEvent event) {
+        return event.isControlDown()
+                && !event.isAltDown()
+                && !event.isMetaDown()
+                && !event.isShiftDown()
+                && event.getCode() == KeyCode.Z;
+    }
+
+    private boolean isRedoShortcut(KeyEvent event) {
+        if (!event.isControlDown() || event.isAltDown() || event.isMetaDown()) {
+            return false;
+        }
+        return event.getCode() == KeyCode.Y
+                || (event.isShiftDown() && event.getCode() == KeyCode.Z);
+    }
+
+    private boolean isTextInputFocusOwner() {
+        Scene scene = root.getScene();
+        if (scene == null) {
+            return false;
+        }
+        return scene.getFocusOwner() instanceof TextInputControl;
     }
 
     private void closeWindowAfterSaveOrDiscard() {
