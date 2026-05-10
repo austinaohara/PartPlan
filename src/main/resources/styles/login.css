@@ -1,0 +1,42 @@
+.welcome-subtitle {
+    -fx-text-fill: #d6e4ef;
+    -fx-font-size: 15px;
+}
+
+.welcome-shell {
+    -fx-background-color: transparent;
+}
+
+.welcome-card {
+    -fx-background-color: rgba(255, 255, 255, 0.95);
+    -fx-background-radius: 24px;
+    -fx-border-color: rgba(22, 46, 67, 0.12);
+    -fx-border-radius: 24px;
+    -fx-padding: 28px;
+    -fx-min-height: 280px;
+    -fx-effect: dropshadow(gaussian, rgba(17, 34, 49, 0.10), 24, 0.20, 0, 10);
+}
+
+.welcome-card-title {
+    -fx-text-fill: #13283c;
+    -fx-font-size: 24px;
+    -fx-font-weight: 800;
+    -fx-max-width: infinity;
+    -fx-alignment: center;
+    -fx-text-alignment: center;
+}
+
+.welcome-card-button {
+    -fx-max-width: infinity;
+}
+
+.welcome-card .secondary-button {
+    -fx-background-color: #17324d;
+    -fx-text-fill: #f8fbff;
+    -fx-border-color: transparent;
+}
+
+.editor-copy {
+    -fx-text-fill: #587088;
+    -fx-font-size: 14px;
+}

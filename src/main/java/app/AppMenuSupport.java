@@ -356,6 +356,9 @@ public final class AppMenuSupport {
         Alert alert = new Alert(Alert.AlertType.INFORMATION);
         alert.setTitle("Keyboard Shortcuts");
         alert.setHeaderText(shortcutsHeader(menuContext));
+        alert.getDialogPane().getStylesheets().setAll(
+                AppMenuSupport.class.getResource("/styles/dialogs.css").toExternalForm()
+        );
         alert.getDialogPane().setContent(buildShortcutsContent(menuContext));
         alert.getDialogPane().setMinHeight(Region.USE_PREF_SIZE);
         alert.getDialogPane().setPrefWidth(700.0);

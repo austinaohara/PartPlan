@@ -20,7 +20,7 @@
 <?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.VBox?>
 
-<BorderPane fx:id="root" focusTraversable="true" prefHeight="700.0" prefWidth="1100.0" stylesheets="@../styles/main.css" xmlns="http://javafx.com/javafx/20.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="view.PlanEditorController">
+<BorderPane fx:id="root" focusTraversable="true" prefHeight="700.0" prefWidth="1100.0" stylesheets="@../styles/main.css,@../styles/plan-editor.css" xmlns="http://javafx.com/javafx/20.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="view.PlanEditorController">
     <top>
         <VBox spacing="14.0" styleClass="top-bar">
             <padding>

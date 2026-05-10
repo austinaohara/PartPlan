@@ -5,7 +5,7 @@
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.VBox?>
-<BorderPane fx:id="root" maxHeight="-Infinity" maxWidth="-Infinity" minWidth="-Infinity" prefHeight="500.0" prefWidth="980.0" stylesheets="@../styles/main.css" xmlns="http://javafx.com/javafx/17.0.12" xmlns:fx="http://javafx.com/fxml/1">
+<BorderPane fx:id="root" maxHeight="-Infinity" maxWidth="-Infinity" minWidth="-Infinity" prefHeight="500.0" prefWidth="980.0" stylesheets="@../styles/main.css,@../styles/data-editor.css" xmlns="http://javafx.com/javafx/17.0.12" xmlns:fx="http://javafx.com/fxml/1">
    <center>
       <TableView fx:id="tableView" editable="true" prefHeight="200.0" prefWidth="200.0">
          <columnResizePolicy>
