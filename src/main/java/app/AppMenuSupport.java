@@ -1,17 +1,26 @@
 package app;
 
+import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.beans.value.ObservableBooleanValue;
 import javafx.application.Platform;
+import javafx.collections.FXCollections;
 import javafx.fxml.FXMLLoader;
+import javafx.geometry.Insets;
 import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.Alert;
+import javafx.scene.control.ContentDisplay;
+import javafx.scene.control.Label;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuBar;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.SeparatorMenuItem;
+import javafx.scene.control.TableCell;
+import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableView;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
@@ -20,6 +29,7 @@ import view.AppNavigator;
 
 import java.io.IOException;
 import java.util.EnumMap;
+import java.util.List;
 import java.util.Map;
 
 public final class AppMenuSupport {
@@ -346,7 +356,10 @@ public final class AppMenuSupport {
         Alert alert = new Alert(Alert.AlertType.INFORMATION);
         alert.setTitle("Keyboard Shortcuts");
         alert.setHeaderText(shortcutsHeader(menuContext));
-        alert.setContentText(shortcutsMessage(menuContext));
+        alert.getDialogPane().setContent(buildShortcutsContent(menuContext));
+        alert.getDialogPane().setMinHeight(Region.USE_PREF_SIZE);
+        alert.getDialogPane().setPrefWidth(700.0);
+        alert.setResizable(true);
         alert.showAndWait();
     }
 
@@ -360,67 +373,109 @@ public final class AppMenuSupport {
         };
     }
 
-    private static String shortcutsMessage(MenuContext menuContext) {
+    private static Node buildShortcutsContent(MenuContext menuContext) {
+        TableView<ShortcutEntry> tableView = new TableView<>(FXCollections.observableArrayList(shortcutEntries(menuContext)));
+        tableView.setEditable(false);
+        tableView.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+        tableView.setPlaceholder(new Label("No keyboard shortcuts available."));
+        tableView.getStyleClass().add("browser-table");
+        tableView.setPrefHeight(360.0);
+        tableView.setMinHeight(220.0);
+
+        TableColumn<ShortcutEntry, String> shortcutColumn = new TableColumn<>("Shortcut");
+        shortcutColumn.setCellValueFactory(data -> new ReadOnlyStringWrapper(data.getValue().shortcut()));
+        shortcutColumn.setSortable(false);
+        shortcutColumn.setReorderable(false);
+        shortcutColumn.setResizable(false);
+        shortcutColumn.setPrefWidth(180.0);
+        shortcutColumn.setCellFactory(column -> new TableCell<>() {
+            private final Label label = new Label();
+
+            {
+                label.setStyle("-fx-font-weight: 700; -fx-text-fill: #183247;");
+                label.setWrapText(true);
+                label.maxWidthProperty().bind(column.widthProperty().subtract(24.0));
+                setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
+            }
+
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null || item.isBlank()) {
+                    label.setText(null);
+                    setGraphic(null);
+                    return;
+                }
+                label.setText(item);
+                setGraphic(label);
+            }
+        });
+
+        TableColumn<ShortcutEntry, String> actionColumn = new TableColumn<>("Action");
+        actionColumn.setCellValueFactory(data -> new ReadOnlyStringWrapper(data.getValue().action()));
+        actionColumn.setSortable(false);
+        actionColumn.setReorderable(false);
+        actionColumn.setCellFactory(column -> new TableCell<>() {
+            private final Label label = new Label();
+
+            {
+                label.setWrapText(true);
+                label.setPadding(new Insets(2.0, 0.0, 2.0, 0.0));
+                label.maxWidthProperty().bind(column.widthProperty().subtract(24.0));
+                setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
+            }
+
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null || item.isBlank()) {
+                    label.setText(null);
+                    setGraphic(null);
+                    return;
+                }
+                label.setText(item);
+                setGraphic(label);
+            }
+        });
+
+        tableView.getColumns().setAll(shortcutColumn, actionColumn);
+        return tableView;
+    }
+
+    private static List<ShortcutEntry> shortcutEntries(MenuContext menuContext) {
         return switch (menuContext == null ? MenuContext.GENERAL : menuContext) {
-            case PLAN_BROWSER -> """
-                    Delete
-                    Delete the selected inspection plan.
-                    """;
-            case PLAN_EDITOR -> """
-                    Arrow keys
-                    Select the previous or next bubble.
-
-                    Delete / Backspace
-                    Delete the selected bubble.
-
-                    Ctrl+S
-                    Save the current draft.
-
-                    Ctrl+C
-                    Copy the selected bubble.
-
-                    Ctrl++ / Ctrl+=
-                    Zoom in.
-
-                    Ctrl+-
-                    Zoom out.
-
-                    Ctrl+0
-                    Reset zoom.
-
-                    Ctrl+F
-                    Fit the drawing to the viewport.
-
-                    Ctrl+Mouse Wheel
-                    Zoom in or out.
-
-                    Shift+Click
-                    Place a bubble on the drawing.
-                    """;
-            case LOT_BROWSER -> """
-                    Delete
-                    Delete the selected inspection lot.
-                    """;
-            case LOT_EDITOR -> """
-                    Ctrl+S
-                    Save the current inspection lot.
-
-                    Any printable key
-                    Start editing the focused cell and replace its contents.
-
-                    Enter / F2
-                    Edit the focused cell.
-
-                    Delete / Backspace
-                    Clear the focused editable cell.
-
-                    Ctrl+Shift+C
-                    Open the comment editor for the selected cell in the master table.
-                    """;
-            case GENERAL -> """
-                    No page-specific keyboard shortcuts are available here.
-                    """;
+            case PLAN_BROWSER -> List.of(
+                    new ShortcutEntry("Delete", "Delete the selected inspection plan.")
+            );
+            case PLAN_EDITOR -> List.of(
+                    new ShortcutEntry("Arrow keys", "Select the previous or next bubble."),
+                    new ShortcutEntry("Delete / Backspace", "Delete the selected bubble."),
+                    new ShortcutEntry("Ctrl+S", "Save the current draft."),
+                    new ShortcutEntry("Ctrl+C", "Copy the selected bubble."),
+                    new ShortcutEntry("Ctrl++ / Ctrl+=", "Zoom in."),
+                    new ShortcutEntry("Ctrl+-", "Zoom out."),
+                    new ShortcutEntry("Ctrl+0", "Reset zoom."),
+                    new ShortcutEntry("Ctrl+F", "Fit the drawing to the viewport."),
+                    new ShortcutEntry("Ctrl+Mouse Wheel", "Zoom in or out."),
+                    new ShortcutEntry("Shift+Click", "Place a bubble on the drawing.")
+            );
+            case LOT_BROWSER -> List.of(
+                    new ShortcutEntry("Delete", "Delete the selected inspection lot.")
+            );
+            case LOT_EDITOR -> List.of(
+                    new ShortcutEntry("Ctrl+S", "Save the current inspection lot."),
+                    new ShortcutEntry("Any printable key", "Start editing the focused cell and replace its contents."),
+                    new ShortcutEntry("Enter / F2", "Edit the focused cell."),
+                    new ShortcutEntry("Delete / Backspace", "Clear the focused editable cell."),
+                    new ShortcutEntry("Ctrl+Shift+C", "Open the comment editor for the selected cell in the master table.")
+            );
+            case GENERAL -> List.of(
+                    new ShortcutEntry("None", "No page-specific keyboard shortcuts are available here.")
+            );
         };
+    }
+
+    private record ShortcutEntry(String shortcut, String action) {
     }
 
     public record MenuCallbacks(
