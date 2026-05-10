@@ -1190,24 +1190,27 @@ public class PlanEditorController {
             boolean isSelected = viewModel.getSelectedBubble() != null
                     && bubble.getId().equals(viewModel.getSelectedBubble().getId());
             Color baseColor = toFxColor(bubble.getColor());
-            Circle selectionOutline = null;
             Circle circle = new Circle(
                     bubble.getX() * scale,
                     bubble.getY() * scale,
                     bubble.getRadius() * scale
             );
 
+            Circle selectionOutline = null;
             if (isSelected) {
-                selectionOutline = new Circle(
+                Circle outline = new Circle(
                         circle.getCenterX(),
                         circle.getCenterY(),
                         circle.getRadius() + Math.max(3.0, scale * 2.0)
                 );
-                selectionOutline.setFill(Color.TRANSPARENT);
-                selectionOutline.setStroke(Color.web("#183247"));
-                selectionOutline.setStrokeWidth(2.0);
-                selectionOutline.setMouseTransparent(true);
+                outline.setFill(Color.TRANSPARENT);
+                outline.setStroke(Color.web("#183247"));
+                outline.setStrokeWidth(2.0);
+                outline.setMouseTransparent(true);
+                selectionOutline = outline;
             }
+
+            Circle selectionOutlineNode = selectionOutline;
 
             circle.setFill(Color.WHITE);
             circle.setStroke(baseColor);
@@ -1241,7 +1244,11 @@ public class PlanEditorController {
                 bubbleDragged = false;
                 drawingPannableBeforeBubbleDrag = drawingScrollPane.isPannable();
                 drawingScrollPane.setPannable(false);
+                if (selectionOutlineNode != null) {
+                    selectionOutlineNode.toFront();
+                }
                 circle.toFront();
+                text.toFront();
                 mouseEvent.consume();
             });
             circle.setOnMouseDragged(mouseEvent -> {
@@ -1265,8 +1272,8 @@ public class PlanEditorController {
                 mouseEvent.consume();
             });
 
-            if (selectionOutline != null) {
-                bubbleOverlayPane.getChildren().add(selectionOutline);
+            if (selectionOutlineNode != null) {
+                bubbleOverlayPane.getChildren().add(selectionOutlineNode);
             }
             bubbleOverlayPane.getChildren().addAll(circle, text);
         }
