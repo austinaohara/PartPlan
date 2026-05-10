@@ -167,6 +167,7 @@ public final class AppMenuSupport {
                     new SeparatorMenuItem(),
                     disabledItem(MenuAction.LOT_SAVE_LOT, "Save Lot", menuItems),
                     disabledItem(MenuAction.LOT_UPVERSION_LOT, "Upversion Inspection Lot", menuItems),
+                    exportMenu(menuItems),
                     new SeparatorMenuItem(),
                     actionItem(MenuAction.FILE_SIGN_OUT, "Sign Out", callbacks.onSignOut(), menuItems),
                     actionItem("Exit", Platform::exit)

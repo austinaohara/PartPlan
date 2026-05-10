@@ -50,6 +50,7 @@ import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.scene.text.Text;
 import javafx.scene.text.TextAlignment;
+import javafx.stage.FileChooser;
 import javafx.stage.Window;
 import javafx.stage.WindowEvent;
 import javafx.util.StringConverter;
@@ -59,9 +60,12 @@ import model.InspectionType;
 import model.PartBubbleDefinition;
 import model.PartRecord;
 import service.auth.AuthService;
+import service.export.ExportFormat;
+import service.export.InspectionLotExportService;
 import viewmodel.PartBubbleRowViewModel;
 import viewmodel.PartEditorViewModel;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
@@ -81,6 +85,7 @@ public class PartEditorController {
 
     private final PartEditorViewModel viewModel;
     private final AuthService authService;
+    private final InspectionLotExportService exportService = new InspectionLotExportService();
     private final BooleanProperty repositoryBusy = new SimpleBooleanProperty(false);
     private final Map<MasterCommentCellKey, MasterMeasurementTableCell> masterMeasurementCells = new HashMap<>();
     private boolean syncingLotSize;
@@ -211,6 +216,67 @@ public class PartEditorController {
     @FXML
     private void onSaveLot() {
         requestSaveCurrentLot(null);
+    }
+
+    private void onExportCsv() throws IOException {
+        InspectionLot currentLot = viewModel.getCurrentLot();
+        if (!isExportableLot(currentLot)) {
+            showExportAlert();
+            return;
+        }
+
+        File file = showExportSaveDialog("CSV Files", "*.csv", ".csv");
+        if (file == null) {
+            return;
+        }
+
+        exportService.export(currentLot, ExportFormat.CSV, file.toPath());
+        showInformation("CSV exported successfully.");
+    }
+
+    private void onExportPdf() throws IOException {
+        InspectionLot currentLot = viewModel.getCurrentLot();
+        if (!isExportableLot(currentLot)) {
+            showExportAlert();
+            return;
+        }
+
+        File file = showExportSaveDialog("PDF Files", "*.pdf", ".pdf");
+        if (file == null) {
+            return;
+        }
+
+        exportService.export(currentLot, ExportFormat.PDF, file.toPath());
+        showInformation("PDF exported successfully.");
+    }
+
+    private boolean isExportableLot(InspectionLot currentLot) {
+        return currentLot != null
+                && !currentLot.getParts().isEmpty()
+                && !currentLot.getBubbles().isEmpty();
+    }
+
+    private File showExportSaveDialog(String description, String pattern, String extensionSuffix) {
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle("Export Inspection Data");
+        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter(description, pattern));
+        String lotName = currentLotDisplayName().replaceAll("[\\\\/:*?\"<>|]+", "_").trim();
+        if (!lotName.isBlank()) {
+            fileChooser.setInitialFileName(lotName + extensionSuffix);
+        }
+        File downloadsDirectory = new File(System.getProperty("user.home"), "Downloads");
+        if (downloadsDirectory.isDirectory()) {
+            fileChooser.setInitialDirectory(downloadsDirectory);
+        }
+        return root.getScene() == null ? null : fileChooser.showSaveDialog(root.getScene().getWindow());
+    }
+
+    private void showExportAlert() {
+        javafx.scene.control.Alert alert = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.WARNING);
+        alert.setTitle("Nothing to Export");
+        alert.setHeaderText(null);
+        alert.setContentText("Open an inspection lot before exporting inspection data.");
+        alert.showAndWait();
     }
 
     private void requestSaveCurrentLot(Runnable onSuccessContinuation) {
@@ -1272,6 +1338,8 @@ public class PartEditorController {
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.FILE_RENAME_LOT, this::onRenameCurrentLotFromMenu);
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.LOT_SAVE_LOT, this::onSaveLot);
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.LOT_UPVERSION_LOT, this::onUpversionLot);
+        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.FILE_EXPORT_CSV, this::onExportCsvFromMenu);
+        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.FILE_EXPORT_PDF, this::onExportPdfFromMenu);
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.NAV_INSPECTION_LOTS, this::returnToLotBrowserFromMenu);
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.NAV_HOME, this::returnToHubFromMenu);
 
@@ -1280,12 +1348,32 @@ public class PartEditorController {
                         .or(viewModel.unsavedChangesProperty().not())
                         .or(viewModel.saveInProgressProperty())
                         .or(repositoryBusy));
+        AppMenuSupport.bindDisable(root, AppMenuSupport.MenuAction.FILE_EXPORT_CSV,
+                viewModel.lotLoadedProperty().not().or(repositoryBusy));
+        AppMenuSupport.bindDisable(root, AppMenuSupport.MenuAction.FILE_EXPORT_PDF,
+                viewModel.lotLoadedProperty().not().or(repositoryBusy));
         AppMenuSupport.bindDisable(root, AppMenuSupport.MenuAction.FILE_RENAME_LOT,
                 viewModel.lotLoadedProperty().not().or(repositoryBusy));
         AppMenuSupport.bindDisable(root, AppMenuSupport.MenuAction.LOT_UPVERSION_LOT,
                 viewModel.lotLoadedProperty().not()
                         .or(viewModel.upversionAvailableProperty().not())
                         .or(repositoryBusy));
+    }
+
+    private void onExportCsvFromMenu() {
+        try {
+            onExportCsv();
+        } catch (IOException exception) {
+            throw new IllegalStateException("Unable to export CSV.", exception);
+        }
+    }
+
+    private void onExportPdfFromMenu() {
+        try {
+            onExportPdf();
+        } catch (IOException exception) {
+            throw new IllegalStateException("Unable to export PDF.", exception);
+        }
     }
 
     private void onRenameCurrentLotFromMenu() {
