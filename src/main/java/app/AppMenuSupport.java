@@ -451,6 +451,8 @@ public final class AppMenuSupport {
                     new ShortcutEntry("Arrow keys", "Select the previous or next bubble."),
                     new ShortcutEntry("Delete / Backspace", "Delete the selected bubble."),
                     new ShortcutEntry("Ctrl+S", "Save the current draft."),
+                    new ShortcutEntry("Ctrl+Z", "Undo the last plan change."),
+                    new ShortcutEntry("Ctrl+Y / Ctrl+Shift+Z", "Redo the last undone plan change."),
                     new ShortcutEntry("Ctrl+C", "Copy the selected bubble."),
                     new ShortcutEntry("Ctrl++ / Ctrl+=", "Zoom in."),
                     new ShortcutEntry("Ctrl+-", "Zoom out."),

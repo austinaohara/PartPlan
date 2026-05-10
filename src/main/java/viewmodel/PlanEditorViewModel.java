@@ -25,6 +25,7 @@ import service.util.ModelCopies;
 
 import java.io.File;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
@@ -73,6 +74,12 @@ public class PlanEditorViewModel {
     private final BooleanProperty currentPlanComplete = new SimpleBooleanProperty(false);
     private final BooleanProperty unsavedChanges = new SimpleBooleanProperty(false);
     private final BooleanProperty saveInProgress = new SimpleBooleanProperty(false);
+    private final BooleanProperty canUndo = new SimpleBooleanProperty(false);
+    private final BooleanProperty canRedo = new SimpleBooleanProperty(false);
+    private final List<EditorState> history = new ArrayList<>();
+    private int historyIndex = -1;
+    private int cleanHistoryIndex = -1;
+    private boolean showSavedStateWhenClean;
 
     public PlanEditorViewModel(
             PlanRepository storageService,
@@ -98,9 +105,12 @@ public class PlanEditorViewModel {
         ensureCurrentPlanEditable();
         InspectionPlan plan = requireCurrentPlan();
         String sanitizedName = sanitizePlanName(newName);
+        if (Objects.equals(plan.getName(), sanitizedName)) {
+            return;
+        }
         plan.rename(sanitizedName);
         planName.set(plan.getName());
-        markDirty();
+        commitPlanChange();
     }
 
     public void importDrawing(File drawingFile) {
@@ -110,10 +120,12 @@ public class PlanEditorViewModel {
         InspectionPlan plan = requireCurrentPlan();
         if (isPdf(drawingFile)) {
             importPdfPages(plan, drawingFile);
+            commitPlanChange();
             return;
         }
 
         addPageFromFile(plan, drawingFile);
+        commitPlanChange();
     }
 
     private void importPdfPages(InspectionPlan plan, File pdfFile) {
@@ -143,7 +155,6 @@ public class PlanEditorViewModel {
         plan.addPage(page);
         planPages.setAll(plan.getPages());
         selectPage(page);
-        markDirty();
         return page;
     }
 
@@ -347,12 +358,28 @@ public class PlanEditorViewModel {
         return saveInProgress;
     }
 
+    public BooleanProperty canUndoProperty() {
+        return canUndo;
+    }
+
+    public BooleanProperty canRedoProperty() {
+        return canRedo;
+    }
+
+    public boolean canUndo() {
+        return canUndo.get();
+    }
+
+    public boolean canRedo() {
+        return canRedo.get();
+    }
+
     public InspectionPlan beginSaveSnapshot() {
         ensureCurrentPlanEditable();
         InspectionPlan snapshot = ModelCopies.copyPlan(requireCurrentPlan());
-        unsavedChanges.set(false);
         saveInProgress.set(true);
         saveState.set("Saving...");
+        refreshHistoryAvailability();
         return snapshot;
     }
 
@@ -365,25 +392,23 @@ public class PlanEditorViewModel {
         upsertSavedPlan(snapshot);
 
         InspectionPlan livePlan = currentPlan.get();
-        if (livePlan != null && livePlan.getId().equals(snapshot.getId()) && !unsavedChanges.get()) {
+        if (livePlan != null && livePlan.getId().equals(snapshot.getId())) {
             livePlan.setCreatedAt(snapshot.getCreatedAt());
             livePlan.setUpdatedAt(snapshot.getUpdatedAt());
             refreshCurrentPlanMetadata(livePlan);
-            saveState.set("Saved");
-            return;
+            replaceCurrentHistoryState();
         }
 
-        if (unsavedChanges.get()) {
-            saveState.set("Unsaved changes");
-        }
+        cleanHistoryIndex = historyIndex;
+        showSavedStateWhenClean = true;
+        refreshHistoryAvailability();
     }
 
     public void finishSaveFailure(String planId) {
         saveInProgress.set(false);
         InspectionPlan livePlan = currentPlan.get();
         if (livePlan != null && livePlan.getId().equals(planId) && livePlan.isPending()) {
-            unsavedChanges.set(true);
-            saveState.set("Unsaved changes");
+            refreshHistoryAvailability();
         }
     }
 
@@ -461,7 +486,7 @@ public class PlanEditorViewModel {
                 lowerTolerance = null;
                 upperTolerance = null;
             }
-            placeBubble(
+            placeBubbleInternal(
                     x,
                     y,
                     18.0,
@@ -479,7 +504,7 @@ public class PlanEditorViewModel {
         }
 
         if (addedCount > 0) {
-            markDirty();
+            commitPlanChange();
         }
         return addedCount;
     }
@@ -503,6 +528,38 @@ public class PlanEditorViewModel {
             String note
     ) {
         ensureCurrentPlanEditable();
+        Bubble bubble = placeBubbleInternal(
+                x,
+                y,
+                radius,
+                useDefaultDiameter,
+                color,
+                useDefaultColor,
+                characteristic,
+                inspectionType,
+                nominalValue,
+                lowerTolerance,
+                upperTolerance,
+                note
+        );
+        commitPlanChange();
+        return bubble;
+    }
+
+    private Bubble placeBubbleInternal(
+            double x,
+            double y,
+            double radius,
+            boolean useDefaultDiameter,
+            String color,
+            boolean useDefaultColor,
+            String characteristic,
+            InspectionType inspectionType,
+            Double nominalValue,
+            Double lowerTolerance,
+            Double upperTolerance,
+            String note
+    ) {
         InspectionPlan plan = requireCurrentPlan();
         PlanPage page = selectedPage.get();
         if (page == null) {
@@ -551,19 +608,80 @@ public class PlanEditorViewModel {
         }
 
         InspectionPlan plan = requireCurrentPlan();
-        plan.moveBubbleToSequence(bubble, sequenceNumber);
-        bubble.setRadius(radius);
-        bubble.setUseDefaultDiameter(useDefaultDiameter);
-        bubble.setColor(color == null || color.isBlank() ? "#E53935" : color.trim());
-        bubble.setUseDefaultColor(useDefaultColor);
-        bubble.setCharacteristic(valueOrEmpty(characteristic));
-        bubble.setInspectionType(inspectionType == null ? InspectionType.NUMERIC : inspectionType);
-        bubble.setNominalValue(parseNullableDouble(nominalValueText));
-        bubble.setLowerTolerance(parseNullableDouble(lowerToleranceText));
-        bubble.setUpperTolerance(parseNullableDouble(upperToleranceText));
-        bubble.setNote(valueOrEmpty(note));
+        String resolvedColor = color == null || color.isBlank() ? "#E53935" : color.trim();
+        String resolvedCharacteristic = valueOrEmpty(characteristic);
+        InspectionType resolvedInspectionType = inspectionType == null ? InspectionType.NUMERIC : inspectionType;
+        Double resolvedNominalValue = resolvedInspectionType == InspectionType.PASS_FAIL
+                ? null
+                : parseNullableDouble(nominalValueText);
+        Double resolvedLowerTolerance = resolvedInspectionType == InspectionType.PASS_FAIL
+                ? null
+                : parseNullableDouble(lowerToleranceText);
+        Double resolvedUpperTolerance = resolvedInspectionType == InspectionType.PASS_FAIL
+                ? null
+                : parseNullableDouble(upperToleranceText);
+        String resolvedNote = valueOrEmpty(note);
+
+        if (bubble.getSequenceNumber() != sequenceNumber) {
+            plan.moveBubbleToSequence(bubble, sequenceNumber);
+            commitPlanChange();
+        }
+        if (Double.compare(bubble.getRadius(), radius) != 0) {
+            bubble.setRadius(radius);
+            commitPlanChange();
+        }
+        if (bubble.isUseDefaultDiameter() != useDefaultDiameter) {
+            bubble.setUseDefaultDiameter(useDefaultDiameter);
+            commitPlanChange();
+        }
+        if (!Objects.equals(bubble.getColor(), resolvedColor)) {
+            bubble.setColor(resolvedColor);
+            commitPlanChange();
+        }
+        if (bubble.isUseDefaultColor() != useDefaultColor) {
+            bubble.setUseDefaultColor(useDefaultColor);
+            commitPlanChange();
+        }
+        if (!Objects.equals(bubble.getCharacteristic(), resolvedCharacteristic)) {
+            bubble.setCharacteristic(resolvedCharacteristic);
+            commitPlanChange();
+        }
+        if (bubble.getInspectionType() != resolvedInspectionType) {
+            bubble.setInspectionType(resolvedInspectionType);
+            if (resolvedInspectionType == InspectionType.PASS_FAIL) {
+                bubble.setNominalValue(null);
+                bubble.setLowerTolerance(null);
+                bubble.setUpperTolerance(null);
+            }
+            commitPlanChange();
+        }
+        if (resolvedInspectionType == InspectionType.NUMERIC) {
+            if (!Objects.equals(bubble.getNominalValue(), resolvedNominalValue)) {
+                bubble.setNominalValue(resolvedNominalValue);
+                commitPlanChange();
+            }
+            if (!Objects.equals(bubble.getLowerTolerance(), resolvedLowerTolerance)) {
+                bubble.setLowerTolerance(resolvedLowerTolerance);
+                commitPlanChange();
+            }
+            if (!Objects.equals(bubble.getUpperTolerance(), resolvedUpperTolerance)) {
+                bubble.setUpperTolerance(resolvedUpperTolerance);
+                commitPlanChange();
+            }
+        } else if (bubble.getNominalValue() != null
+                || bubble.getLowerTolerance() != null
+                || bubble.getUpperTolerance() != null) {
+            bubble.setNominalValue(null);
+            bubble.setLowerTolerance(null);
+            bubble.setUpperTolerance(null);
+            commitPlanChange();
+        }
+        if (!Objects.equals(bubble.getNote(), resolvedNote)) {
+            bubble.setNote(resolvedNote);
+            commitPlanChange();
+        }
         refreshPageBubbles();
-        markDirty();
+        selectedBubble.set(bubble);
     }
 
     public void updateBubblePrintFields(
@@ -599,7 +717,7 @@ public class PlanEditorViewModel {
         bubble.updateStatusFromResult();
         refreshPageBubbles();
         selectedBubble.set(bubble);
-        markDirty();
+        commitPlanChange();
     }
 
     public void moveBubble(Bubble bubble, double x, double y) {
@@ -610,12 +728,11 @@ public class PlanEditorViewModel {
 
         bubble.setX(x);
         bubble.setY(y);
-        markDirty();
     }
 
     public void persistBubbleLayout() {
         ensureCurrentPlanEditable();
-        markDirty();
+        commitPlanChange();
     }
 
     public Bubble copySelectedBubble() {
@@ -657,7 +774,7 @@ public class PlanEditorViewModel {
         plan.addBubble(copy);
         refreshPageBubbles();
         selectedBubble.set(copy);
-        markDirty();
+        commitPlanChange();
         return copy;
     }
 
@@ -672,7 +789,7 @@ public class PlanEditorViewModel {
         plan.removeBubble(bubble);
         selectedBubble.set(null);
         refreshPageBubbles();
-        markDirty();
+        commitPlanChange();
     }
 
     public void applyBubbleDefaults(double diameter, String color) {
@@ -691,26 +808,33 @@ public class PlanEditorViewModel {
         }
 
         refreshPageBubbles();
-        markDirty();
+        commitPlanChange();
+    }
+
+    public void undo() {
+        ensureUndoRedoAllowed();
+        if (historyIndex <= 0) {
+            return;
+        }
+        historyIndex--;
+        restoreEditorState(history.get(historyIndex));
+        refreshHistoryAvailability();
+    }
+
+    public void redo() {
+        ensureUndoRedoAllowed();
+        if (historyIndex < 0 || historyIndex >= history.size() - 1) {
+            return;
+        }
+        historyIndex++;
+        restoreEditorState(history.get(historyIndex));
+        refreshHistoryAvailability();
     }
 
     private void loadPlan(InspectionPlan plan) {
-        normalizeBubblePageIds(plan);
-        currentPlan.set(plan);
-        selectedBubble.set(null);
-        planName.set(plan.getName());
-        refreshCurrentPlanMetadata(plan);
-        planPages.setAll(plan.getPages());
-        unsavedChanges.set(false);
+        applyPlanState(plan, null, null);
         saveInProgress.set(false);
-        saveState.set("");
-
-        if (planPages.isEmpty()) {
-            clearDrawingState();
-            return;
-        }
-
-        selectPage(planPages.getFirst());
+        resetHistory();
     }
 
     private void updateDrawingState(PlanDrawing drawing) {
@@ -760,14 +884,6 @@ public class PlanEditorViewModel {
         drawingFileName.set("No drawing selected");
         drawingPath.set("");
         drawingLoaded.set(false);
-    }
-
-    private void markDirty() {
-        InspectionPlan plan = currentPlan.get();
-        if (plan != null && plan.isPending()) {
-            unsavedChanges.set(true);
-            saveState.set("Unsaved changes");
-        }
     }
 
     private double clampNormalized(double value) {
@@ -867,11 +983,217 @@ public class PlanEditorViewModel {
         return value == null ? "" : value.trim();
     }
 
+    private void commitPlanChange() {
+        if (saveInProgress.get()) {
+            return;
+        }
+        EditorState nextState = captureEditorState();
+        if (!history.isEmpty() && historyIndex >= 0 && history.get(historyIndex).signature().equals(nextState.signature())) {
+            refreshHistoryAvailability();
+            return;
+        }
+        truncateRedoHistory();
+        history.add(nextState);
+        historyIndex = history.size() - 1;
+        refreshHistoryAvailability();
+    }
+
+    private void resetHistory() {
+        history.clear();
+        history.add(captureEditorState());
+        historyIndex = 0;
+        cleanHistoryIndex = 0;
+        showSavedStateWhenClean = false;
+        unsavedChanges.set(false);
+        saveState.set("");
+        refreshHistoryAvailability();
+    }
+
+    private void replaceCurrentHistoryState() {
+        if (historyIndex < 0 || historyIndex >= history.size()) {
+            return;
+        }
+        history.set(historyIndex, captureEditorState());
+    }
+
+    private void truncateRedoHistory() {
+        if (historyIndex < history.size() - 1) {
+            history.subList(historyIndex + 1, history.size()).clear();
+            if (cleanHistoryIndex > historyIndex) {
+                cleanHistoryIndex = -1;
+                showSavedStateWhenClean = false;
+            }
+        }
+    }
+
+    private EditorState captureEditorState() {
+        InspectionPlan plan = requireCurrentPlan();
+        Bubble bubble = selectedBubble.get();
+        String selectedBubbleId = bubble == null ? null : bubble.getId();
+        String selectedPageId = bubble != null
+                ? bubble.getPageId()
+                : selectedPage.get() == null ? null : selectedPage.get().getId();
+        InspectionPlan snapshot = ModelCopies.copyPlan(plan);
+        return new EditorState(
+                snapshot,
+                selectedPageId,
+                selectedBubbleId,
+                buildPlanSignature(snapshot)
+        );
+    }
+
+    private void restoreEditorState(EditorState state) {
+        if (state == null) {
+            return;
+        }
+        applyPlanState(
+                ModelCopies.copyPlan(state.plan()),
+                state.selectedPageId(),
+                state.selectedBubbleId()
+        );
+    }
+
+    private void applyPlanState(InspectionPlan plan, String selectedPageId, String selectedBubbleId) {
+        normalizeBubblePageIds(plan);
+        currentPlan.set(plan);
+        planName.set(plan.getName());
+        refreshCurrentPlanMetadata(plan);
+        planPages.setAll(plan.getPages());
+
+        PlanPage pageToSelect = resolveSelectedPage(plan, selectedPageId, selectedBubbleId);
+        selectedPage.set(pageToSelect);
+        if (pageToSelect == null || pageToSelect.getDrawing() == null) {
+            clearDrawingState();
+            return;
+        }
+
+        pageName.set(pageToSelect.getName());
+        updateDrawingState(pageToSelect.getDrawing());
+        refreshPageBubbles();
+        selectedBubble.set(resolveSelectedBubble(pageToSelect.getId(), selectedBubbleId));
+    }
+
+    private PlanPage resolveSelectedPage(InspectionPlan plan, String selectedPageId, String selectedBubbleId) {
+        if (plan == null || plan.getPages().isEmpty()) {
+            return null;
+        }
+
+        String targetPageId = selectedPageId;
+        if ((targetPageId == null || targetPageId.isBlank()) && selectedBubbleId != null && !selectedBubbleId.isBlank()) {
+            targetPageId = plan.getBubbles().stream()
+                    .filter(bubble -> selectedBubbleId.equals(bubble.getId()))
+                    .map(Bubble::getPageId)
+                    .filter(Objects::nonNull)
+                    .findFirst()
+                    .orElse(null);
+        }
+
+        if (targetPageId != null && !targetPageId.isBlank()) {
+            for (PlanPage page : plan.getPages()) {
+                if (targetPageId.equals(page.getId())) {
+                    return page;
+                }
+            }
+        }
+        return plan.getPages().getFirst();
+    }
+
+    private Bubble resolveSelectedBubble(String pageId, String selectedBubbleId) {
+        if (selectedBubbleId == null || selectedBubbleId.isBlank()) {
+            return null;
+        }
+        return pageBubbles.stream()
+                .filter(bubble -> selectedBubbleId.equals(bubble.getId()) && Objects.equals(pageId, bubble.getPageId()))
+                .findFirst()
+                .orElse(null);
+    }
+
+    private void refreshHistoryAvailability() {
+        boolean undoAvailable = currentPlanEditable.get() && !saveInProgress.get() && historyIndex > 0;
+        boolean redoAvailable = currentPlanEditable.get() && !saveInProgress.get() && historyIndex >= 0 && historyIndex < history.size() - 1;
+        canUndo.set(undoAvailable);
+        canRedo.set(redoAvailable);
+
+        boolean dirty = currentPlanEditable.get() && historyIndex != cleanHistoryIndex;
+        unsavedChanges.set(dirty);
+        if (saveInProgress.get()) {
+            return;
+        }
+        if (dirty) {
+            saveState.set("Unsaved changes");
+            return;
+        }
+        saveState.set(showSavedStateWhenClean ? "Saved" : "");
+    }
+
+    private void ensureUndoRedoAllowed() {
+        ensureCurrentPlanEditable();
+        if (saveInProgress.get()) {
+            throw new IllegalStateException("Please wait for the current save operation to finish.");
+        }
+    }
+
+    private String buildPlanSignature(InspectionPlan plan) {
+        if (plan == null) {
+            return "";
+        }
+        StringBuilder builder = new StringBuilder();
+        builder.append(valueOrEmpty(plan.getName())).append('|')
+                .append(valueOrEmpty(plan.getPartNumber())).append('|')
+                .append(valueOrEmpty(plan.getRevision())).append('|')
+                .append(valueOrEmpty(plan.getDescription())).append('|')
+                .append(plan.getVersion()).append('|')
+                .append(plan.getStatus()).append('\n');
+
+        for (PlanPage page : plan.getPages()) {
+            PlanDrawing drawing = page.getDrawing();
+            builder.append("PAGE|")
+                    .append(page.getId()).append('|')
+                    .append(valueOrEmpty(page.getName())).append('|')
+                    .append(page.getPageNumber()).append('|')
+                    .append(drawing == null ? "" : valueOrEmpty(drawing.getFileName())).append('|')
+                    .append(drawing == null ? "" : valueOrEmpty(drawing.getStoredPath())).append('|')
+                    .append(drawing == null ? "" : valueOrEmpty(drawing.getFileType()))
+                    .append('\n');
+        }
+
+        for (Bubble bubble : plan.getBubbles()) {
+            builder.append("BUBBLE|")
+                    .append(bubble.getId()).append('|')
+                    .append(valueOrEmpty(bubble.getPageId())).append('|')
+                    .append(bubble.getX()).append('|')
+                    .append(bubble.getY()).append('|')
+                    .append(bubble.getRadius()).append('|')
+                    .append(bubble.isUseDefaultDiameter()).append('|')
+                    .append(valueOrEmpty(bubble.getColor())).append('|')
+                    .append(bubble.isUseDefaultColor()).append('|')
+                    .append(valueOrEmpty(bubble.getLabel())).append('|')
+                    .append(valueOrEmpty(bubble.getCharacteristic())).append('|')
+                    .append(bubble.getInspectionType()).append('|')
+                    .append(nullableDoubleSignature(bubble.getNominalValue())).append('|')
+                    .append(nullableDoubleSignature(bubble.getLowerTolerance())).append('|')
+                    .append(nullableDoubleSignature(bubble.getUpperTolerance())).append('|')
+                    .append(String.valueOf(bubble.getExpectedPassFail())).append('|')
+                    .append(nullableDoubleSignature(bubble.getMeasuredValue())).append('|')
+                    .append(String.valueOf(bubble.getActualPassFail())).append('|')
+                    .append(bubble.getStatus()).append('|')
+                    .append(valueOrEmpty(bubble.getNote())).append('|')
+                    .append(bubble.getSequenceNumber())
+                    .append('\n');
+        }
+        return builder.toString();
+    }
+
+    private String nullableDoubleSignature(Double value) {
+        return value == null ? "null" : value.toString();
+    }
+
     private void refreshCurrentPlanMetadata(InspectionPlan plan) {
         planStatus.set(plan == null ? "Pending" : plan.getStatus().name().charAt(0) + plan.getStatus().name().substring(1).toLowerCase(Locale.ROOT));
         planVersion.set(plan == null || plan.getVersion() <= 0 ? "Draft" : "v" + plan.getVersion());
         currentPlanEditable.set(plan != null && plan.isEditable());
         currentPlanComplete.set(plan != null && plan.isComplete());
+        refreshHistoryAvailability();
     }
 
     private void ensureCurrentPlanEditable() {
@@ -879,5 +1201,13 @@ public class PlanEditorViewModel {
         if (!plan.isEditable()) {
             throw new IllegalStateException("Complete plans are read-only. Create a revision to make changes.");
         }
+    }
+
+    private record EditorState(
+            InspectionPlan plan,
+            String selectedPageId,
+            String selectedBubbleId,
+            String signature
+    ) {
     }
 }

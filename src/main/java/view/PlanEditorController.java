@@ -795,6 +795,7 @@ public class PlanEditorController {
                 fxmlLoader.setLocation(getClass().getResource("/fxml/data-editor.fxml"));
                 fxmlLoader.setController(new DataEditorController(this.viewModel));
                 Parent bubbleTableRoot = fxmlLoader.load();
+                bubbleTableRoot.disableProperty().bind(repositoryBusy.or(viewModel.saveInProgressProperty()));
 
                 bubbleTableStage = new Stage();
                 bubbleTableStage.setTitle("PartPlan - Bubble Table");
@@ -889,6 +890,22 @@ public class PlanEditorController {
         if (isDeleteBubbleEvent(event)) {
             onDeleteBubble();
             event.consume();
+            return;
+        }
+
+        if (isUndoShortcut(event)) {
+            if (!isTextInputFocusOwner()) {
+                onUndoFromMenu();
+                event.consume();
+            }
+            return;
+        }
+
+        if (isRedoShortcut(event)) {
+            if (!isTextInputFocusOwner()) {
+                onRedoFromMenu();
+                event.consume();
+            }
             return;
         }
 
@@ -1073,6 +1090,30 @@ public class PlanEditorController {
                 && !(focusOwner instanceof ComboBoxBase<?>)
                 && !(focusOwner instanceof ListView<?>)
                 && !(focusOwner instanceof TableView<?>);
+    }
+
+    private boolean isUndoShortcut(KeyEvent event) {
+        return event.isControlDown()
+                && !event.isAltDown()
+                && !event.isMetaDown()
+                && !event.isShiftDown()
+                && event.getCode() == KeyCode.Z;
+    }
+
+    private boolean isRedoShortcut(KeyEvent event) {
+        if (!event.isControlDown() || event.isAltDown() || event.isMetaDown()) {
+            return false;
+        }
+        return event.getCode() == KeyCode.Y
+                || (event.isShiftDown() && event.getCode() == KeyCode.Z);
+    }
+
+    private boolean isTextInputFocusOwner() {
+        Scene scene = root.getScene();
+        if (scene == null) {
+            return false;
+        }
+        return scene.getFocusOwner() instanceof TextInputControl;
     }
 
     private boolean isDeleteBubbleEvent(KeyEvent event) {
@@ -1742,6 +1783,8 @@ public class PlanEditorController {
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.FILE_IMPORT_DRAWING_PAGE, this::onImportDrawing);
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.FILE_EXPORT_CSV, this::onExportCsvFromMenu);
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.FILE_EXPORT_PDF, this::onExportPdfFromMenu);
+        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.EDIT_UNDO, this::onUndoFromMenu);
+        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.EDIT_REDO, this::onRedoFromMenu);
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.NAV_PLANS, this::returnToPlanBrowserFromMenu);
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.NAV_INSPECTION_LOTS, this::returnToLotBrowserFromMenu);
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.NAV_HOME, this::returnToHubFromMenu);
@@ -1763,6 +1806,10 @@ public class PlanEditorController {
                         .or(viewModel.unsavedChangesProperty().not())
                         .or(viewModel.saveInProgressProperty())
                         .or(repositoryBusy));
+        AppMenuSupport.bindDisable(root, AppMenuSupport.MenuAction.EDIT_UNDO,
+                viewModel.canUndoProperty().not().or(repositoryBusy));
+        AppMenuSupport.bindDisable(root, AppMenuSupport.MenuAction.EDIT_REDO,
+                viewModel.canRedoProperty().not().or(repositoryBusy));
         AppMenuSupport.bindDisable(root, AppMenuSupport.MenuAction.FILE_RENAME_PLAN,
                 viewModel.currentPlanEditableProperty().not().or(repositoryBusy));
         AppMenuSupport.bindDisable(root, AppMenuSupport.MenuAction.FILE_IMPORT_DRAWING_PAGE,
@@ -1775,6 +1822,36 @@ public class PlanEditorController {
                 viewModel.currentPlanEditableProperty().not()
                         .or(viewModel.drawingLoadedProperty().not())
                         .or(repositoryBusy));
+    }
+
+    private void onUndoFromMenu() {
+        performPlanUndo();
+    }
+
+    private void onRedoFromMenu() {
+        performPlanRedo();
+    }
+
+    private void performPlanUndo() {
+        if (repositoryBusy.get() || !viewModel.canUndo()) {
+            return;
+        }
+        try {
+            viewModel.undo();
+        } catch (IllegalStateException exception) {
+            showInformation(exception.getMessage());
+        }
+    }
+
+    private void performPlanRedo() {
+        if (repositoryBusy.get() || !viewModel.canRedo()) {
+            return;
+        }
+        try {
+            viewModel.redo();
+        } catch (IllegalStateException exception) {
+            showInformation(exception.getMessage());
+        }
     }
 
     private void onRenameCurrentPlanFromMenu() {

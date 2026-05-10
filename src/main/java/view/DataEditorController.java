@@ -151,7 +151,8 @@ public class DataEditorController implements Initializable {
         });
 
         tableView.setItems(dataEditorViewModel.getBubbles());
-        tableView.editableProperty().bind(dataEditorViewModel.getPlanEditorViewModel().currentPlanEditableProperty());
+        tableView.editableProperty().bind(dataEditorViewModel.getPlanEditorViewModel().currentPlanEditableProperty()
+                .and(dataEditorViewModel.getPlanEditorViewModel().saveInProgressProperty().not()));
         tableView.setPlaceholder(new Label("No bubbles on this page."));
         columnSequenceNumber.setSortType(TableColumn.SortType.ASCENDING);
         tableView.getSortOrder().setAll(columnSequenceNumber);
@@ -305,6 +306,18 @@ public class DataEditorController implements Initializable {
             return;
         }
 
+        if (isUndoShortcut(event)) {
+            performPlanUndo();
+            event.consume();
+            return;
+        }
+
+        if (isRedoShortcut(event)) {
+            performPlanRedo();
+            event.consume();
+            return;
+        }
+
         if (event.getCode() == KeyCode.DELETE || event.getCode() == KeyCode.BACK_SPACE) {
             clearFocusedCell();
             event.consume();
@@ -425,6 +438,52 @@ public class DataEditorController implements Initializable {
         }
         char character = text.charAt(0);
         return !Character.isISOControl(character);
+    }
+
+    private boolean isUndoShortcut(KeyEvent event) {
+        return event.isControlDown()
+                && !event.isAltDown()
+                && !event.isMetaDown()
+                && !event.isShiftDown()
+                && event.getCode() == KeyCode.Z;
+    }
+
+    private boolean isRedoShortcut(KeyEvent event) {
+        if (!event.isControlDown() || event.isAltDown() || event.isMetaDown()) {
+            return false;
+        }
+        return event.getCode() == KeyCode.Y
+                || (event.isShiftDown() && event.getCode() == KeyCode.Z);
+    }
+
+    private void performPlanUndo() {
+        PlanEditorViewModel planEditorViewModel = dataEditorViewModel.getPlanEditorViewModel();
+        if (!planEditorViewModel.canUndo()) {
+            return;
+        }
+        try {
+            planEditorViewModel.undo();
+            tableView.refresh();
+            tableView.sort();
+            Platform.runLater(this::ensureTableSelection);
+        } catch (IllegalStateException exception) {
+            // Ignore transient undo unavailability in the detached table window.
+        }
+    }
+
+    private void performPlanRedo() {
+        PlanEditorViewModel planEditorViewModel = dataEditorViewModel.getPlanEditorViewModel();
+        if (!planEditorViewModel.canRedo()) {
+            return;
+        }
+        try {
+            planEditorViewModel.redo();
+            tableView.refresh();
+            tableView.sort();
+            Platform.runLater(this::ensureTableSelection);
+        } catch (IllegalStateException exception) {
+            // Ignore transient redo unavailability in the detached table window.
+        }
     }
 
     private void ensureTableSelection() {
