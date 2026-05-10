@@ -5,26 +5,20 @@
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.VBox?>
-<BorderPane fx:id="root" maxHeight="-Infinity" maxWidth="-Infinity" minWidth="-Infinity" prefHeight="500.0" prefWidth="900.0" stylesheets="@../styles/main.css" xmlns="http://javafx.com/javafx/17.0.12" xmlns:fx="http://javafx.com/fxml/1">
+<BorderPane fx:id="root" maxHeight="-Infinity" maxWidth="-Infinity" minWidth="-Infinity" prefHeight="500.0" prefWidth="980.0" stylesheets="@../styles/main.css" xmlns="http://javafx.com/javafx/17.0.12" xmlns:fx="http://javafx.com/fxml/1">
    <center>
-      <TableView fx:id="tableView" prefHeight="200.0" prefWidth="200.0">
+      <TableView fx:id="tableView" editable="true" prefHeight="200.0" prefWidth="200.0">
          <columnResizePolicy>
             <TableView fx:constant="CONSTRAINED_RESIZE_POLICY" />
          </columnResizePolicy>
          <columns>
-            <TableColumn fx:id="columnSequenceNumber" editable="false" prefWidth="75.0" text="Sequence No." />
-             <TableColumn fx:id="columnRadius" prefWidth="75.0" text="Radius" />
-             <TableColumn fx:id="columnLabel" prefWidth="75.0" text="Label" />
-             <TableColumn fx:id="columnCharacteristic" prefWidth="75.0" text="Characteristic" />
-             <TableColumn fx:id="columnInspectionType" prefWidth="75.0" text="Type" />
-             <TableColumn fx:id="columnNominalValue" prefWidth="75.0" text="Nominal Value" />
-             <TableColumn fx:id="columnLowerTolerance" prefWidth="75.0" text="Lower Tolerance" />
-             <TableColumn fx:id="columnUpperTolerance" prefWidth="75.0" text="Upper Tolerance" />
-             <TableColumn fx:id="columnExpectedPassFail" prefWidth="75.0" text="Expected Pass Fail" />
-             <TableColumn fx:id="columnMeasuredValue" prefWidth="75.0" text="Measured Value" />
-             <TableColumn fx:id="columnActualPassFail" prefWidth="75.0" text="Actual Pass Fail" />
-             <TableColumn fx:id="columnStatus" prefWidth="75.0" text="Status" />
-             <TableColumn fx:id="columnNote" prefWidth="75.0" text="Note" />
+            <TableColumn fx:id="columnSequenceNumber" prefWidth="90.0" text="Bubble" />
+             <TableColumn fx:id="columnCharacteristic" prefWidth="210.0" text="Characteristic" />
+             <TableColumn fx:id="columnInspectionType" prefWidth="120.0" text="Type" />
+             <TableColumn fx:id="columnNominalValue" prefWidth="120.0" text="Nominal" />
+             <TableColumn fx:id="columnLowerTolerance" prefWidth="100.0" text="Tol -" />
+             <TableColumn fx:id="columnUpperTolerance" prefWidth="100.0" text="Tol +" />
+             <TableColumn fx:id="columnNote" prefWidth="240.0" text="Note" />
          </columns>
       </TableView>
    </center>

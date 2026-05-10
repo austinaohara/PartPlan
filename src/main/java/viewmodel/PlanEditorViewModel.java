@@ -566,6 +566,42 @@ public class PlanEditorViewModel {
         markDirty();
     }
 
+    public void updateBubblePrintFields(
+            Bubble bubble,
+            int sequenceNumber,
+            String characteristic,
+            InspectionType inspectionType,
+            String nominalValueText,
+            String lowerToleranceText,
+            String upperToleranceText,
+            String note
+    ) {
+        ensureCurrentPlanEditable();
+        if (bubble == null) {
+            return;
+        }
+
+        InspectionPlan plan = requireCurrentPlan();
+        InspectionType resolvedInspectionType = inspectionType == null ? InspectionType.NUMERIC : inspectionType;
+        plan.moveBubbleToSequence(bubble, sequenceNumber);
+        bubble.setCharacteristic(valueOrEmpty(characteristic));
+        bubble.setInspectionType(resolvedInspectionType);
+        if (resolvedInspectionType == InspectionType.PASS_FAIL) {
+            bubble.setNominalValue(null);
+            bubble.setLowerTolerance(null);
+            bubble.setUpperTolerance(null);
+        } else {
+            bubble.setNominalValue(parseNullableDouble(nominalValueText));
+            bubble.setLowerTolerance(parseNullableDouble(lowerToleranceText));
+            bubble.setUpperTolerance(parseNullableDouble(upperToleranceText));
+        }
+        bubble.setNote(valueOrEmpty(note));
+        bubble.updateStatusFromResult();
+        refreshPageBubbles();
+        selectedBubble.set(bubble);
+        markDirty();
+    }
+
     public void moveBubble(Bubble bubble, double x, double y) {
         ensureCurrentPlanEditable();
         if (bubble == null) {
