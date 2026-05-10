@@ -46,6 +46,9 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
+import javafx.scene.text.Font;
+import javafx.scene.text.FontWeight;
+import javafx.scene.text.Text;
 import javafx.scene.text.TextAlignment;
 import javafx.stage.Window;
 import javafx.stage.WindowEvent;
@@ -66,6 +69,9 @@ import java.util.function.Consumer;
 
 public class PartEditorController {
     private static final int MAX_LOT_SIZE = 1000;
+    private static final double PASS_FAIL_HEADER_WIDTH = 132.0;
+    private static final int PASS_FAIL_NOTE_MAX_LINES = 2;
+    private static final Font MASTER_HEADER_FONT = Font.font("Segoe UI", FontWeight.BOLD, 11.0);
     private static final String STYLE_PASS_BACKGROUND = "-fx-background-color: #C8E6C9;";
     private static final String STYLE_FAIL_BACKGROUND = "-fx-background-color: #FFCDD2;";
     private static final String STYLE_INVALID_BACKGROUND = "-fx-background-color: #FFE0B2;";
@@ -549,17 +555,21 @@ public class PartEditorController {
         return new Tooltip(note);
     }
 
-    private Label buildBubbleHeader(PartBubbleDefinition bubble) {
-        boolean noteOnly = isNoteOnlyBubble(bubble);
+    private Node buildBubbleHeader(PartBubbleDefinition bubble) {
+        boolean passFail = bubble.getInspectionType() == InspectionType.PASS_FAIL;
+        boolean noteOnly = !passFail && isNoteOnlyBubble(bubble);
+        if (passFail) {
+            return buildPassFailHeaderNode(bubble);
+        }
+
         Label label = new Label(noteOnly ? bubble.getNote() : buildHeaderText(bubble));
         label.getStyleClass().add("master-column-header");
         label.setWrapText(!noteOnly);
         label.setTextAlignment(noteOnly ? TextAlignment.LEFT : TextAlignment.CENTER);
-        label.setMaxWidth(noteOnly ? 132.0 : 140.0);
-
+        label.setMaxWidth(noteOnly ? PASS_FAIL_HEADER_WIDTH : 140.0);
         if (noteOnly) {
             label.setMinWidth(0.0);
-            label.setPrefWidth(132.0);
+            label.setPrefWidth(PASS_FAIL_HEADER_WIDTH);
             label.setTextOverrun(OverrunStyle.ELLIPSIS);
             label.setTooltip(new Tooltip(bubble.getNote()));
         } else if (!bubble.getNote().isBlank()) {
@@ -571,10 +581,7 @@ public class PartEditorController {
 
     private String buildHeaderText(PartBubbleDefinition bubble) {
         if (bubble.getInspectionType() == InspectionType.PASS_FAIL) {
-            String note = bubble.getNote() == null ? "" : bubble.getNote().trim();
-            return note.isBlank()
-                    ? "%s%nP/F".formatted(bubble.getName())
-                    : "%s%n%s%nP/F".formatted(bubble.getName(), note);
+            return buildPassFailHeaderText(bubble);
         }
 
         return "%s%nNom %s%n+%s / -%s".formatted(
@@ -583,6 +590,113 @@ public class PartEditorController {
                 displaySpecValue(bubble.getUpperTolerance()),
                 displaySpecValue(bubble.getLowerTolerance())
         );
+    }
+
+    private String buildPassFailHeaderText(PartBubbleDefinition bubble) {
+        String note = bubble.getNote() == null ? "" : bubble.getNote().trim();
+        String subject = note.isBlank() ? bubble.getName() : note;
+        if (subject == null || subject.isBlank()) {
+            subject = "Inspection";
+        }
+        return "%d - %s%nP/F".formatted(bubble.getSequenceNumber(), subject);
+    }
+
+    private Node buildPassFailHeaderNode(PartBubbleDefinition bubble) {
+        String note = bubble.getNote() == null ? "" : bubble.getNote().trim();
+        String subject = note.isBlank() ? bubble.getName() : note;
+        if (subject == null || subject.isBlank()) {
+            subject = "Inspection";
+        }
+
+        Label noteLabel = new Label(truncateWrappedHeaderText(
+                "%d - %s".formatted(bubble.getSequenceNumber(), subject),
+                PASS_FAIL_HEADER_WIDTH,
+                PASS_FAIL_NOTE_MAX_LINES
+        ));
+        noteLabel.getStyleClass().add("master-column-header");
+        noteLabel.setFont(MASTER_HEADER_FONT);
+        noteLabel.setAlignment(Pos.CENTER_LEFT);
+        noteLabel.setWrapText(true);
+        noteLabel.setTextAlignment(TextAlignment.LEFT);
+        noteLabel.setMinWidth(0.0);
+        noteLabel.setPrefWidth(PASS_FAIL_HEADER_WIDTH);
+        noteLabel.setMaxWidth(PASS_FAIL_HEADER_WIDTH);
+
+        Label statusLabel = new Label("P/F");
+        statusLabel.getStyleClass().add("master-column-header");
+        statusLabel.setFont(MASTER_HEADER_FONT);
+        statusLabel.setAlignment(Pos.CENTER);
+        statusLabel.setTextAlignment(TextAlignment.CENTER);
+        statusLabel.setMinWidth(0.0);
+        statusLabel.setPrefWidth(PASS_FAIL_HEADER_WIDTH);
+        statusLabel.setMaxWidth(PASS_FAIL_HEADER_WIDTH);
+
+        VBox headerBox = new VBox(0.0, noteLabel, statusLabel);
+        headerBox.setAlignment(Pos.CENTER_LEFT);
+        headerBox.setFillWidth(true);
+        headerBox.setMaxWidth(PASS_FAIL_HEADER_WIDTH);
+        headerBox.setPrefWidth(PASS_FAIL_HEADER_WIDTH);
+
+        Tooltip tooltip = buildPassFailHeaderTooltip(bubble);
+        noteLabel.setTooltip(tooltip);
+        statusLabel.setTooltip(tooltip);
+        return headerBox;
+    }
+
+    private Tooltip buildPassFailHeaderTooltip(PartBubbleDefinition bubble) {
+        String note = bubble.getNote() == null ? "" : bubble.getNote().trim();
+        if (note.isBlank()) {
+            return null;
+        }
+        return new Tooltip(note);
+    }
+
+    private String truncateWrappedHeaderText(String text, double maxWidth, int maxLines) {
+        String normalized = text == null ? "" : text.trim();
+        if (normalized.isBlank()) {
+            return "";
+        }
+        if (fitsWithinWrappedLines(normalized, maxWidth, maxLines)) {
+            return normalized;
+        }
+
+        int low = 0;
+        int high = normalized.length();
+        String best = "...";
+        while (low <= high) {
+            int middle = (low + high) >>> 1;
+            String candidate = normalized.substring(0, middle).trim();
+            if (candidate.isEmpty()) {
+                candidate = normalized.substring(0, Math.min(1, normalized.length()));
+            }
+            candidate = candidate + "...";
+            if (fitsWithinWrappedLines(candidate, maxWidth, maxLines)) {
+                best = candidate;
+                low = middle + 1;
+            } else {
+                high = middle - 1;
+            }
+        }
+
+        int lastSpace = best.lastIndexOf(' ');
+        if (lastSpace > 0) {
+            String wordBoundaryCandidate = best.substring(0, lastSpace).trim() + "...";
+            if (fitsWithinWrappedLines(wordBoundaryCandidate, maxWidth, maxLines)) {
+                return wordBoundaryCandidate;
+            }
+        }
+        return best;
+    }
+
+    private boolean fitsWithinWrappedLines(String text, double maxWidth, int maxLines) {
+        Text layoutText = new Text(text);
+        layoutText.setFont(MASTER_HEADER_FONT);
+        layoutText.setWrappingWidth(maxWidth);
+
+        Text sample = new Text("Ag");
+        sample.setFont(MASTER_HEADER_FONT);
+        double maxHeight = sample.getLayoutBounds().getHeight() * maxLines + 0.5;
+        return layoutText.getLayoutBounds().getHeight() <= maxHeight;
     }
 
     private String displaySpecValue(String value) {
