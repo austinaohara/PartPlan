@@ -11,11 +11,13 @@ import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.event.ActionEvent;
+import javafx.event.EventHandler;
 import javafx.fxml.FXML;
 import javafx.geometry.Bounds;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
+import javafx.scene.Scene;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Button;
 import javafx.scene.control.ContentDisplay;
@@ -90,8 +92,10 @@ public class PartEditorController {
     private final Map<MasterCommentCellKey, MasterMeasurementTableCell> masterMeasurementCells = new HashMap<>();
     private boolean syncingLotSize;
     private Window guardedWindow;
+    private Scene registeredShortcutScene;
     private boolean allowWindowClose;
     private final javafx.event.EventHandler<WindowEvent> closeRequestHandler = this::handleCloseRequest;
+    private final EventHandler<KeyEvent> hotkeyHandler = this::handleHotkeys;
 
     private void handleCloseRequest(WindowEvent event) {
         if (allowWindowClose) {
@@ -163,7 +167,10 @@ public class PartEditorController {
         ));
         bindMenuActions();
         root.disableProperty().bind(repositoryBusy);
-        root.sceneProperty().addListener((observable, oldScene, newScene) -> registerWindowCloseGuard(newScene));
+        root.sceneProperty().addListener((observable, oldScene, newScene) -> {
+            registerWindowCloseGuard(newScene);
+            registerShortcuts(oldScene, newScene);
+        });
         configureLotSizeSpinner();
         configurePartSelector();
         configurePartTable();
@@ -1483,6 +1490,30 @@ public class PartEditorController {
             }
             installer.accept(newWindow);
         });
+    }
+
+    private void registerShortcuts(Scene oldScene, Scene newScene) {
+        if (oldScene != null && oldScene != newScene) {
+            oldScene.removeEventFilter(KeyEvent.KEY_PRESSED, hotkeyHandler);
+            if (registeredShortcutScene == oldScene) {
+                registeredShortcutScene = null;
+            }
+        }
+        if (newScene == null || newScene == registeredShortcutScene) {
+            return;
+        }
+        newScene.addEventFilter(KeyEvent.KEY_PRESSED, hotkeyHandler);
+        registeredShortcutScene = newScene;
+    }
+
+    private void handleHotkeys(KeyEvent event) {
+        if (!event.isControlDown() || event.isAltDown() || event.isMetaDown()) {
+            return;
+        }
+        if (event.getCode() == KeyCode.S) {
+            requestSaveCurrentLot(null);
+            event.consume();
+        }
     }
 
     private void closeWindowAfterSaveOrDiscard() {

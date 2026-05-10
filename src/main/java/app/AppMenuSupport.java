@@ -125,7 +125,7 @@ public final class AppMenuSupport {
             menuBar.getMenus().add(buildLotMenu(menuContext, menuItems));
         }
         menuBar.getMenus().add(buildToolsMenu(callbacks, menuItems));
-        menuBar.getMenus().add(buildHelpMenu());
+        menuBar.getMenus().add(buildHelpMenu(menuContext));
         return menuBar;
     }
 
@@ -265,18 +265,10 @@ public final class AppMenuSupport {
         return toolsMenu;
     }
 
-    private static Menu buildHelpMenu() {
+    private static Menu buildHelpMenu(MenuContext menuContext) {
         Menu helpMenu = new Menu("Help");
         helpMenu.getItems().addAll(
-                actionItem("Keyboard Shortcuts", () -> showPlaceholderDialog(
-                        "Keyboard Shortcuts",
-                        "Keyboard shortcuts are not wired into the shared menu yet."
-                )),
-                actionItem("Troubleshooting", () -> showPlaceholderDialog(
-                        "Troubleshooting",
-                        "Troubleshooting content is not written yet."
-                )),
-                new SeparatorMenuItem(),
+                actionItem("Keyboard Shortcuts", () -> showKeyboardShortcutsDialog(menuContext)),
                 actionItem("About PartPlan", AppMenuSupport::showAboutDialog)
         );
         return helpMenu;
@@ -350,12 +342,85 @@ public final class AppMenuSupport {
         alert.showAndWait();
     }
 
-    private static void showPlaceholderDialog(String title, String message) {
+    private static void showKeyboardShortcutsDialog(MenuContext menuContext) {
         Alert alert = new Alert(Alert.AlertType.INFORMATION);
-        alert.setTitle(title);
-        alert.setHeaderText(null);
-        alert.setContentText(message);
+        alert.setTitle("Keyboard Shortcuts");
+        alert.setHeaderText(shortcutsHeader(menuContext));
+        alert.setContentText(shortcutsMessage(menuContext));
         alert.showAndWait();
+    }
+
+    private static String shortcutsHeader(MenuContext menuContext) {
+        return switch (menuContext == null ? MenuContext.GENERAL : menuContext) {
+            case PLAN_BROWSER -> "Inspection Plans";
+            case PLAN_EDITOR -> "Plan Editor";
+            case LOT_BROWSER -> "Inspection Lots";
+            case LOT_EDITOR -> "Inspection Lot Editor";
+            case GENERAL -> "PartPlan";
+        };
+    }
+
+    private static String shortcutsMessage(MenuContext menuContext) {
+        return switch (menuContext == null ? MenuContext.GENERAL : menuContext) {
+            case PLAN_BROWSER -> """
+                    Delete
+                    Delete the selected inspection plan.
+                    """;
+            case PLAN_EDITOR -> """
+                    Arrow keys
+                    Select the previous or next bubble.
+
+                    Delete / Backspace
+                    Delete the selected bubble.
+
+                    Ctrl+S
+                    Save the current draft.
+
+                    Ctrl+C
+                    Copy the selected bubble.
+
+                    Ctrl++ / Ctrl+=
+                    Zoom in.
+
+                    Ctrl+-
+                    Zoom out.
+
+                    Ctrl+0
+                    Reset zoom.
+
+                    Ctrl+F
+                    Fit the drawing to the viewport.
+
+                    Ctrl+Mouse Wheel
+                    Zoom in or out.
+
+                    Shift+Click
+                    Place a bubble on the drawing.
+                    """;
+            case LOT_BROWSER -> """
+                    Delete
+                    Delete the selected inspection lot.
+                    """;
+            case LOT_EDITOR -> """
+                    Ctrl+S
+                    Save the current inspection lot.
+
+                    Any printable key
+                    Start editing the focused cell and replace its contents.
+
+                    Enter / F2
+                    Edit the focused cell.
+
+                    Delete / Backspace
+                    Clear the focused editable cell.
+
+                    Ctrl+Shift+C
+                    Open the comment editor for the selected cell in the master table.
+                    """;
+            case GENERAL -> """
+                    No page-specific keyboard shortcuts are available here.
+                    """;
+        };
     }
 
     public record MenuCallbacks(
