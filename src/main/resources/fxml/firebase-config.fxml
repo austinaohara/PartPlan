@@ -3,7 +3,8 @@
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
-<BorderPane fx:id="rootPane" prefHeight="700.0" prefWidth="1100.0" stylesheets="@../styles/main.css" xmlns="http://javafx.com/javafx/20.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="FirebaseSetupController">
+
+<BorderPane fx:id="rootPane" prefHeight="700.0" prefWidth="1100.0" stylesheets="@../styles/main.css,@../styles/firebase-config.css" xmlns="http://javafx.com/javafx/20.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="FirebaseSetupController">
     <top>
         <VBox spacing="10.0" styleClass="top-bar">
             <padding>

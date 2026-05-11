@@ -213,6 +213,7 @@ public class PlanEditorController {
     private FilteredList<Bubble> filteredBubbles;
     private SortedList<Bubble> sortedBubbles;
     private boolean syncingPageSelection;
+    private boolean suppressNextDrawingClick;
     private double defaultBubbleDiameter = 36.0;
     private String defaultBubbleColor = "#E53935";
     private String defaultCharacteristic = "";
@@ -794,6 +795,7 @@ public class PlanEditorController {
                 fxmlLoader.setLocation(getClass().getResource("/fxml/data-editor.fxml"));
                 fxmlLoader.setController(new DataEditorController(this.viewModel));
                 Parent bubbleTableRoot = fxmlLoader.load();
+                bubbleTableRoot.disableProperty().bind(repositoryBusy.or(viewModel.saveInProgressProperty()));
 
                 bubbleTableStage = new Stage();
                 bubbleTableStage.setTitle("PartPlan - Bubble Table");
@@ -888,6 +890,22 @@ public class PlanEditorController {
         if (isDeleteBubbleEvent(event)) {
             onDeleteBubble();
             event.consume();
+            return;
+        }
+
+        if (isUndoShortcut(event)) {
+            if (!isTextInputFocusOwner()) {
+                onUndoFromMenu();
+                event.consume();
+            }
+            return;
+        }
+
+        if (isRedoShortcut(event)) {
+            if (!isTextInputFocusOwner()) {
+                onRedoFromMenu();
+                event.consume();
+            }
             return;
         }
 
@@ -1074,6 +1092,30 @@ public class PlanEditorController {
                 && !(focusOwner instanceof TableView<?>);
     }
 
+    private boolean isUndoShortcut(KeyEvent event) {
+        return event.isControlDown()
+                && !event.isAltDown()
+                && !event.isMetaDown()
+                && !event.isShiftDown()
+                && event.getCode() == KeyCode.Z;
+    }
+
+    private boolean isRedoShortcut(KeyEvent event) {
+        if (!event.isControlDown() || event.isAltDown() || event.isMetaDown()) {
+            return false;
+        }
+        return event.getCode() == KeyCode.Y
+                || (event.isShiftDown() && event.getCode() == KeyCode.Z);
+    }
+
+    private boolean isTextInputFocusOwner() {
+        Scene scene = root.getScene();
+        if (scene == null) {
+            return false;
+        }
+        return scene.getFocusOwner() instanceof TextInputControl;
+    }
+
     private boolean isDeleteBubbleEvent(KeyEvent event) {
         if (event.isControlDown() || event.isAltDown() || event.isMetaDown()) {
             return false;
@@ -1137,6 +1179,12 @@ public class PlanEditorController {
             return;
         }
 
+        if (suppressNextDrawingClick) {
+            suppressNextDrawingClick = false;
+            event.consume();
+            return;
+        }
+
         if (event.isShiftDown() && !viewModel.isCurrentPlanEditable()) {
             event.consume();
             return;
@@ -1182,30 +1230,34 @@ public class PlanEditorController {
         for (Bubble bubble : viewModel.getPageBubbles()) {
             boolean isSelected = viewModel.getSelectedBubble() != null
                     && bubble.getId().equals(viewModel.getSelectedBubble().getId());
-            Color baseColor = switch (bubble.getStatus()) {
-                case OPEN -> Color.web("#808080");//grey
-
-                case REVIEW -> Color.web("#ffff00");//yellow
-
-                case PASS -> Color.web("#00ff00");//green
-
-                case FAIL -> Color.web("#ff0000");//red
-            };
+            Color baseColor = toFxColor(bubble.getColor());
             Circle circle = new Circle(
                     bubble.getX() * scale,
                     bubble.getY() * scale,
                     bubble.getRadius() * scale
             );
+            double bubbleStrokeWidth = isSelected ? 3.0 : 2.0;
 
-            double fillOpacity = switch (bubble.getStatus()) {
-                case OPEN -> 0.15;
-                case REVIEW -> 0.25;
-                case PASS -> isSelected ? 0.20 : 0.0;
-                case FAIL -> 0.35;
-            };
-            circle.setFill(fillOpacity > 0 ? Color.color(baseColor.getRed(), baseColor.getGreen(), baseColor.getBlue(), fillOpacity) : Color.TRANSPARENT);
+            Circle selectionOutline = null;
+            if (isSelected) {
+                double selectionOutlineStrokeWidth = 2.0;
+                Circle outline = new Circle(
+                        circle.getCenterX(),
+                        circle.getCenterY(),
+                        circle.getRadius() + (bubbleStrokeWidth + selectionOutlineStrokeWidth) / 2.0
+                );
+                outline.setFill(Color.TRANSPARENT);
+                outline.setStroke(Color.web("#183247"));
+                outline.setStrokeWidth(selectionOutlineStrokeWidth);
+                outline.setMouseTransparent(true);
+                selectionOutline = outline;
+            }
+
+            Circle selectionOutlineNode = selectionOutline;
+
+            circle.setFill(Color.WHITE);
             circle.setStroke(baseColor);
-            circle.setStrokeWidth(isSelected || bubble.getStatus() != BubbleStatus.PASS ? 3.0 : 2.0);
+            circle.setStrokeWidth(bubbleStrokeWidth);
 
             Text text = new Text(circle.getCenterX(), circle.getCenterY(), bubble.getLabel());
             text.setFill(baseColor);
@@ -1235,7 +1287,11 @@ public class PlanEditorController {
                 bubbleDragged = false;
                 drawingPannableBeforeBubbleDrag = drawingScrollPane.isPannable();
                 drawingScrollPane.setPannable(false);
+                if (selectionOutlineNode != null) {
+                    selectionOutlineNode.toFront();
+                }
                 circle.toFront();
+                text.toFront();
                 mouseEvent.consume();
             });
             circle.setOnMouseDragged(mouseEvent -> {
@@ -1259,6 +1315,9 @@ public class PlanEditorController {
                 mouseEvent.consume();
             });
 
+            if (selectionOutlineNode != null) {
+                bubbleOverlayPane.getChildren().add(selectionOutlineNode);
+            }
             bubbleOverlayPane.getChildren().addAll(circle, text);
         }
     }
@@ -1610,12 +1669,15 @@ public class PlanEditorController {
             return;
         }
 
+        Bubble releasedBubble = draggingBubble;
         if (bubbleDragged) {
             Point2D overlayPoint = bubbleOverlayPane.sceneToLocal(sceneX, sceneY);
-            updateBubblePosition(draggingBubble, overlayPoint.getX(), overlayPoint.getY());
+            updateBubblePosition(releasedBubble, overlayPoint.getX(), overlayPoint.getY());
             viewModel.persistBubbleLayout();
+            suppressNextDrawingClick = true;
         }
 
+        viewModel.selectBubble(releasedBubble);
         drawingScrollPane.setPannable(drawingPannableBeforeBubbleDrag);
         draggingBubble = null;
         bubbleDragged = false;
@@ -1630,6 +1692,7 @@ public class PlanEditorController {
         double clampedY = Math.max(radius, Math.min(overlayY, imageHeight - radius));
 
         viewModel.moveBubble(bubble, clampedX / scale, clampedY / scale);
+        renderBubbles();
     }
 
     private String formatPlanListEntry(InspectionPlan plan) {
@@ -1720,7 +1783,10 @@ public class PlanEditorController {
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.FILE_IMPORT_DRAWING_PAGE, this::onImportDrawing);
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.FILE_EXPORT_CSV, this::onExportCsvFromMenu);
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.FILE_EXPORT_PDF, this::onExportPdfFromMenu);
+        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.EDIT_UNDO, this::onUndoFromMenu);
+        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.EDIT_REDO, this::onRedoFromMenu);
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.NAV_PLANS, this::returnToPlanBrowserFromMenu);
+        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.NAV_INSPECTION_LOTS, this::returnToLotBrowserFromMenu);
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.NAV_HOME, this::returnToHubFromMenu);
 
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.VIEW_SAVED_PLANS_PANEL, this::onToggleLeftPanel);
@@ -1740,6 +1806,10 @@ public class PlanEditorController {
                         .or(viewModel.unsavedChangesProperty().not())
                         .or(viewModel.saveInProgressProperty())
                         .or(repositoryBusy));
+        AppMenuSupport.bindDisable(root, AppMenuSupport.MenuAction.EDIT_UNDO,
+                viewModel.canUndoProperty().not().or(repositoryBusy));
+        AppMenuSupport.bindDisable(root, AppMenuSupport.MenuAction.EDIT_REDO,
+                viewModel.canRedoProperty().not().or(repositoryBusy));
         AppMenuSupport.bindDisable(root, AppMenuSupport.MenuAction.FILE_RENAME_PLAN,
                 viewModel.currentPlanEditableProperty().not().or(repositoryBusy));
         AppMenuSupport.bindDisable(root, AppMenuSupport.MenuAction.FILE_IMPORT_DRAWING_PAGE,
@@ -1752,6 +1822,36 @@ public class PlanEditorController {
                 viewModel.currentPlanEditableProperty().not()
                         .or(viewModel.drawingLoadedProperty().not())
                         .or(repositoryBusy));
+    }
+
+    private void onUndoFromMenu() {
+        performPlanUndo();
+    }
+
+    private void onRedoFromMenu() {
+        performPlanRedo();
+    }
+
+    private void performPlanUndo() {
+        if (repositoryBusy.get() || !viewModel.canUndo()) {
+            return;
+        }
+        try {
+            viewModel.undo();
+        } catch (IllegalStateException exception) {
+            showInformation(exception.getMessage());
+        }
+    }
+
+    private void performPlanRedo() {
+        if (repositoryBusy.get() || !viewModel.canRedo()) {
+            return;
+        }
+        try {
+            viewModel.redo();
+        } catch (IllegalStateException exception) {
+            showInformation(exception.getMessage());
+        }
     }
 
     private void onRenameCurrentPlanFromMenu() {
@@ -1779,6 +1879,16 @@ public class PlanEditorController {
                 openPlanBrowser(root);
             } catch (IOException exception) {
                 throw new IllegalStateException("Unable to return to inspection plans.", exception);
+            }
+        });
+    }
+
+    private void returnToLotBrowserFromMenu() {
+        requestProceedWithPotentialUnsavedChanges("return to inspection lots", true, () -> {
+            try {
+                openLotBrowser(root);
+            } catch (IOException exception) {
+                throw new IllegalStateException("Unable to open inspection lots.", exception);
             }
         });
     }
@@ -1905,6 +2015,10 @@ public class PlanEditorController {
             PlanBrowserController controller = loader.getController();
             controller.selectPlan(currentPlanId);
         });
+    }
+
+    private void openLotBrowser(Node source) throws IOException {
+        AppNavigator.swapRoot(source, "/fxml/inspection-lot-browser.fxml", "PartPlan - Inspection Lots");
     }
 
     private String buildDeletePlanMessage(InspectionPlan plan, List<InspectionLotSummary> affectedLots) {

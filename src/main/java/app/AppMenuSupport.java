@@ -1,17 +1,26 @@
 package app;
 
+import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.beans.value.ObservableBooleanValue;
 import javafx.application.Platform;
+import javafx.collections.FXCollections;
 import javafx.fxml.FXMLLoader;
+import javafx.geometry.Insets;
 import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.Alert;
+import javafx.scene.control.ContentDisplay;
+import javafx.scene.control.Label;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuBar;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.SeparatorMenuItem;
+import javafx.scene.control.TableCell;
+import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableView;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
@@ -20,6 +29,7 @@ import view.AppNavigator;
 
 import java.io.IOException;
 import java.util.EnumMap;
+import java.util.List;
 import java.util.Map;
 
 public final class AppMenuSupport {
@@ -119,10 +129,13 @@ public final class AppMenuSupport {
             menuBar.getMenus().add(buildViewMenu(menuItems));
         }
         if (menuContext.includesPlanMenu()) {
-            menuBar.getMenus().add(buildPlanMenu(menuItems));
+            menuBar.getMenus().add(buildPlanMenu(menuContext, menuItems));
+        }
+        if (menuContext.includesLotMenu()) {
+            menuBar.getMenus().add(buildLotMenu(menuContext, menuItems));
         }
         menuBar.getMenus().add(buildToolsMenu(callbacks, menuItems));
-        menuBar.getMenus().add(buildHelpMenu());
+        menuBar.getMenus().add(buildHelpMenu(menuContext));
         return menuBar;
     }
 
@@ -133,9 +146,6 @@ public final class AppMenuSupport {
                     disabledItem(MenuAction.FILE_NEW_PLAN, "New Plan...", menuItems),
                     disabledItem(MenuAction.FILE_OPEN_PLAN, "Open Plan...", menuItems),
                     disabledItem(MenuAction.FILE_RENAME_PLAN, "Rename Plan...", menuItems),
-                    new SeparatorMenuItem(),
-                    disabledItem(MenuAction.PLAN_DELETE_PLAN, "Delete Plan", menuItems),
-                    disabledItem(MenuAction.TOOLS_REFRESH_REMOTE_DATA, "Refresh", menuItems),
                     new SeparatorMenuItem(),
                     actionItem(MenuAction.FILE_SIGN_OUT, "Sign Out", callbacks.onSignOut(), menuItems),
                     actionItem("Exit", Platform::exit)
@@ -155,10 +165,6 @@ public final class AppMenuSupport {
                     disabledItem(MenuAction.LOT_OPEN_SELECTED_LOT, "Open Inspection Lot...", menuItems),
                     disabledItem(MenuAction.FILE_RENAME_LOT, "Rename Inspection Lot...", menuItems),
                     new SeparatorMenuItem(),
-                    disabledItem(MenuAction.LOT_DELETE_LOT, "Delete Inspection Lot", menuItems),
-                    disabledItem(MenuAction.LOT_UPVERSION_LOT, "Upversion Inspection Lot", menuItems),
-                    disabledItem(MenuAction.TOOLS_REFRESH_REMOTE_DATA, "Refresh", menuItems),
-                    new SeparatorMenuItem(),
                     actionItem(MenuAction.FILE_SIGN_OUT, "Sign Out", callbacks.onSignOut(), menuItems),
                     actionItem("Exit", Platform::exit)
             );
@@ -166,7 +172,7 @@ public final class AppMenuSupport {
                     disabledItem(MenuAction.FILE_RENAME_LOT, "Rename Inspection Lot...", menuItems),
                     new SeparatorMenuItem(),
                     disabledItem(MenuAction.LOT_SAVE_LOT, "Save Lot", menuItems),
-                    disabledItem(MenuAction.LOT_UPVERSION_LOT, "Upversion Inspection Lot", menuItems),
+                    exportMenu(menuItems),
                     new SeparatorMenuItem(),
                     actionItem(MenuAction.FILE_SIGN_OUT, "Sign Out", callbacks.onSignOut(), menuItems),
                     actionItem("Exit", Platform::exit)
@@ -195,21 +201,14 @@ public final class AppMenuSupport {
 
     private static Menu buildNavigationMenu(MenuContext menuContext, Map<MenuAction, MenuItem> menuItems) {
         Menu navigationMenu = new Menu("Navigation");
-        switch (menuContext) {
-            case PLAN_BROWSER, LOT_BROWSER -> navigationMenu.getItems().addAll(
-                    disabledItem(MenuAction.NAV_HOME, "Home", menuItems)
-            );
-            case PLAN_EDITOR -> navigationMenu.getItems().addAll(
-                    disabledItem(MenuAction.NAV_PLANS, "Inspection Plans", menuItems),
-                    disabledItem(MenuAction.NAV_HOME, "Home", menuItems)
-            );
-            case LOT_EDITOR -> navigationMenu.getItems().addAll(
-                    disabledItem(MenuAction.NAV_INSPECTION_LOTS, "Inspection Lots", menuItems),
-                    disabledItem(MenuAction.NAV_HOME, "Home", menuItems)
-            );
-            case GENERAL -> {
-            }
+        if (menuContext == MenuContext.GENERAL) {
+            return navigationMenu;
         }
+        navigationMenu.getItems().addAll(
+                disabledItem(MenuAction.NAV_HOME, "Home", menuItems),
+                disabledItem(MenuAction.NAV_PLANS, "Inspection Plans", menuItems),
+                disabledItem(MenuAction.NAV_INSPECTION_LOTS, "Inspection Lots", menuItems)
+        );
         return navigationMenu;
     }
 
@@ -227,18 +226,41 @@ public final class AppMenuSupport {
         return viewMenu;
     }
 
-    private static Menu buildPlanMenu(Map<MenuAction, MenuItem> menuItems) {
+    private static Menu buildPlanMenu(MenuContext menuContext, Map<MenuAction, MenuItem> menuItems) {
         Menu planMenu = new Menu("Plan");
-        planMenu.getItems().addAll(
-                disabledItem(MenuAction.PLAN_COMPLETE_PLAN, "Complete Plan", menuItems),
-                disabledItem(MenuAction.PLAN_CREATE_REVISION, "Create Revision", menuItems),
-                new SeparatorMenuItem(),
-                disabledItem(MenuAction.PLAN_OPEN_DATA_EDITOR, "Open Bubble Table", menuItems),
-                disabledItem(MenuAction.PLAN_AUTO_BALLOON_PAGE, "Auto-Balloon Page", menuItems),
-                disabledItem(MenuAction.PLAN_NEXT_PAGE, "Next Page", menuItems),
-                disabledItem(MenuAction.PLAN_PREVIOUS_PAGE, "Previous Page", menuItems)
-        );
+        switch (menuContext) {
+            case PLAN_BROWSER -> planMenu.getItems().addAll(
+                    disabledItem(MenuAction.PLAN_DELETE_PLAN, "Delete Plan", menuItems)
+            );
+            case PLAN_EDITOR -> planMenu.getItems().addAll(
+                    disabledItem(MenuAction.PLAN_COMPLETE_PLAN, "Complete Plan", menuItems),
+                    disabledItem(MenuAction.PLAN_CREATE_REVISION, "Create Revision", menuItems),
+                    new SeparatorMenuItem(),
+                    disabledItem(MenuAction.PLAN_OPEN_DATA_EDITOR, "Open Bubble Table", menuItems),
+                    disabledItem(MenuAction.PLAN_AUTO_BALLOON_PAGE, "Auto-Balloon Page", menuItems),
+                    disabledItem(MenuAction.PLAN_NEXT_PAGE, "Next Page", menuItems),
+                    disabledItem(MenuAction.PLAN_PREVIOUS_PAGE, "Previous Page", menuItems)
+            );
+            default -> {
+            }
+        }
         return planMenu;
+    }
+
+    private static Menu buildLotMenu(MenuContext menuContext, Map<MenuAction, MenuItem> menuItems) {
+        Menu lotMenu = new Menu("Lot");
+        switch (menuContext) {
+            case LOT_BROWSER -> lotMenu.getItems().addAll(
+                    disabledItem(MenuAction.LOT_DELETE_LOT, "Delete Inspection Lot", menuItems),
+                    disabledItem(MenuAction.LOT_UPVERSION_LOT, "Upversion Inspection Lot", menuItems)
+            );
+            case LOT_EDITOR -> lotMenu.getItems().addAll(
+                    disabledItem(MenuAction.LOT_UPVERSION_LOT, "Upversion Inspection Lot", menuItems)
+            );
+            default -> {
+            }
+        }
+        return lotMenu;
     }
 
     private static Menu buildToolsMenu(MenuCallbacks callbacks, Map<MenuAction, MenuItem> menuItems) {
@@ -253,18 +275,10 @@ public final class AppMenuSupport {
         return toolsMenu;
     }
 
-    private static Menu buildHelpMenu() {
+    private static Menu buildHelpMenu(MenuContext menuContext) {
         Menu helpMenu = new Menu("Help");
         helpMenu.getItems().addAll(
-                actionItem("Keyboard Shortcuts", () -> showPlaceholderDialog(
-                        "Keyboard Shortcuts",
-                        "Keyboard shortcuts are not wired into the shared menu yet."
-                )),
-                actionItem("Troubleshooting", () -> showPlaceholderDialog(
-                        "Troubleshooting",
-                        "Troubleshooting content is not written yet."
-                )),
-                new SeparatorMenuItem(),
+                actionItem("Keyboard Shortcuts", () -> showKeyboardShortcutsDialog(menuContext)),
                 actionItem("About PartPlan", AppMenuSupport::showAboutDialog)
         );
         return helpMenu;
@@ -338,12 +352,137 @@ public final class AppMenuSupport {
         alert.showAndWait();
     }
 
-    private static void showPlaceholderDialog(String title, String message) {
+    private static void showKeyboardShortcutsDialog(MenuContext menuContext) {
         Alert alert = new Alert(Alert.AlertType.INFORMATION);
-        alert.setTitle(title);
-        alert.setHeaderText(null);
-        alert.setContentText(message);
+        alert.setTitle("Keyboard Shortcuts");
+        alert.setHeaderText(shortcutsHeader(menuContext));
+        alert.getDialogPane().getStylesheets().setAll(
+                AppMenuSupport.class.getResource("/styles/dialogs.css").toExternalForm()
+        );
+        alert.getDialogPane().setContent(buildShortcutsContent(menuContext));
+        alert.getDialogPane().setMinHeight(Region.USE_PREF_SIZE);
+        alert.getDialogPane().setPrefWidth(700.0);
+        alert.setResizable(true);
         alert.showAndWait();
+    }
+
+    private static String shortcutsHeader(MenuContext menuContext) {
+        return switch (menuContext == null ? MenuContext.GENERAL : menuContext) {
+            case PLAN_BROWSER -> "Inspection Plans";
+            case PLAN_EDITOR -> "Plan Editor";
+            case LOT_BROWSER -> "Inspection Lots";
+            case LOT_EDITOR -> "Inspection Lot Editor";
+            case GENERAL -> "PartPlan";
+        };
+    }
+
+    private static Node buildShortcutsContent(MenuContext menuContext) {
+        TableView<ShortcutEntry> tableView = new TableView<>(FXCollections.observableArrayList(shortcutEntries(menuContext)));
+        tableView.setEditable(false);
+        tableView.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+        tableView.setPlaceholder(new Label("No keyboard shortcuts available."));
+        tableView.getStyleClass().add("browser-table");
+        tableView.setPrefHeight(360.0);
+        tableView.setMinHeight(220.0);
+
+        TableColumn<ShortcutEntry, String> shortcutColumn = new TableColumn<>("Shortcut");
+        shortcutColumn.setCellValueFactory(data -> new ReadOnlyStringWrapper(data.getValue().shortcut()));
+        shortcutColumn.setSortable(false);
+        shortcutColumn.setReorderable(false);
+        shortcutColumn.setResizable(false);
+        shortcutColumn.setPrefWidth(180.0);
+        shortcutColumn.setCellFactory(column -> new TableCell<>() {
+            private final Label label = new Label();
+
+            {
+                label.setStyle("-fx-font-weight: 700; -fx-text-fill: #183247;");
+                label.setWrapText(true);
+                label.maxWidthProperty().bind(column.widthProperty().subtract(24.0));
+                setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
+            }
+
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null || item.isBlank()) {
+                    label.setText(null);
+                    setGraphic(null);
+                    return;
+                }
+                label.setText(item);
+                setGraphic(label);
+            }
+        });
+
+        TableColumn<ShortcutEntry, String> actionColumn = new TableColumn<>("Action");
+        actionColumn.setCellValueFactory(data -> new ReadOnlyStringWrapper(data.getValue().action()));
+        actionColumn.setSortable(false);
+        actionColumn.setReorderable(false);
+        actionColumn.setCellFactory(column -> new TableCell<>() {
+            private final Label label = new Label();
+
+            {
+                label.setWrapText(true);
+                label.setPadding(new Insets(2.0, 0.0, 2.0, 0.0));
+                label.maxWidthProperty().bind(column.widthProperty().subtract(24.0));
+                setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
+            }
+
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null || item.isBlank()) {
+                    label.setText(null);
+                    setGraphic(null);
+                    return;
+                }
+                label.setText(item);
+                setGraphic(label);
+            }
+        });
+
+        tableView.getColumns().setAll(shortcutColumn, actionColumn);
+        return tableView;
+    }
+
+    private static List<ShortcutEntry> shortcutEntries(MenuContext menuContext) {
+        return switch (menuContext == null ? MenuContext.GENERAL : menuContext) {
+            case PLAN_BROWSER -> List.of(
+                    new ShortcutEntry("Delete", "Delete the selected inspection plan.")
+            );
+            case PLAN_EDITOR -> List.of(
+                    new ShortcutEntry("Arrow keys", "Select the previous or next bubble."),
+                    new ShortcutEntry("Delete / Backspace", "Delete the selected bubble."),
+                    new ShortcutEntry("Ctrl+S", "Save the current draft."),
+                    new ShortcutEntry("Ctrl+Z", "Undo the last plan change."),
+                    new ShortcutEntry("Ctrl+Y / Ctrl+Shift+Z", "Redo the last undone plan change."),
+                    new ShortcutEntry("Ctrl+C", "Copy the selected bubble."),
+                    new ShortcutEntry("Ctrl++ / Ctrl+=", "Zoom in."),
+                    new ShortcutEntry("Ctrl+-", "Zoom out."),
+                    new ShortcutEntry("Ctrl+0", "Reset zoom."),
+                    new ShortcutEntry("Ctrl+F", "Fit the drawing to the viewport."),
+                    new ShortcutEntry("Ctrl+Mouse Wheel", "Zoom in or out."),
+                    new ShortcutEntry("Shift+Click", "Place a bubble on the drawing.")
+            );
+            case LOT_BROWSER -> List.of(
+                    new ShortcutEntry("Delete", "Delete the selected inspection lot.")
+            );
+            case LOT_EDITOR -> List.of(
+                    new ShortcutEntry("Ctrl+S", "Save the current inspection lot."),
+                    new ShortcutEntry("Ctrl+Z", "Undo the last lot edit."),
+                    new ShortcutEntry("Ctrl+Y / Ctrl+Shift+Z", "Redo the last undone lot edit."),
+                    new ShortcutEntry("Any printable key", "Start editing the focused cell and replace its contents."),
+                    new ShortcutEntry("Enter / F2", "Edit the focused cell."),
+                    new ShortcutEntry("Delete / Backspace", "Clear the focused editable cell."),
+                    new ShortcutEntry("Ctrl+Shift+C", "Open the comment editor for the selected cell in the master table.")
+            );
+            case GENERAL -> List.of(
+                    new ShortcutEntry("None", "No page-specific keyboard shortcuts are available here.")
+            );
+        };
+    }
+
+    private record ShortcutEntry(String shortcut, String action) {
     }
 
     public record MenuCallbacks(
@@ -357,19 +496,21 @@ public final class AppMenuSupport {
     }
 
     public enum MenuContext {
-        GENERAL(false, false, false),
-        PLAN_BROWSER(false, false, true),
-        PLAN_EDITOR(true, true, true),
-        LOT_BROWSER(false, false, true),
-        LOT_EDITOR(false, false, true);
+        GENERAL(false, false, false, false),
+        PLAN_BROWSER(false, true, false, true),
+        PLAN_EDITOR(true, true, false, true),
+        LOT_BROWSER(false, false, true, true),
+        LOT_EDITOR(false, false, true, true);
 
         private final boolean includesViewMenu;
         private final boolean includesPlanMenu;
+        private final boolean includesLotMenu;
         private final boolean includesNavigationMenu;
 
-        MenuContext(boolean includesViewMenu, boolean includesPlanMenu, boolean includesNavigationMenu) {
+        MenuContext(boolean includesViewMenu, boolean includesPlanMenu, boolean includesLotMenu, boolean includesNavigationMenu) {
             this.includesViewMenu = includesViewMenu;
             this.includesPlanMenu = includesPlanMenu;
+            this.includesLotMenu = includesLotMenu;
             this.includesNavigationMenu = includesNavigationMenu;
         }
 
@@ -379,6 +520,10 @@ public final class AppMenuSupport {
 
         public boolean includesPlanMenu() {
             return includesPlanMenu;
+        }
+
+        public boolean includesLotMenu() {
+            return includesLotMenu;
         }
 
         public boolean includesNavigationMenu() {

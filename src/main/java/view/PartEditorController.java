@@ -11,11 +11,13 @@ import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.event.ActionEvent;
+import javafx.event.EventHandler;
 import javafx.fxml.FXML;
 import javafx.geometry.Bounds;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
+import javafx.scene.Scene;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Button;
 import javafx.scene.control.ContentDisplay;
@@ -46,7 +48,11 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
+import javafx.scene.text.Font;
+import javafx.scene.text.FontWeight;
+import javafx.scene.text.Text;
 import javafx.scene.text.TextAlignment;
+import javafx.stage.FileChooser;
 import javafx.stage.Window;
 import javafx.stage.WindowEvent;
 import javafx.util.StringConverter;
@@ -56,9 +62,12 @@ import model.InspectionType;
 import model.PartBubbleDefinition;
 import model.PartRecord;
 import service.auth.AuthService;
+import service.export.ExportFormat;
+import service.export.InspectionLotExportService;
 import viewmodel.PartBubbleRowViewModel;
 import viewmodel.PartEditorViewModel;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
@@ -66,6 +75,9 @@ import java.util.function.Consumer;
 
 public class PartEditorController {
     private static final int MAX_LOT_SIZE = 1000;
+    private static final double PASS_FAIL_HEADER_WIDTH = 132.0;
+    private static final int PASS_FAIL_NOTE_MAX_LINES = 2;
+    private static final Font MASTER_HEADER_FONT = Font.font("Segoe UI", FontWeight.BOLD, 11.0);
     private static final String STYLE_PASS_BACKGROUND = "-fx-background-color: #C8E6C9;";
     private static final String STYLE_FAIL_BACKGROUND = "-fx-background-color: #FFCDD2;";
     private static final String STYLE_INVALID_BACKGROUND = "-fx-background-color: #FFE0B2;";
@@ -75,12 +87,15 @@ public class PartEditorController {
 
     private final PartEditorViewModel viewModel;
     private final AuthService authService;
+    private final InspectionLotExportService exportService = new InspectionLotExportService();
     private final BooleanProperty repositoryBusy = new SimpleBooleanProperty(false);
     private final Map<MasterCommentCellKey, MasterMeasurementTableCell> masterMeasurementCells = new HashMap<>();
     private boolean syncingLotSize;
     private Window guardedWindow;
+    private Scene registeredShortcutScene;
     private boolean allowWindowClose;
     private final javafx.event.EventHandler<WindowEvent> closeRequestHandler = this::handleCloseRequest;
+    private final EventHandler<KeyEvent> hotkeyHandler = this::handleHotkeys;
 
     private void handleCloseRequest(WindowEvent event) {
         if (allowWindowClose) {
@@ -152,7 +167,10 @@ public class PartEditorController {
         ));
         bindMenuActions();
         root.disableProperty().bind(repositoryBusy);
-        root.sceneProperty().addListener((observable, oldScene, newScene) -> registerWindowCloseGuard(newScene));
+        root.sceneProperty().addListener((observable, oldScene, newScene) -> {
+            registerWindowCloseGuard(newScene);
+            registerShortcuts(oldScene, newScene);
+        });
         configureLotSizeSpinner();
         configurePartSelector();
         configurePartTable();
@@ -205,6 +223,67 @@ public class PartEditorController {
     @FXML
     private void onSaveLot() {
         requestSaveCurrentLot(null);
+    }
+
+    private void onExportCsv() throws IOException {
+        InspectionLot currentLot = viewModel.getCurrentLot();
+        if (!isExportableLot(currentLot)) {
+            showExportAlert();
+            return;
+        }
+
+        File file = showExportSaveDialog("CSV Files", "*.csv", ".csv");
+        if (file == null) {
+            return;
+        }
+
+        exportService.export(currentLot, ExportFormat.CSV, file.toPath());
+        showInformation("CSV exported successfully.");
+    }
+
+    private void onExportPdf() throws IOException {
+        InspectionLot currentLot = viewModel.getCurrentLot();
+        if (!isExportableLot(currentLot)) {
+            showExportAlert();
+            return;
+        }
+
+        File file = showExportSaveDialog("PDF Files", "*.pdf", ".pdf");
+        if (file == null) {
+            return;
+        }
+
+        exportService.export(currentLot, ExportFormat.PDF, file.toPath());
+        showInformation("PDF exported successfully.");
+    }
+
+    private boolean isExportableLot(InspectionLot currentLot) {
+        return currentLot != null
+                && !currentLot.getParts().isEmpty()
+                && !currentLot.getBubbles().isEmpty();
+    }
+
+    private File showExportSaveDialog(String description, String pattern, String extensionSuffix) {
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle("Export Inspection Data");
+        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter(description, pattern));
+        String lotName = currentLotDisplayName().replaceAll("[\\\\/:*?\"<>|]+", "_").trim();
+        if (!lotName.isBlank()) {
+            fileChooser.setInitialFileName(lotName + extensionSuffix);
+        }
+        File downloadsDirectory = new File(System.getProperty("user.home"), "Downloads");
+        if (downloadsDirectory.isDirectory()) {
+            fileChooser.setInitialDirectory(downloadsDirectory);
+        }
+        return root.getScene() == null ? null : fileChooser.showSaveDialog(root.getScene().getWindow());
+    }
+
+    private void showExportAlert() {
+        javafx.scene.control.Alert alert = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.WARNING);
+        alert.setTitle("Nothing to Export");
+        alert.setHeaderText(null);
+        alert.setContentText("Open an inspection lot before exporting inspection data.");
+        alert.showAndWait();
     }
 
     private void requestSaveCurrentLot(Runnable onSuccessContinuation) {
@@ -422,6 +501,11 @@ public class PartEditorController {
         masterTableView.setPlaceholder(new Label("Create or open an inspection lot to enter or review saved measurements."));
         masterTableView.setColumnResizePolicy(TableView.UNCONSTRAINED_RESIZE_POLICY);
         configureTableCellSelection(masterTableView);
+        masterTableView.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
+            if (newValue != null && newValue.getPartNumber() != viewModel.getCurrentPartNumber()) {
+                viewModel.selectPart(newValue.getPartNumber());
+            }
+        });
     }
 
     private void bindViewModel() {
@@ -549,17 +633,21 @@ public class PartEditorController {
         return new Tooltip(note);
     }
 
-    private Label buildBubbleHeader(PartBubbleDefinition bubble) {
-        boolean noteOnly = isNoteOnlyBubble(bubble);
+    private Node buildBubbleHeader(PartBubbleDefinition bubble) {
+        boolean passFail = bubble.getInspectionType() == InspectionType.PASS_FAIL;
+        boolean noteOnly = !passFail && isNoteOnlyBubble(bubble);
+        if (passFail) {
+            return buildPassFailHeaderNode(bubble);
+        }
+
         Label label = new Label(noteOnly ? bubble.getNote() : buildHeaderText(bubble));
         label.getStyleClass().add("master-column-header");
         label.setWrapText(!noteOnly);
         label.setTextAlignment(noteOnly ? TextAlignment.LEFT : TextAlignment.CENTER);
-        label.setMaxWidth(noteOnly ? 132.0 : 140.0);
-
+        label.setMaxWidth(noteOnly ? PASS_FAIL_HEADER_WIDTH : 140.0);
         if (noteOnly) {
             label.setMinWidth(0.0);
-            label.setPrefWidth(132.0);
+            label.setPrefWidth(PASS_FAIL_HEADER_WIDTH);
             label.setTextOverrun(OverrunStyle.ELLIPSIS);
             label.setTooltip(new Tooltip(bubble.getNote()));
         } else if (!bubble.getNote().isBlank()) {
@@ -571,10 +659,7 @@ public class PartEditorController {
 
     private String buildHeaderText(PartBubbleDefinition bubble) {
         if (bubble.getInspectionType() == InspectionType.PASS_FAIL) {
-            String note = bubble.getNote() == null ? "" : bubble.getNote().trim();
-            return note.isBlank()
-                    ? "%s%nP/F".formatted(bubble.getName())
-                    : "%s%n%s%nP/F".formatted(bubble.getName(), note);
+            return buildPassFailHeaderText(bubble);
         }
 
         return "%s%nNom %s%n+%s / -%s".formatted(
@@ -583,6 +668,113 @@ public class PartEditorController {
                 displaySpecValue(bubble.getUpperTolerance()),
                 displaySpecValue(bubble.getLowerTolerance())
         );
+    }
+
+    private String buildPassFailHeaderText(PartBubbleDefinition bubble) {
+        String note = bubble.getNote() == null ? "" : bubble.getNote().trim();
+        String subject = note.isBlank() ? bubble.getName() : note;
+        if (subject == null || subject.isBlank()) {
+            subject = "Inspection";
+        }
+        return "%d - %s%nP/F".formatted(bubble.getSequenceNumber(), subject);
+    }
+
+    private Node buildPassFailHeaderNode(PartBubbleDefinition bubble) {
+        String note = bubble.getNote() == null ? "" : bubble.getNote().trim();
+        String subject = note.isBlank() ? bubble.getName() : note;
+        if (subject == null || subject.isBlank()) {
+            subject = "Inspection";
+        }
+
+        Label noteLabel = new Label(truncateWrappedHeaderText(
+                "%d - %s".formatted(bubble.getSequenceNumber(), subject),
+                PASS_FAIL_HEADER_WIDTH,
+                PASS_FAIL_NOTE_MAX_LINES
+        ));
+        noteLabel.getStyleClass().add("master-column-header");
+        noteLabel.setFont(MASTER_HEADER_FONT);
+        noteLabel.setAlignment(Pos.CENTER_LEFT);
+        noteLabel.setWrapText(true);
+        noteLabel.setTextAlignment(TextAlignment.LEFT);
+        noteLabel.setMinWidth(0.0);
+        noteLabel.setPrefWidth(PASS_FAIL_HEADER_WIDTH);
+        noteLabel.setMaxWidth(PASS_FAIL_HEADER_WIDTH);
+
+        Label statusLabel = new Label("P/F");
+        statusLabel.getStyleClass().add("master-column-header");
+        statusLabel.setFont(MASTER_HEADER_FONT);
+        statusLabel.setAlignment(Pos.CENTER);
+        statusLabel.setTextAlignment(TextAlignment.CENTER);
+        statusLabel.setMinWidth(0.0);
+        statusLabel.setPrefWidth(PASS_FAIL_HEADER_WIDTH);
+        statusLabel.setMaxWidth(PASS_FAIL_HEADER_WIDTH);
+
+        VBox headerBox = new VBox(0.0, noteLabel, statusLabel);
+        headerBox.setAlignment(Pos.CENTER_LEFT);
+        headerBox.setFillWidth(true);
+        headerBox.setMaxWidth(PASS_FAIL_HEADER_WIDTH);
+        headerBox.setPrefWidth(PASS_FAIL_HEADER_WIDTH);
+
+        Tooltip tooltip = buildPassFailHeaderTooltip(bubble);
+        noteLabel.setTooltip(tooltip);
+        statusLabel.setTooltip(tooltip);
+        return headerBox;
+    }
+
+    private Tooltip buildPassFailHeaderTooltip(PartBubbleDefinition bubble) {
+        String note = bubble.getNote() == null ? "" : bubble.getNote().trim();
+        if (note.isBlank()) {
+            return null;
+        }
+        return new Tooltip(note);
+    }
+
+    private String truncateWrappedHeaderText(String text, double maxWidth, int maxLines) {
+        String normalized = text == null ? "" : text.trim();
+        if (normalized.isBlank()) {
+            return "";
+        }
+        if (fitsWithinWrappedLines(normalized, maxWidth, maxLines)) {
+            return normalized;
+        }
+
+        int low = 0;
+        int high = normalized.length();
+        String best = "...";
+        while (low <= high) {
+            int middle = (low + high) >>> 1;
+            String candidate = normalized.substring(0, middle).trim();
+            if (candidate.isEmpty()) {
+                candidate = normalized.substring(0, Math.min(1, normalized.length()));
+            }
+            candidate = candidate + "...";
+            if (fitsWithinWrappedLines(candidate, maxWidth, maxLines)) {
+                best = candidate;
+                low = middle + 1;
+            } else {
+                high = middle - 1;
+            }
+        }
+
+        int lastSpace = best.lastIndexOf(' ');
+        if (lastSpace > 0) {
+            String wordBoundaryCandidate = best.substring(0, lastSpace).trim() + "...";
+            if (fitsWithinWrappedLines(wordBoundaryCandidate, maxWidth, maxLines)) {
+                return wordBoundaryCandidate;
+            }
+        }
+        return best;
+    }
+
+    private boolean fitsWithinWrappedLines(String text, double maxWidth, int maxLines) {
+        Text layoutText = new Text(text);
+        layoutText.setFont(MASTER_HEADER_FONT);
+        layoutText.setWrappingWidth(maxWidth);
+
+        Text sample = new Text("Ag");
+        sample.setFont(MASTER_HEADER_FONT);
+        double maxHeight = sample.getLayoutBounds().getHeight() * maxLines + 0.5;
+        return layoutText.getLayoutBounds().getHeight() <= maxHeight;
     }
 
     private String displaySpecValue(String value) {
@@ -1158,6 +1350,11 @@ public class PartEditorController {
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.FILE_RENAME_LOT, this::onRenameCurrentLotFromMenu);
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.LOT_SAVE_LOT, this::onSaveLot);
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.LOT_UPVERSION_LOT, this::onUpversionLot);
+        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.FILE_EXPORT_CSV, this::onExportCsvFromMenu);
+        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.FILE_EXPORT_PDF, this::onExportPdfFromMenu);
+        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.EDIT_UNDO, this::performLotUndo);
+        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.EDIT_REDO, this::performLotRedo);
+        AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.NAV_PLANS, this::returnToPlanBrowserFromMenu);
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.NAV_INSPECTION_LOTS, this::returnToLotBrowserFromMenu);
         AppMenuSupport.bindAction(root, AppMenuSupport.MenuAction.NAV_HOME, this::returnToHubFromMenu);
 
@@ -1166,12 +1363,67 @@ public class PartEditorController {
                         .or(viewModel.unsavedChangesProperty().not())
                         .or(viewModel.saveInProgressProperty())
                         .or(repositoryBusy));
+        AppMenuSupport.bindDisable(root, AppMenuSupport.MenuAction.EDIT_UNDO,
+                viewModel.canUndoProperty().not().or(repositoryBusy));
+        AppMenuSupport.bindDisable(root, AppMenuSupport.MenuAction.EDIT_REDO,
+                viewModel.canRedoProperty().not().or(repositoryBusy));
+        AppMenuSupport.bindDisable(root, AppMenuSupport.MenuAction.FILE_EXPORT_CSV,
+                viewModel.lotLoadedProperty().not().or(repositoryBusy));
+        AppMenuSupport.bindDisable(root, AppMenuSupport.MenuAction.FILE_EXPORT_PDF,
+                viewModel.lotLoadedProperty().not().or(repositoryBusy));
         AppMenuSupport.bindDisable(root, AppMenuSupport.MenuAction.FILE_RENAME_LOT,
                 viewModel.lotLoadedProperty().not().or(repositoryBusy));
         AppMenuSupport.bindDisable(root, AppMenuSupport.MenuAction.LOT_UPVERSION_LOT,
                 viewModel.lotLoadedProperty().not()
                         .or(viewModel.upversionAvailableProperty().not())
                         .or(repositoryBusy));
+    }
+
+    private void performLotUndo() {
+        if (repositoryBusy.get() || !viewModel.canUndo()) {
+            return;
+        }
+        try {
+            viewModel.undo();
+            syncLotEditorStateAfterHistoryChange();
+        } catch (IllegalStateException exception) {
+            showInformation(exception.getMessage());
+        }
+    }
+
+    private void performLotRedo() {
+        if (repositoryBusy.get() || !viewModel.canRedo()) {
+            return;
+        }
+        try {
+            viewModel.redo();
+            syncLotEditorStateAfterHistoryChange();
+        } catch (IllegalStateException exception) {
+            showInformation(exception.getMessage());
+        }
+    }
+
+    private void syncLotEditorStateAfterHistoryChange() {
+        syncLoadedLotState();
+        syncPartSelection();
+        partTableView.refresh();
+        masterTableView.refresh();
+    }
+
+    private void onExportCsvFromMenu() {
+        try {
+            onExportCsv();
+        } catch (IOException exception) {
+            throw new IllegalStateException("Unable to export CSV.", exception);
+        }
+    }
+
+    private void onExportPdfFromMenu() {
+        try {
+            onExportPdf();
+        } catch (IOException exception) {
+            throw new IllegalStateException("Unable to export PDF.", exception);
+        }
     }
 
     private void onRenameCurrentLotFromMenu() {
@@ -1202,6 +1454,21 @@ public class PartEditorController {
                 });
             } catch (IOException exception) {
                 throw new IllegalStateException("Unable to return to inspection lots.", exception);
+            }
+        });
+    }
+
+    private void returnToPlanBrowserFromMenu() {
+        requestProceedWithPotentialUnsavedChanges("return to inspection plans", true, () -> {
+            try {
+                InspectionLot currentLot = viewModel.getCurrentLot();
+                String currentPlanId = currentLot == null ? null : currentLot.getPlanId();
+                AppNavigator.swapRoot(root, "/fxml/plan-browser.fxml", "PartPlan - Inspection Plans", loader -> {
+                    PlanBrowserController controller = loader.getController();
+                    controller.selectPlan(currentPlanId);
+                });
+            } catch (IOException exception) {
+                throw new IllegalStateException("Unable to open inspection plans.", exception);
             }
         });
     }
@@ -1265,6 +1532,70 @@ public class PartEditorController {
             }
             installer.accept(newWindow);
         });
+    }
+
+    private void registerShortcuts(Scene oldScene, Scene newScene) {
+        if (oldScene != null && oldScene != newScene) {
+            oldScene.removeEventFilter(KeyEvent.KEY_PRESSED, hotkeyHandler);
+            if (registeredShortcutScene == oldScene) {
+                registeredShortcutScene = null;
+            }
+        }
+        if (newScene == null || newScene == registeredShortcutScene) {
+            return;
+        }
+        newScene.addEventFilter(KeyEvent.KEY_PRESSED, hotkeyHandler);
+        registeredShortcutScene = newScene;
+    }
+
+    private void handleHotkeys(KeyEvent event) {
+        if (isUndoShortcut(event)) {
+            if (!isTextInputFocusOwner()) {
+                performLotUndo();
+                event.consume();
+            }
+            return;
+        }
+
+        if (isRedoShortcut(event)) {
+            if (!isTextInputFocusOwner()) {
+                performLotRedo();
+                event.consume();
+            }
+            return;
+        }
+
+        if (!event.isControlDown() || event.isAltDown() || event.isMetaDown()) {
+            return;
+        }
+        if (event.getCode() == KeyCode.S) {
+            requestSaveCurrentLot(null);
+            event.consume();
+        }
+    }
+
+    private boolean isUndoShortcut(KeyEvent event) {
+        return event.isControlDown()
+                && !event.isAltDown()
+                && !event.isMetaDown()
+                && !event.isShiftDown()
+                && event.getCode() == KeyCode.Z;
+    }
+
+    private boolean isRedoShortcut(KeyEvent event) {
+        if (!event.isControlDown() || event.isAltDown() || event.isMetaDown()) {
+            return false;
+        }
+        return event.getCode() == KeyCode.Y
+                || (event.isShiftDown() && event.getCode() == KeyCode.Z);
+    }
+
+    private boolean isTextInputFocusOwner() {
+        Scene scene = root.getScene();
+        if (scene == null) {
+            return false;
+        }
+        return scene.getFocusOwner() instanceof TextInputControl;
     }
 
     private void closeWindowAfterSaveOrDiscard() {

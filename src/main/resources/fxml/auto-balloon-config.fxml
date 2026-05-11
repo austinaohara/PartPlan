@@ -3,7 +3,8 @@
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
-<BorderPane prefHeight="600.0" prefWidth="800.0" stylesheets="@../styles/main.css" xmlns="http://javafx.com/javafx/17.0.12" xmlns:fx="http://javafx.com/fxml/1" fx:controller="AutoBalloonSettingsController">
+
+<BorderPane prefHeight="600.0" prefWidth="800.0" stylesheets="@../styles/main.css,@../styles/auto-balloon-config.css" xmlns="http://javafx.com/javafx/20.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="AutoBalloonSettingsController">
     <top>
         <VBox spacing="8.0" styleClass="top-bar">
             <padding>

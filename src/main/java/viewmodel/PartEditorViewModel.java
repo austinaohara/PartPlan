@@ -16,7 +16,9 @@ import service.repository.LotRepository;
 import service.repository.PlanRepository;
 import service.util.ModelCopies;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 public class PartEditorViewModel {
     private static final String NO_LOT_SELECTED = "No inspection lot selected";
@@ -39,7 +41,13 @@ public class PartEditorViewModel {
     private final BooleanProperty upversionAvailable = new SimpleBooleanProperty(false);
     private final BooleanProperty unsavedChanges = new SimpleBooleanProperty(false);
     private final BooleanProperty saveInProgress = new SimpleBooleanProperty(false);
+    private final BooleanProperty canUndo = new SimpleBooleanProperty(false);
+    private final BooleanProperty canRedo = new SimpleBooleanProperty(false);
     private final StringProperty upversionTargetLabel = new SimpleStringProperty(NO_UPVERSION_AVAILABLE);
+    private final List<EditorState> history = new ArrayList<>();
+    private int historyIndex = -1;
+    private int cleanHistoryIndex = -1;
+    private boolean showSavedStateWhenClean;
 
     private InspectionLot currentLot;
     private InspectionPlan latestUpversionTarget;
@@ -111,6 +119,22 @@ public class PartEditorViewModel {
         return saveInProgress;
     }
 
+    public BooleanProperty canUndoProperty() {
+        return canUndo;
+    }
+
+    public BooleanProperty canRedoProperty() {
+        return canRedo;
+    }
+
+    public boolean canUndo() {
+        return canUndo.get();
+    }
+
+    public boolean canRedo() {
+        return canRedo.get();
+    }
+
     public StringProperty saveStateProperty() {
         return saveState;
     }
@@ -128,7 +152,7 @@ public class PartEditorViewModel {
         if (!normalizedName.equals(currentLot.getName())) {
             currentLot.setName(normalizedName);
             refreshAll();
-            markDirty();
+            commitLotChange();
         }
     }
 
@@ -138,12 +162,17 @@ public class PartEditorViewModel {
             return;
         }
 
-        currentLot.setLotSize(value);
+        int normalizedValue = Math.max(1, value);
+        if (currentLot.getLotSize() == normalizedValue) {
+            return;
+        }
+
+        currentLot.setLotSize(normalizedValue);
         if (currentPartNumber.get() > currentLot.getLotSize()) {
             currentPartNumber.set(currentLot.getLotSize());
         }
         refreshAll();
-        markDirty();
+        commitLotChange();
     }
 
     public void selectPart(int partNumber) {
@@ -188,15 +217,26 @@ public class PartEditorViewModel {
             return;
         }
 
-        PartRecord currentPart = currentLot.getPart(currentPartNumber.get() - 1);
-        boolean refreshSelectedPart = currentPart != null && currentPart.getId().equals(part.getId());
+        String normalizedValue = value == null ? "" : value.trim();
+        if (Objects.equals(part.getMeasurement(bubbleId), normalizedValue)) {
+            return;
+        }
 
-        part.setMeasurement(bubbleId, value);
-        markDirty();
+        int targetPartNumber = Math.max(1, Math.min(part.getPartNumber(), currentLot.getLotSize()));
+        boolean switchedCurrentPart = currentPartNumber.get() != targetPartNumber;
+        if (switchedCurrentPart) {
+            currentPartNumber.set(targetPartNumber);
+        }
 
-        if (refreshSelectedPart) {
+        part.setMeasurement(bubbleId, normalizedValue);
+
+        if (switchedCurrentPart) {
+            refreshCurrentPartRows();
+            refreshText();
+        } else {
             refreshCurrentPartRows();
         }
+        commitLotChange();
     }
 
     public void updatePartComment(PartRecord part, String bubbleId, String value) {
@@ -204,15 +244,26 @@ public class PartEditorViewModel {
             return;
         }
 
-        PartRecord currentPart = currentLot.getPart(currentPartNumber.get() - 1);
-        boolean refreshSelectedPart = currentPart != null && currentPart.getId().equals(part.getId());
+        String normalizedValue = value == null ? "" : value.trim();
+        if (Objects.equals(part.getComment(bubbleId), normalizedValue)) {
+            return;
+        }
 
-        part.setComment(bubbleId, value);
-        markDirty();
+        int targetPartNumber = Math.max(1, Math.min(part.getPartNumber(), currentLot.getLotSize()));
+        boolean switchedCurrentPart = currentPartNumber.get() != targetPartNumber;
+        if (switchedCurrentPart) {
+            currentPartNumber.set(targetPartNumber);
+        }
 
-        if (refreshSelectedPart) {
+        part.setComment(bubbleId, normalizedValue);
+
+        if (switchedCurrentPart) {
+            refreshCurrentPartRows();
+            refreshText();
+        } else {
             refreshCurrentPartRows();
         }
+        commitLotChange();
     }
 
     public InspectionLot beginSaveSnapshot() {
@@ -221,9 +272,9 @@ public class PartEditorViewModel {
         }
 
         InspectionLot snapshot = ModelCopies.copyLot(currentLot);
-        unsavedChanges.set(false);
         saveInProgress.set(true);
         saveState.set("Saving...");
+        refreshHistoryAvailability();
         return snapshot;
     }
 
@@ -233,23 +284,20 @@ public class PartEditorViewModel {
 
     public void finishSaveSuccess(InspectionLot snapshot) {
         saveInProgress.set(false);
-        if (currentLot != null && currentLot.getId().equals(snapshot.getId()) && !unsavedChanges.get()) {
+        if (currentLot != null && currentLot.getId().equals(snapshot.getId())) {
             currentLot.setUpdatedAt(snapshot.getUpdatedAt());
             refreshAll();
-            saveState.set("Saved");
-            return;
+            replaceCurrentHistoryState();
         }
-
-        if (unsavedChanges.get()) {
-            saveState.set("Unsaved changes");
-        }
+        cleanHistoryIndex = historyIndex;
+        showSavedStateWhenClean = true;
+        refreshHistoryAvailability();
     }
 
     public void finishSaveFailure(String lotId) {
         saveInProgress.set(false);
         if (currentLot != null && currentLot.getId().equals(lotId)) {
-            unsavedChanges.set(true);
-            saveState.set("Unsaved changes");
+            refreshHistoryAvailability();
         }
     }
 
@@ -271,8 +319,9 @@ public class PartEditorViewModel {
                 : List.copyOf(loadedLotData.completePlans());
         currentPartNumber.set(1);
         lotLoaded.set(currentLot != null);
+        saveInProgress.set(false);
         refreshAll();
-        unsavedChanges.set(false);
+        resetHistory();
     }
 
     public InspectionLot upversionCurrentLotInRepository() {
@@ -289,8 +338,10 @@ public class PartEditorViewModel {
 
     public void applyUpversionedLot(InspectionLot updatedLot) {
         currentLot = updatedLot;
+        currentPartNumber.set(1);
+        saveInProgress.set(false);
         refreshAll();
-        unsavedChanges.set(false);
+        resetHistory();
     }
 
     public String getCurrentLotId() {
@@ -315,11 +366,7 @@ public class PartEditorViewModel {
         refreshUpversionState();
         refreshCurrentPartRows();
         refreshText();
-        if (currentLot == null) {
-            unsavedChanges.set(false);
-            saveInProgress.set(false);
-            saveState.set("");
-        }
+        refreshHistoryAvailability();
     }
 
     private void refreshCurrentPartRows() {
@@ -420,10 +467,188 @@ public class PartEditorViewModel {
         return baseName + " v" + plan.getVersion();
     }
 
-    private void markDirty() {
-        if (currentLot != null) {
-            unsavedChanges.set(true);
-            saveState.set("Unsaved changes");
+    public void undo() {
+        ensureUndoRedoAllowed();
+        if (historyIndex <= 0) {
+            return;
         }
+        historyIndex--;
+        restoreEditorState(history.get(historyIndex));
+        refreshHistoryAvailability();
+    }
+
+    public void redo() {
+        ensureUndoRedoAllowed();
+        if (historyIndex < 0 || historyIndex >= history.size() - 1) {
+            return;
+        }
+        historyIndex++;
+        restoreEditorState(history.get(historyIndex));
+        refreshHistoryAvailability();
+    }
+
+    private void commitLotChange() {
+        if (saveInProgress.get() || currentLot == null) {
+            return;
+        }
+
+        EditorState nextState = captureEditorState();
+        if (!history.isEmpty() && historyIndex >= 0 && history.get(historyIndex).signature().equals(nextState.signature())) {
+            refreshHistoryAvailability();
+            return;
+        }
+
+        truncateRedoHistory();
+        history.add(nextState);
+        historyIndex = history.size() - 1;
+        refreshHistoryAvailability();
+    }
+
+    private void resetHistory() {
+        history.clear();
+        if (currentLot == null) {
+            historyIndex = -1;
+            cleanHistoryIndex = -1;
+            showSavedStateWhenClean = false;
+            refreshHistoryAvailability();
+            return;
+        }
+
+        history.add(captureEditorState());
+        historyIndex = 0;
+        cleanHistoryIndex = 0;
+        showSavedStateWhenClean = false;
+        refreshHistoryAvailability();
+    }
+
+    private void replaceCurrentHistoryState() {
+        if (historyIndex < 0 || historyIndex >= history.size()) {
+            return;
+        }
+        history.set(historyIndex, captureEditorState());
+    }
+
+    private void truncateRedoHistory() {
+        if (historyIndex < history.size() - 1) {
+            history.subList(historyIndex + 1, history.size()).clear();
+            if (cleanHistoryIndex > historyIndex) {
+                cleanHistoryIndex = -1;
+                showSavedStateWhenClean = false;
+            }
+        }
+    }
+
+    private EditorState captureEditorState() {
+        InspectionLot snapshot = ModelCopies.copyLot(currentLot);
+        return new EditorState(
+                snapshot,
+                currentPartNumber.get(),
+                buildLotSignature(snapshot)
+        );
+    }
+
+    private void restoreEditorState(EditorState state) {
+        if (state == null) {
+            return;
+        }
+        applyLotState(ModelCopies.copyLot(state.lot()), state.currentPartNumber());
+    }
+
+    private void applyLotState(InspectionLot lot, int selectedPartNumber) {
+        currentLot = lot;
+        if (currentLot == null) {
+            currentPartNumber.set(1);
+            refreshAll();
+            return;
+        }
+
+        int boundedPartNumber = Math.max(1, Math.min(selectedPartNumber, currentLot.getLotSize()));
+        currentPartNumber.set(boundedPartNumber);
+        refreshAll();
+    }
+
+    private void refreshHistoryAvailability() {
+        if (currentLot == null) {
+            canUndo.set(false);
+            canRedo.set(false);
+            unsavedChanges.set(false);
+            if (!saveInProgress.get()) {
+                saveState.set("");
+            }
+            return;
+        }
+
+        boolean undoAvailable = !saveInProgress.get() && historyIndex > 0;
+        boolean redoAvailable = !saveInProgress.get() && historyIndex >= 0 && historyIndex < history.size() - 1;
+        canUndo.set(undoAvailable);
+        canRedo.set(redoAvailable);
+
+        boolean dirty = historyIndex != cleanHistoryIndex;
+        unsavedChanges.set(dirty);
+        if (saveInProgress.get()) {
+            return;
+        }
+        if (dirty) {
+            saveState.set("Unsaved changes");
+            return;
+        }
+        saveState.set(showSavedStateWhenClean ? "Saved" : "");
+    }
+
+    private void ensureUndoRedoAllowed() {
+        if (currentLot == null) {
+            throw new IllegalStateException("No inspection lot is loaded.");
+        }
+        if (saveInProgress.get()) {
+            throw new IllegalStateException("Please wait for the current save operation to finish.");
+        }
+    }
+
+    private String buildLotSignature(InspectionLot lot) {
+        if (lot == null) {
+            return "";
+        }
+
+        StringBuilder builder = new StringBuilder();
+        builder.append(valueOrEmpty(lot.getName())).append('|')
+                .append(valueOrEmpty(lot.getPlanId())).append('|')
+                .append(valueOrEmpty(lot.getPlanFamilyId())).append('|')
+                .append(valueOrEmpty(lot.getPlanName())).append('|')
+                .append(lot.getPlanVersion()).append('|')
+                .append(lot.getLotSize()).append('\n');
+
+        for (PartBubbleDefinition bubble : lot.getBubbles()) {
+            builder.append("B|")
+                    .append(valueOrEmpty(bubble.getId())).append('|')
+                    .append(valueOrEmpty(bubble.getName())).append('|')
+                    .append(bubble.getSequenceNumber()).append('|')
+                    .append(bubble.getInspectionType()).append('|')
+                    .append(bubble.getExpectedPassFail()).append('|')
+                    .append(valueOrEmpty(bubble.getNominalValue())).append('|')
+                    .append(valueOrEmpty(bubble.getLowerTolerance())).append('|')
+                    .append(valueOrEmpty(bubble.getUpperTolerance())).append('|')
+                    .append(valueOrEmpty(bubble.getNote())).append('\n');
+        }
+
+        for (PartRecord part : lot.getParts()) {
+            builder.append("P|")
+                    .append(valueOrEmpty(part.getId())).append('|')
+                    .append(part.getPartNumber()).append('\n');
+            for (PartBubbleDefinition bubble : lot.getBubbles()) {
+                String bubbleId = bubble.getId();
+                builder.append("V|")
+                        .append(valueOrEmpty(bubbleId)).append('|')
+                        .append(valueOrEmpty(part.getMeasurement(bubbleId))).append('|')
+                        .append(valueOrEmpty(part.getComment(bubbleId))).append('\n');
+            }
+        }
+        return builder.toString();
+    }
+
+    private String valueOrEmpty(String value) {
+        return value == null ? "" : value.trim();
+    }
+
+    private record EditorState(InspectionLot lot, int currentPartNumber, String signature) {
     }
 }
