@@ -218,10 +218,11 @@ Update this section with the final project roster before submission.
 
 | Team Member | Role | Responsibilities | Major Contributions |
 |---|---|---|---|
-| `<Name>` | `<Role>` | `<Primary responsibilities>` | `<Major features or work areas>` |
-| `<Name>` | `<Role>` | `<Primary responsibilities>` | `<Major features or work areas>` |
-| `<Name>` | `<Role>` | `<Primary responsibilities>` | `<Major features or work areas>` |
-| `<Name>` | `<Role>` | `<Primary responsibilities>` | `<Major features or work areas>` |
+| `Austin` | `<Role>` | `<Primary responsibilities>` | `<Major features or work areas>` |
+| `Murid` | `<Role>` | `<Primary responsibilities>` | `<Major features or work areas>` |
+| `Maycol` | `<Role>` | `<Primary responsibilities>` | `<Major features or work areas>` |
+| `Kelvin` | `<Role>` | `<Primary responsibilities>` | `<Major features or work areas>` |
+| `Tim` | `<Role>` | `<Primary responsibilities>` | `<Major features or work areas>` |
 
 ---
 
