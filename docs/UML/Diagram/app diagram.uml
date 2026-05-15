@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Diagram>
+  <ID>JAVA</ID>
+  <OriginalElement>app</OriginalElement>
+  <nodes>
+    <node x="857.5436477007011" y="677.7794232268121">app.AppContext</node>
+    <node x="-292.03078721745896" y="-320.0">app.UnsavedChangesDialogs</node>
+    <node x="-158.0" y="302.0">app.AppMenuSupport.MenuContext</node>
+    <node x="-216.53078721745896" y="-131.99999999999997">app.UnsavedChangesDialogs.SaveDecision</node>
+    <node x="-498.68511301636784" y="40.0">app.AppStoragePaths</node>
+    <node x="545.5218238503505" y="848.0">app.AppMenuSupport.ShortcutEntry</node>
+    <node x="200.0" y="-307.5">app.BackgroundTaskRunner.BackgroundRunnable</node>
+    <node x="373.5" y="312.5">app.BackgroundTaskRunner.BackgroundAction</node>
+    <node x="176.5" y="88.0">app.AppMenuSupport.MenuAction</node>
+    <node x="851.5436477007011" y="1181.779423226812">app.UserFacingErrorMessages</node>
+    <node x="-234.5" y="602.0">app.AppMenuSupport</node>
+    <node x="615.0" y="64.0">app.AppMenuSupport.MenuCallbacks</node>
+    <node x="119.0" y="-132.0">app.BackgroundTaskRunner</node>
+  </nodes>
+  <notes />
+  <edges>
+    <edge source="app.BackgroundTaskRunner.BackgroundRunnable" target="app.BackgroundTaskRunner" relationship="INNER_CLASS">
+      <point x="0.0" y="31.5" />
+      <point x="308.0" y="-188.0" />
+      <point x="368.0" y="-188.0" />
+      <point x="0.0" y="-56.0" />
+    </edge>
+    <edge source="app.BackgroundTaskRunner.BackgroundAction" target="app.BackgroundTaskRunner" relationship="INNER_CLASS">
+      <point x="0.0" y="-31.5" />
+      <point x="488.0" y="34.912" />
+      <point x="634.5" y="34.912" />
+      <point x="634.5" y="-188.0" />
+      <point x="368.0" y="-188.0" />
+      <point x="0.0" y="-56.0" />
+    </edge>
+    <edge source="app.UnsavedChangesDialogs.SaveDecision" target="app.UnsavedChangesDialogs" relationship="INNER_CLASS">
+      <point x="20.0" y="-56.0" />
+      <point x="0.0" y="44.0" />
+    </edge>
+    <edge source="app.AppMenuSupport" target="app.AppMenuSupport.ShortcutEntry" relationship="CREATE">
+      <point x="262.5" y="-30.0" />
+      <point x="-115.5" y="0.0" />
+    </edge>
+    <edge source="app.AppMenuSupport" target="app.AppMenuSupport.MenuContext" relationship="DEPENDENCY">
+      <point x="0.0" y="-332.0" />
+      <point x="0.0" y="104.0" />
+    </edge>
+    <edge source="app.AppMenuSupport.ShortcutEntry" target="app.AppMenuSupport" relationship="INNER_CLASS">
+      <point x="1.76149649519175E-4" y="-56.0" />
+      <point x="661.022" y="256.0" />
+      <point x="-175.5" y="256.0" />
+      <point x="-203.5" y="-332.0" />
+    </edge>
+    <edge source="app.AppMenuSupport" target="app.AppMenuSupport.MenuAction" relationship="DEPENDENCY">
+      <point x="245.0" y="-332.0" />
+      <point x="-15.0" y="56.0" />
+    </edge>
+    <edge source="app.UserFacingErrorMessages" target="app.UserFacingErrorMessages" relationship="DEPENDENCY">
+      <point x="0.0" y="68.0" />
+      <point x="981.0436477007011" y="1361.279423226812" />
+      <point x="1128.043647700701" y="1361.279423226812" />
+      <point x="1128.043647700701" y="1249.779423226812" />
+      <point x="129.5" y="0.0" />
+    </edge>
+    <edge source="app.UnsavedChangesDialogs" target="app.UnsavedChangesDialogs.SaveDecision" relationship="DEPENDENCY">
+      <point x="-20.0" y="44.0" />
+      <point x="0.0" y="-56.0" />
+    </edge>
+    <edge source="app.AppMenuSupport.MenuAction" target="app.AppMenuSupport" relationship="INNER_CLASS">
+      <point x="0.0" y="56.0" />
+      <point x="288.0" y="256.0" />
+      <point x="-175.5" y="256.0" />
+      <point x="-203.5" y="-332.0" />
+    </edge>
+    <edge source="app.AppMenuSupport.MenuContext" target="app.AppMenuSupport" relationship="INNER_CLASS">
+      <point x="0.0" y="-104.0" />
+      <point x="28.0" y="256.0" />
+      <point x="-175.5" y="256.0" />
+      <point x="-203.5" y="-332.0" />
+    </edge>
+    <edge source="app.BackgroundTaskRunner" target="app.BackgroundTaskRunner.BackgroundAction" relationship="DEPENDENCY">
+      <point x="105.0" y="56.0" />
+      <point x="-15.0" y="-31.5" />
+    </edge>
+    <edge source="app.BackgroundTaskRunner" target="app.BackgroundTaskRunner.BackgroundRunnable" relationship="DEPENDENCY">
+      <point x="-75.0" y="-56.0" />
+      <point x="-15.0" y="31.5" />
+    </edge>
+    <edge source="app.BackgroundTaskRunner" target="app.BackgroundTaskRunner" relationship="DEPENDENCY">
+      <point x="-185.5" y="-56.0" />
+      <point x="182.5" y="-325.0" />
+      <point x="649.5" y="-325.0" />
+      <point x="649.5" y="-76.0" />
+      <point x="249.0" y="0.0" />
+    </edge>
+    <edge source="app.AppContext" target="app.AppContext" relationship="CREATE">
+      <point x="0.0" y="212.0" />
+      <point x="1081.043647700701" y="1119.279423226812" />
+      <point x="1337.043647700701" y="1119.279423226812" />
+      <point x="1337.043647700701" y="889.7794232268121" />
+      <point x="223.5" y="0.0" />
+    </edge>
+    <edge source="app.AppMenuSupport.MenuCallbacks" target="app.AppMenuSupport.MenuCallbacks" relationship="CREATE">
+      <point x="15.0" y="80.0" />
+      <point x="803.0" y="579.5" />
+      <point x="1009.0" y="579.5" />
+      <point x="1009.0" y="144.0" />
+      <point x="173.0" y="0.0" />
+    </edge>
+    <edge source="app.AppMenuSupport" target="app.AppMenuSupport" relationship="DEPENDENCY">
+      <point x="0.0" y="332.0" />
+      <point x="28.0" y="1376.279423226812" />
+      <point x="381.0" y="1376.279423226812" />
+      <point x="381.0" y="934.0" />
+      <point x="262.5" y="0.0" />
+    </edge>
+    <edge source="app.AppMenuSupport" target="app.AppMenuSupport.MenuCallbacks" relationship="DEPENDENCY">
+      <point x="262.5" y="-103.5" />
+      <point x="646.022" y="830.5" />
+      <point x="-141.97799999999995" y="80.0" />
+    </edge>
+    <edge source="app.AppStoragePaths" target="app.AppStoragePaths" relationship="DEPENDENCY">
+      <point x="0.0" y="-104.0" />
+      <point x="-361.68511301636784" y="19.912" />
+      <point x="-150.5" y="19.912" />
+      <point x="-150.5" y="144.0" />
+      <point x="137.0" y="0.0" />
+    </edge>
+    <edge source="app.AppMenuSupport.MenuCallbacks" target="app.AppMenuSupport" relationship="INNER_CLASS">
+      <point x="0.0" y="80.0" />
+      <point x="788.0" y="256.0" />
+      <point x="-175.5" y="256.0" />
+      <point x="-203.5" y="-332.0" />
+    </edge>
+  </edges>
+  <settings layout="Hierarchic Compact" zoom="0.6668399168399168" showDependencies="true" x="510.56508183943856" y="502.49961028838675" />
+  <SelectedNodes />
+  <Categories>
+    <Category>Constructors</Category>
+    <Category>Inner Classes</Category>
+    <Category>Methods</Category>
+  </Categories>
+  <SCOPE>All</SCOPE>
+  <VISIBILITY>private</VISIBILITY>
+</Diagram>
+
