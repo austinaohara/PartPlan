@@ -1,0 +1,245 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Diagram>
+  <ID>JAVA</ID>
+  <OriginalElement>model</OriginalElement>
+  <nodes>
+    <node x="1556.5" y="-196.5">model.InspectionType</node>
+    <node x="581.5" y="159.5">model.Bubble</node>
+    <node x="1394.0" y="2595.5">model.InspectionLot</node>
+    <node x="862.0" y="1727.5">model.PartLot</node>
+    <node x="304.0" y="-328.5">model.Annotation</node>
+    <node x="-4.5" y="1271.5">model.InspectionPlan</node>
+    <node x="823.0" y="-196.5">model.BubbleStatus</node>
+    <node x="372.5" y="-535.5">model.DrawableAnnotation</node>
+    <node x="1482.0" y="471.5">model.PartBubbleDefinition</node>
+    <node x="271.5" y="603.5">model.PlanStatus</node>
+    <node x="1291.5" y="1715.5">model.InspectionLotSummary</node>
+    <node x="1050.5" y="447.5">model.PartRecord</node>
+    <node x="-155.0" y="-256.5">model.PlanDrawing</node>
+    <node x="-177.0" y="507.5">model.PlanPage</node>
+  </nodes>
+  <notes />
+  <edges>
+    <edge source="model.PartRecord" target="model.PartRecord" relationship="DEPENDENCY">
+      <point x="-167.5" y="-0.0" />
+      <point x="1018.0" y="660.0" />
+      <point x="1018.0" y="920.0" />
+      <point x="1092.375" y="920.0" />
+      <point x="-125.625" y="212.5" />
+    </edge>
+    <edge source="model.InspectionPlan" target="model.PlanPage" relationship="TO_MANY">
+      <point x="0.0" y="-608.5" />
+      <point x="198.0" y="740.0" />
+      <point x="158.0" y="740.0" />
+      <point x="158.0" y="480.0" />
+      <point x="-22.0" y="480.0" />
+      <point x="0.0" y="-152.5" />
+    </edge>
+    <edge source="model.InspectionPlan" target="model.Annotation" relationship="DEPENDENCY">
+      <point x="135.0" y="-608.5" />
+      <point x="333.0" y="1240.0" />
+      <point x="518.0" y="1240.0" />
+      <point x="0.0" y="188.5" />
+    </edge>
+    <edge source="model.Bubble" target="model.InspectionType" relationship="TO_ONE">
+      <point x="98.25" y="-500.5" />
+      <point x="876.25" y="100.0" />
+      <point x="878.0" y="100.0" />
+      <point x="878.0" y="80.0" />
+      <point x="1678.0" y="80.0" />
+      <point x="0.0" y="56.5" />
+    </edge>
+    <edge source="model.Annotation" target="model.DrawableAnnotation" relationship="REALIZATION">
+      <point x="0.0" y="-188.5" />
+      <point x="0.0" y="55.5" />
+    </edge>
+    <edge source="model.InspectionLot" target="model.InspectionLot" relationship="DEPENDENCY">
+      <point x="-204.0" y="-0.0" />
+      <point x="1358.0" y="2880.0" />
+      <point x="1358.0" y="3200.0" />
+      <point x="1598.0" y="3200.0" />
+      <point x="0.0" y="284.5" />
+    </edge>
+    <edge source="model.PartBubbleDefinition" target="model.InspectionType" relationship="TO_ONE">
+      <point x="0.0" y="-188.5" />
+      <point x="0.0" y="56.5" />
+    </edge>
+    <edge source="model.InspectionPlan" target="model.Bubble" relationship="TO_MANY">
+      <point x="0.0" y="-608.5" />
+      <point x="198.0" y="740.0" />
+      <point x="238.0" y="740.0" />
+      <point x="238.0" y="120.0" />
+      <point x="876.25" y="120.0" />
+      <point x="98.25" y="-500.5" />
+    </edge>
+    <edge source="model.PartLot" target="model.PartBubbleDefinition" relationship="TO_MANY">
+      <point x="88.0" y="-152.5" />
+      <point x="1126.0" y="1700.0" />
+      <point x="1258.0" y="1700.0" />
+      <point x="1258.0" y="1680.0" />
+      <point x="1418.0" y="1680.0" />
+      <point x="1418.0" y="440.0" />
+      <point x="1678.0" y="440.0" />
+      <point x="0.0" y="-188.5" />
+    </edge>
+    <edge source="model.InspectionLot" target="model.PartLot" relationship="TO_ONE">
+      <point x="-136.0" y="-284.5" />
+      <point x="1462.0" y="2560.0" />
+      <point x="798.0" y="2560.0" />
+      <point x="798.0" y="1680.0" />
+      <point x="1126.0" y="1680.0" />
+      <point x="88.0" y="-152.5" />
+    </edge>
+    <edge source="model.PlanPage" target="model.PlanPage" relationship="DEPENDENCY">
+      <point x="-155.0" y="-0.0" />
+      <point x="-222.0" y="660.0" />
+      <point x="-222.0" y="860.0" />
+      <point x="-99.5" y="860.0" />
+      <point x="-77.5" y="152.5" />
+    </edge>
+    <edge source="model.PartLot" target="model.PartLot" relationship="DEPENDENCY">
+      <point x="-176.0" y="-0.0" />
+      <point x="818.0" y="1880.0" />
+      <point x="818.0" y="2080.0" />
+      <point x="1038.0" y="2080.0" />
+      <point x="0.0" y="152.5" />
+    </edge>
+    <edge source="model.InspectionPlan" target="model.PlanPage" relationship="CREATE">
+      <point x="-135.0" y="-608.5" />
+      <point x="63.0" y="1240.0" />
+      <point x="55.5" y="1240.0" />
+      <point x="77.5" y="152.5" />
+    </edge>
+    <edge source="model.PartLot" target="model.PartRecord" relationship="TO_MANY">
+      <point x="88.0" y="-152.5" />
+      <point x="1126.0" y="1700.0" />
+      <point x="1258.0" y="1700.0" />
+      <point x="1258.0" y="1680.0" />
+      <point x="1259.875" y="1680.0" />
+      <point x="41.875" y="212.5" />
+    </edge>
+    <edge source="model.InspectionLot" target="model.PartRecord" relationship="DEPENDENCY">
+      <point x="136.0" y="-284.5" />
+      <point x="1734.0" y="2560.0" />
+      <point x="1738.0" y="2560.0" />
+      <point x="1738.0" y="1700.0" />
+      <point x="1343.625" y="1700.0" />
+      <point x="125.625" y="212.5" />
+    </edge>
+    <edge source="model.Bubble" target="model.Annotation" relationship="GENERALIZATION">
+      <point x="-98.25" y="-500.5" />
+      <point x="679.75" y="100.0" />
+      <point x="660.6666666666667" y="100.0" />
+      <point x="142.66666666666669" y="188.5" />
+    </edge>
+    <edge source="model.InspectionLotSummary" target="model.InspectionLotSummary" relationship="DEPENDENCY">
+      <point x="-206.5" y="-0.0" />
+      <point x="1258.0" y="1880.0" />
+      <point x="1258.0" y="2080.0" />
+      <point x="1394.75" y="2080.0" />
+      <point x="-103.25" y="164.5" />
+    </edge>
+    <edge source="model.Annotation" target="model.Annotation" relationship="DEPENDENCY">
+      <point x="-214.0" y="-0.0" />
+      <point x="258.0" y="-140.0" />
+      <point x="258.0" y="80.0" />
+      <point x="375.33333333333326" y="80.0" />
+      <point x="-142.66666666666669" y="188.5" />
+    </edge>
+    <edge source="model.Bubble" target="model.Bubble" relationship="DEPENDENCY">
+      <point x="-196.5" y="-0.0" />
+      <point x="538.0" y="660.0" />
+      <point x="538.0" y="1200.0" />
+      <point x="778.0" y="1200.0" />
+      <point x="0.0" y="500.5" />
+    </edge>
+    <edge source="model.InspectionPlan" target="model.BubbleStatus" relationship="DEPENDENCY">
+      <point x="135.0" y="-608.5" />
+      <point x="333.0" y="1240.0" />
+      <point x="518.0" y="1240.0" />
+      <point x="518.0" y="1220.0" />
+      <point x="998.0" y="1220.0" />
+      <point x="998.0" y="140.0" />
+      <point x="995.5" y="140.0" />
+      <point x="57.5" y="56.5" />
+    </edge>
+    <edge source="model.InspectionPlan" target="model.PlanStatus" relationship="TO_ONE">
+      <point x="0.0" y="-608.5" />
+      <point x="198.0" y="740.0" />
+      <point x="378.0" y="740.0" />
+      <point x="0.0" y="56.5" />
+    </edge>
+    <edge source="model.InspectionPlan" target="model.PlanDrawing" relationship="TO_ONE">
+      <point x="0.0" y="-608.5" />
+      <point x="198.0" y="460.0" />
+      <point x="-22.0" y="460.0" />
+      <point x="0.0" y="116.5" />
+    </edge>
+    <edge source="model.PartBubbleDefinition" target="model.PartBubbleDefinition" relationship="DEPENDENCY">
+      <point x="-196.0" y="-0.0" />
+      <point x="1438.0" y="660.0" />
+      <point x="1438.0" y="880.0" />
+      <point x="1580.0" y="880.0" />
+      <point x="-98.0" y="188.5" />
+    </edge>
+    <edge source="model.PlanPage" target="model.PlanDrawing" relationship="TO_ONE">
+      <point x="0.0" y="-152.5" />
+      <point x="0.0" y="116.5" />
+    </edge>
+    <edge source="model.InspectionLot" target="model.PartBubbleDefinition" relationship="DEPENDENCY">
+      <point x="136.0" y="-284.5" />
+      <point x="1734.0" y="2560.0" />
+      <point x="1738.0" y="2560.0" />
+      <point x="1738.0" y="2540.0" />
+      <point x="1778.0" y="2540.0" />
+      <point x="1778.0" y="1860.0" />
+      <point x="1776.0" y="1860.0" />
+      <point x="98.0" y="188.5" />
+    </edge>
+    <edge source="model.InspectionLot" target="model.PartLot" relationship="CREATE">
+      <point x="0.0" y="-284.5" />
+      <point x="1598.0" y="2100.0" />
+      <point x="1238.0" y="2100.0" />
+      <point x="1238.0" y="1660.0" />
+      <point x="950.0" y="1660.0" />
+      <point x="-88.0" y="-152.5" />
+    </edge>
+    <edge source="model.PartLot" target="model.PartRecord" relationship="CREATE">
+      <point x="-88.0" y="-152.5" />
+      <point x="950.0" y="1240.0" />
+      <point x="1176.125" y="1240.0" />
+      <point x="-41.875" y="212.5" />
+    </edge>
+    <edge source="model.InspectionLot" target="model.InspectionLotSummary" relationship="CREATE">
+      <point x="0.0" y="-284.5" />
+      <point x="1598.0" y="2100.0" />
+      <point x="1601.25" y="2100.0" />
+      <point x="103.25" y="164.5" />
+    </edge>
+    <edge source="model.Bubble" target="model.BubbleStatus" relationship="TO_ONE">
+      <point x="98.25" y="-500.5" />
+      <point x="876.25" y="100.0" />
+      <point x="878.0" y="100.0" />
+      <point x="878.0" y="60.0" />
+      <point x="880.5" y="60.0" />
+      <point x="-57.5" y="56.5" />
+    </edge>
+    <edge source="model.InspectionPlan" target="model.InspectionPlan" relationship="DEPENDENCY">
+      <point x="-202.5" y="-0.0" />
+      <point x="-42.0" y="1880.0" />
+      <point x="-42.0" y="2520.0" />
+      <point x="198.0" y="2520.0" />
+      <point x="0.0" y="608.5" />
+    </edge>
+  </edges>
+  <settings layout="Hierarchic Compact" zoom="0.3415867944621938" showDependencies="true" x="836.0" y="1342.0" />
+  <SelectedNodes />
+  <Categories>
+    <Category>Constructors</Category>
+    <Category>Inner Classes</Category>
+    <Category>Methods</Category>
+  </Categories>
+  <SCOPE>All</SCOPE>
+  <VISIBILITY>private</VISIBILITY>
+</Diagram>
+

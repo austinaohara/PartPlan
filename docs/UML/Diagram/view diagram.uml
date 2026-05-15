@@ -1,0 +1,390 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Diagram>
+  <ID>JAVA</ID>
+  <OriginalElement>view</OriginalElement>
+  <nodes>
+    <node x="90.5" y="2320.0">view.PlanBrowserController.DeletePlanPreparation</node>
+    <node x="-719.0" y="-360.0">view.DataEditorController.SequenceIntegerStringConverter</node>
+    <node x="-1451.5" y="4232.0">view.PartEditorController.ToleranceCheckedMeasurementCell</node>
+    <node x="-1056.0" y="4148.0">view.PartEditorController.MasterMeasurementTableCell</node>
+    <node x="-820.5" y="900.0">view.PartEditorController.MeasurementState</node>
+    <node x="-1122.5" y="4780.0">view.PartEditorController</node>
+    <node x="-392.03984408479675" y="8132.789364814352">view.tableCells</node>
+    <node x="-1205.5" y="-16.0">view.DataEditorController</node>
+    <node x="-1052.0" y="-360.0">view.DataEditorController.NullableDoubleStringConverter</node>
+    <node x="-1508.5" y="6848.0">view.InspectionLotBrowserController.NewLotRequest</node>
+    <node x="-50.0" y="3836.0">view.PlanBrowserController</node>
+    <node x="-68.0" y="296.0">view.AppNavigator</node>
+    <node x="-449.5" y="-160.0">view.PlanEditorController.DeletePlanPreparation</node>
+    <node x="-968.0" y="8200.0">view.InspectionLotBrowserController.LotBrowserMutationResult</node>
+    <node x="-1192.5" y="7100.0">view.InspectionLotBrowserController</node>
+    <node x="-1074.0" y="2320.0">view.PartEditorController.MasterCommentCellKey</node>
+    <node x="-470.0" y="1036.0">view.PlanEditorController</node>
+  </nodes>
+  <notes />
+  <edges>
+    <edge source="view.InspectionLotBrowserController.NewLotRequest" target="view.InspectionLotBrowserController" relationship="INNER_CLASS">
+      <point x="-80.75" y="68.0" />
+      <point x="-1427.75" y="7036.0" />
+      <point x="-1110.6666666666667" y="7036.0" />
+      <point x="-163.66666666666669" y="-476.0" />
+    </edge>
+    <edge source="view.PlanBrowserController" target="view.PlanBrowserController.DeletePlanPreparation" relationship="CREATE">
+      <point x="0.0" y="-440.0" />
+      <point x="193.0" y="3816.0" />
+      <point x="201.75" y="3816.0" />
+      <point x="-111.25" y="56.0" />
+    </edge>
+    <edge source="view.PlanBrowserController.DeletePlanPreparation" target="view.PlanBrowserController" relationship="INNER_CLASS">
+      <point x="111.25" y="56.0" />
+      <point x="424.25" y="3816.0" />
+      <point x="355.0" y="3816.0" />
+      <point x="162.0" y="-440.0" />
+    </edge>
+    <edge source="view.PartEditorController.MeasurementState" target="view.PartEditorController" relationship="INNER_CLASS">
+      <point x="66.75" y="56.0" />
+      <point x="-620.25" y="4256.0" />
+      <point x="-607.0" y="4256.0" />
+      <point x="-607.0" y="4456.0" />
+      <point x="-687.0" y="4456.0" />
+      <point x="-687.0" y="4756.0" />
+      <point x="-696.6666666666667" y="4756.0" />
+      <point x="170.33333333333331" y="-1016.0" />
+    </edge>
+    <edge source="view.DataEditorController.SequenceIntegerStringConverter" target="view.DataEditorController" relationship="INNER_CLASS">
+      <point x="-76.0" y="56.0" />
+      <point x="-643.0" y="-84.0" />
+      <point x="-987.0" y="-84.0" />
+      <point x="-987.0" y="-44.0" />
+      <point x="-996.25" y="-44.0" />
+      <point x="-209.25" y="-392.0" />
+    </edge>
+    <edge source="view.PartEditorController" target="view.PlanBrowserController" relationship="DEPENDENCY">
+      <point x="127.75" y="1016.0" />
+      <point x="-739.25" y="6936.0" />
+      <point x="-567.0" y="6936.0" />
+      <point x="-567.0" y="6896.0" />
+      <point x="-487.0" y="6896.0" />
+      <point x="-487.0" y="3796.0" />
+      <point x="31.0" y="3796.0" />
+      <point x="-162.0" y="-440.0" />
+    </edge>
+    <edge source="view.PartEditorController.MasterMeasurementTableCell" target="view.PartEditorController.MeasurementState" relationship="DEPENDENCY">
+      <point x="126.0" y="-128.0" />
+      <point x="-741.0" y="4116.0" />
+      <point x="-747.0" y="4116.0" />
+      <point x="-747.0" y="1036.0" />
+      <point x="-753.75" y="1036.0" />
+      <point x="-66.75" y="56.0" />
+    </edge>
+    <edge source="view.PlanBrowserController" target="view.PlanEditorController" relationship="DEPENDENCY">
+      <point x="-162.0" y="-440.0" />
+      <point x="31.0" y="3816.0" />
+      <point x="-7.0" y="3816.0" />
+      <point x="-7.0" y="3756.0" />
+      <point x="-105.5" y="3756.0" />
+      <point x="121.5" y="1340.0" />
+    </edge>
+    <edge source="view.InspectionLotBrowserController" target="view.InspectionLotBrowserController.NewLotRequest" relationship="CREATE">
+      <point x="0.0" y="-476.0" />
+      <point x="-947.0" y="7016.0" />
+      <point x="-1266.25" y="7016.0" />
+      <point x="80.75" y="68.0" />
+    </edge>
+    <edge source="view.PlanEditorController" target="view.PlanBrowserController" relationship="DEPENDENCY">
+      <point x="121.5" y="1340.0" />
+      <point x="-105.5" y="3776.0" />
+      <point x="31.0" y="3776.0" />
+      <point x="-162.0" y="-440.0" />
+    </edge>
+    <edge source="view.PartEditorController" target="view.AppNavigator" relationship="DEPENDENCY">
+      <point x="127.75" y="1016.0" />
+      <point x="-739.25" y="6936.0" />
+      <point x="-567.0" y="6936.0" />
+      <point x="-567.0" y="6876.0" />
+      <point x="-527.0" y="6876.0" />
+      <point x="-527.0" y="856.0" />
+      <point x="73.0" y="856.0" />
+      <point x="73.0" y="476.0" />
+      <point x="263.5" y="476.0" />
+      <point x="110.5" y="80.0" />
+    </edge>
+    <edge source="view.DataEditorController" target="view.DataEditorController.SequenceIntegerStringConverter" relationship="CREATE">
+      <point x="209.25" y="-392.0" />
+      <point x="-577.75" y="-44.0" />
+      <point x="-587.0" y="-44.0" />
+      <point x="-587.0" y="-224.0" />
+      <point x="-491.0" y="-224.0" />
+      <point x="76.0" y="56.0" />
+    </edge>
+    <edge source="view.InspectionLotBrowserController" target="view.InspectionLotBrowserController" relationship="DEPENDENCY">
+      <point x="-245.5" y="-0.0" />
+      <point x="-1227.0" y="7576.0" />
+      <point x="-1227.0" y="8096.0" />
+      <point x="-947.0" y="8096.0" />
+      <point x="0.0" y="476.0" />
+    </edge>
+    <edge source="view.PartEditorController" target="view.PartEditorController.MeasurementState" relationship="DEPENDENCY">
+      <point x="127.75" y="1016.0" />
+      <point x="-739.25" y="6936.0" />
+      <point x="-567.0" y="6936.0" />
+      <point x="-567.0" y="4116.0" />
+      <point x="-747.0" y="4116.0" />
+      <point x="-747.0" y="1036.0" />
+      <point x="-753.75" y="1036.0" />
+      <point x="-66.75" y="56.0" />
+    </edge>
+    <edge source="view.PartEditorController" target="view.PartEditorController.MasterMeasurementTableCell" relationship="CREATE">
+      <point x="0.0" y="-1016.0" />
+      <point x="-867.0" y="4756.0" />
+      <point x="-1367.0" y="4756.0" />
+      <point x="-1367.0" y="4356.0" />
+      <point x="-1107.0" y="4356.0" />
+      <point x="-1107.0" y="4096.0" />
+      <point x="-867.0" y="4096.0" />
+      <point x="0.0" y="-128.0" />
+    </edge>
+    <edge source="view.PlanEditorController.DeletePlanPreparation" target="view.PlanEditorController" relationship="INNER_CLASS">
+      <point x="111.25" y="56.0" />
+      <point x="-115.75" y="836.0" />
+      <point x="-105.5" y="836.0" />
+      <point x="121.5" y="-1340.0" />
+    </edge>
+    <edge source="view.PartEditorController.MasterMeasurementTableCell" target="view.PartEditorController.MasterCommentCellKey" relationship="TO_ONE">
+      <point x="-126.0" y="-128.0" />
+      <point x="-993.0" y="4076.0" />
+      <point x="-1027.0" y="4076.0" />
+      <point x="-1027.0" y="2456.0" />
+      <point x="-1025.0" y="2456.0" />
+      <point x="-98.0" y="56.0" />
+    </edge>
+    <edge source="view.PartEditorController" target="view.PartEditorController.ToleranceCheckedMeasurementCell" relationship="CREATE">
+      <point x="0.0" y="-1016.0" />
+      <point x="-867.0" y="4756.0" />
+      <point x="-1367.0" y="4756.0" />
+      <point x="-1367.0" y="4356.0" />
+      <point x="-1369.25" y="4356.0" />
+      <point x="-82.25" y="44.0" />
+    </edge>
+    <edge source="view.PartEditorController" target="view.PartEditorController" relationship="DEPENDENCY">
+      <point x="-255.5" y="-0.0" />
+      <point x="-1167.0" y="5796.0" />
+      <point x="-1167.0" y="6856.0" />
+      <point x="-994.75" y="6856.0" />
+      <point x="-127.75" y="1016.0" />
+    </edge>
+    <edge source="view.PartEditorController" target="view.InspectionLotBrowserController" relationship="DEPENDENCY">
+      <point x="127.75" y="1016.0" />
+      <point x="-739.25" y="6956.0" />
+      <point x="-783.3333333333333" y="6956.0" />
+      <point x="163.66666666666669" y="-476.0" />
+    </edge>
+    <edge source="view.InspectionLotBrowserController" target="view.PartEditorController" relationship="DEPENDENCY">
+      <point x="163.66666666666669" y="-476.0" />
+      <point x="-783.3333333333333" y="7076.0" />
+      <point x="-747.0" y="7076.0" />
+      <point x="-747.0" y="7036.0" />
+      <point x="-739.25" y="7036.0" />
+      <point x="127.75" y="1016.0" />
+    </edge>
+    <edge source="view.PartEditorController.MasterMeasurementTableCell" target="view.PartEditorController.MasterMeasurementTableCell" relationship="DEPENDENCY">
+      <point x="-189.0" y="-0.0" />
+      <point x="-1087.0" y="4276.0" />
+      <point x="-1087.0" y="4436.0" />
+      <point x="-961.5" y="4436.0" />
+      <point x="-94.5" y="128.0" />
+    </edge>
+    <edge source="view.PlanEditorController" target="view.PlanEditorController" relationship="DEPENDENCY">
+      <point x="-243.0" y="-0.0" />
+      <point x="-507.0" y="2376.0" />
+      <point x="-507.0" y="3756.0" />
+      <point x="-348.5" y="3756.0" />
+      <point x="-121.5" y="1340.0" />
+    </edge>
+    <edge source="view.PartEditorController" target="view.PartEditorController.MasterCommentCellKey" relationship="CREATE">
+      <point x="0.0" y="-1016.0" />
+      <point x="-867.0" y="4756.0" />
+      <point x="-1367.0" y="4756.0" />
+      <point x="-1367.0" y="4356.0" />
+      <point x="-1507.0" y="4356.0" />
+      <point x="-1507.0" y="4056.0" />
+      <point x="-927.0" y="4056.0" />
+      <point x="0.0" y="56.0" />
+    </edge>
+    <edge source="view.DataEditorController.NullableDoubleStringConverter" target="view.DataEditorController" relationship="INNER_CLASS">
+      <point x="-72.5" y="56.0" />
+      <point x="-979.5" y="-84.0" />
+      <point x="-987.0" y="-84.0" />
+      <point x="-987.0" y="-44.0" />
+      <point x="-996.25" y="-44.0" />
+      <point x="-209.25" y="-392.0" />
+    </edge>
+    <edge source="view.InspectionLotBrowserController.LotBrowserMutationResult" target="view.InspectionLotBrowserController" relationship="INNER_CLASS">
+      <point x="100.5" y="-56.0" />
+      <point x="-666.5" y="8176.0" />
+      <point x="-667.0" y="8176.0" />
+      <point x="-667.0" y="7056.0" />
+      <point x="-1110.6666666666667" y="7056.0" />
+      <point x="-163.66666666666669" y="-476.0" />
+    </edge>
+    <edge source="view.InspectionLotBrowserController" target="view.InspectionLotBrowserController.LotBrowserMutationResult" relationship="CREATE">
+      <point x="0.0" y="-476.0" />
+      <point x="-947.0" y="7076.0" />
+      <point x="-1247.0" y="7076.0" />
+      <point x="-1247.0" y="8176.0" />
+      <point x="-867.5" y="8176.0" />
+      <point x="-100.5" y="-56.0" />
+    </edge>
+    <edge source="view.PartEditorController" target="view.PartEditorController.MasterCommentCellKey" relationship="TO_MANY">
+      <point x="-170.33333333333331" y="-1016.0" />
+      <point x="-1037.3333333333333" y="4736.0" />
+      <point x="-1467.0" y="4736.0" />
+      <point x="-1467.0" y="4716.0" />
+      <point x="-1547.0" y="4716.0" />
+      <point x="-1547.0" y="4076.0" />
+      <point x="-1027.0" y="4076.0" />
+      <point x="-1027.0" y="2456.0" />
+      <point x="-1025.0" y="2456.0" />
+      <point x="-98.0" y="56.0" />
+    </edge>
+    <edge source="view.PlanEditorController" target="view.AppNavigator" relationship="DEPENDENCY">
+      <point x="121.5" y="1340.0" />
+      <point x="-105.5" y="3736.0" />
+      <point x="33.0" y="3736.0" />
+      <point x="33.0" y="856.0" />
+      <point x="73.0" y="856.0" />
+      <point x="73.0" y="476.0" />
+      <point x="263.5" y="476.0" />
+      <point x="110.5" y="80.0" />
+    </edge>
+    <edge source="view.PlanBrowserController" target="view.PlanBrowserController" relationship="DEPENDENCY">
+      <point x="-243.0" y="-0.0" />
+      <point x="-87.0" y="4276.0" />
+      <point x="-87.0" y="4756.0" />
+      <point x="193.0" y="4756.0" />
+      <point x="0.0" y="440.0" />
+    </edge>
+    <edge source="view.InspectionLotBrowserController" target="view.AppNavigator" relationship="DEPENDENCY">
+      <point x="163.66666666666669" y="-476.0" />
+      <point x="-783.3333333333333" y="7076.0" />
+      <point x="-747.0" y="7076.0" />
+      <point x="-747.0" y="7036.0" />
+      <point x="553.0" y="7036.0" />
+      <point x="553.0" y="856.0" />
+      <point x="73.0" y="856.0" />
+      <point x="73.0" y="476.0" />
+      <point x="263.5" y="476.0" />
+      <point x="110.5" y="80.0" />
+    </edge>
+    <edge source="view.DataEditorController" target="view.DataEditorController.NullableDoubleStringConverter" relationship="CREATE">
+      <point x="209.25" y="-392.0" />
+      <point x="-577.75" y="-44.0" />
+      <point x="-587.0" y="-44.0" />
+      <point x="-587.0" y="-224.0" />
+      <point x="-834.5" y="-224.0" />
+      <point x="72.5" y="56.0" />
+    </edge>
+    <edge source="view.PartEditorController.MasterCommentCellKey" target="view.PartEditorController" relationship="INNER_CLASS">
+      <point x="98.0" y="56.0" />
+      <point x="-829.0" y="4136.0" />
+      <point x="-647.0" y="4136.0" />
+      <point x="-647.0" y="4456.0" />
+      <point x="-687.0" y="4456.0" />
+      <point x="-687.0" y="4756.0" />
+      <point x="-696.6666666666667" y="4756.0" />
+      <point x="170.33333333333331" y="-1016.0" />
+    </edge>
+    <edge source="view.DataEditorController" target="view.DataEditorController" relationship="DEPENDENCY">
+      <point x="-418.5" y="-0.0" />
+      <point x="-1247.0" y="376.0" />
+      <point x="-1247.0" y="816.0" />
+      <point x="-787.0" y="816.0" />
+      <point x="0.0" y="392.0" />
+    </edge>
+    <edge source="view.PartEditorController.ToleranceCheckedMeasurementCell" target="view.PartEditorController" relationship="INNER_CLASS">
+      <point x="82.25" y="44.0" />
+      <point x="-1204.75" y="4456.0" />
+      <point x="-687.0" y="4456.0" />
+      <point x="-687.0" y="4756.0" />
+      <point x="-696.6666666666667" y="4756.0" />
+      <point x="170.33333333333331" y="-1016.0" />
+    </edge>
+    <edge source="view.AppNavigator" target="view.AppNavigator" relationship="DEPENDENCY">
+      <point x="-221.0" y="-0.0" />
+      <point x="-107.0" y="376.0" />
+      <point x="-107.0" y="496.0" />
+      <point x="42.5" y="496.0" />
+      <point x="-110.5" y="80.0" />
+    </edge>
+    <edge source="view.PlanEditorController" target="view.PlanEditorController.DeletePlanPreparation" relationship="CREATE">
+      <point x="-121.5" y="-1340.0" />
+      <point x="-348.5" y="876.0" />
+      <point x="-1267.0" y="876.0" />
+      <point x="-1267.0" y="836.0" />
+      <point x="-338.25" y="836.0" />
+      <point x="-111.25" y="56.0" />
+    </edge>
+    <edge source="view.PartEditorController" target="view.PartEditorController.MasterMeasurementTableCell" relationship="TO_MANY">
+      <point x="-170.33333333333331" y="-1016.0" />
+      <point x="-1037.3333333333333" y="4736.0" />
+      <point x="-1467.0" y="4736.0" />
+      <point x="-1467.0" y="4116.0" />
+      <point x="-993.0" y="4116.0" />
+      <point x="-126.0" y="-128.0" />
+    </edge>
+    <edge source="view.PartEditorController.MasterMeasurementTableCell" target="view.PartEditorController" relationship="INNER_CLASS">
+      <point x="94.5" y="128.0" />
+      <point x="-772.5" y="4456.0" />
+      <point x="-687.0" y="4456.0" />
+      <point x="-687.0" y="4756.0" />
+      <point x="-696.6666666666667" y="4756.0" />
+      <point x="170.33333333333331" y="-1016.0" />
+    </edge>
+    <edge source="view.PlanEditorController" target="view.DataEditorController" relationship="CREATE">
+      <point x="-121.5" y="-1340.0" />
+      <point x="-348.5" y="876.0" />
+      <point x="-1267.0" y="876.0" />
+      <point x="-1267.0" y="-64.0" />
+      <point x="-577.75" y="-64.0" />
+      <point x="209.25" y="-392.0" />
+    </edge>
+    <edge source="view.InspectionLotBrowserController" target="view.PlanBrowserController" relationship="DEPENDENCY">
+      <point x="163.66666666666669" y="-476.0" />
+      <point x="-783.3333333333333" y="7076.0" />
+      <point x="-747.0" y="7076.0" />
+      <point x="-747.0" y="7036.0" />
+      <point x="-487.0" y="7036.0" />
+      <point x="-487.0" y="3796.0" />
+      <point x="31.0" y="3796.0" />
+      <point x="-162.0" y="-440.0" />
+    </edge>
+    <edge source="view.PlanBrowserController" target="view.AppNavigator" relationship="DEPENDENCY">
+      <point x="-162.0" y="-440.0" />
+      <point x="31.0" y="3816.0" />
+      <point x="-7.0" y="3816.0" />
+      <point x="-7.0" y="3756.0" />
+      <point x="73.0" y="3756.0" />
+      <point x="73.0" y="476.0" />
+      <point x="263.5" y="476.0" />
+      <point x="110.5" y="80.0" />
+    </edge>
+    <edge source="view.PartEditorController.MasterMeasurementTableCell" target="view.PartEditorController.MasterCommentCellKey" relationship="CREATE">
+      <point x="0.0" y="-128.0" />
+      <point x="-867.0" y="4056.0" />
+      <point x="-927.0" y="4056.0" />
+      <point x="0.0" y="56.0" />
+    </edge>
+  </edges>
+  <settings layout="Hierarchic Compact" zoom="0.7115253039455283" showDependencies="true" x="-471.484745469118" y="8395.481109762984" />
+  <SelectedNodes>
+    <node>view.tableCells</node>
+  </SelectedNodes>
+  <Categories>
+    <Category>Constructors</Category>
+    <Category>Inner Classes</Category>
+    <Category>Methods</Category>
+  </Categories>
+  <SCOPE>All</SCOPE>
+  <VISIBILITY>private</VISIBILITY>
+</Diagram>
+

@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Diagram>
+  <ID>JAVA</ID>
+  <OriginalElement>viewmodel</OriginalElement>
+  <nodes>
+    <node x="968.5" y="948.5">viewmodel.InspectionLotBrowserViewModel</node>
+    <node x="-239.0" y="-719.5">viewmodel.PlanEditorViewModel.EditorState</node>
+    <node x="-276.5" y="-179.5">viewmodel.PlanEditorViewModel</node>
+    <node x="267.0" y="-971.5">viewmodel.PartBubbleRowViewModel</node>
+    <node x="407.0" y="336.5">viewmodel.PartEditorViewModel</node>
+    <node x="1.0" y="-1267.5">viewmodel.PlanBrowserViewModel</node>
+    <node x="677.0" y="-1207.5">viewmodel.PartEditorViewModel.EditorState</node>
+    <node x="610.0" y="2524.5">viewmodel.PartEditorViewModel.LoadedLotData</node>
+    <node x="92.0" y="2500.5">viewmodel.DataEditorViewModel</node>
+    <node x="972.5" y="-695.5">viewmodel.InspectionLotBrowserViewModel.BrowserData</node>
+  </nodes>
+  <notes />
+  <edges>
+    <edge source="viewmodel.PartEditorViewModel.LoadedLotData" target="viewmodel.PartEditorViewModel" relationship="INNER_CLASS">
+      <point x="90.5" y="-56.5" />
+      <point x="890.5" y="712.0" />
+      <point x="233.0" y="-389.0" />
+    </edge>
+    <edge source="viewmodel.PlanBrowserViewModel" target="viewmodel.PlanBrowserViewModel" relationship="DEPENDENCY">
+      <point x="0.0" y="-128.5" />
+      <point x="200.0" y="-1285.0" />
+      <point x="416.5" y="-1285.0" />
+      <point x="416.5" y="-1139.0" />
+      <point x="199.0" y="0.0" />
+    </edge>
+    <edge source="viewmodel.PartEditorViewModel.EditorState" target="viewmodel.PartEditorViewModel" relationship="INNER_CLASS">
+      <point x="70.5" y="68.5" />
+      <point x="890.5" y="712.0" />
+      <point x="233.0" y="-389.0" />
+    </edge>
+    <edge source="viewmodel.PartEditorViewModel" target="viewmodel.PartEditorViewModel.EditorState" relationship="CREATE">
+      <point x="180.0" y="-764.5" />
+      <point x="0.0" y="68.5" />
+    </edge>
+    <edge source="viewmodel.PartEditorViewModel" target="viewmodel.PartEditorViewModel" relationship="DEPENDENCY">
+      <point x="210.0" y="-764.5" />
+      <point x="850.0" y="319.0" />
+      <point x="905.5" y="319.0" />
+      <point x="905.5" y="1101.0" />
+      <point x="233.0" y="0.0" />
+    </edge>
+    <edge source="viewmodel.PlanEditorViewModel.EditorState" target="viewmodel.PlanEditorViewModel" relationship="INNER_CLASS">
+      <point x="60.0" y="80.5" />
+      <point x="0.0" y="-1280.5" />
+    </edge>
+    <edge source="viewmodel.PartEditorViewModel" target="viewmodel.PartEditorViewModel.LoadedLotData" relationship="CREATE">
+      <point x="160.0" y="764.5" />
+      <point x="0.0" y="-56.5" />
+    </edge>
+    <edge source="viewmodel.InspectionLotBrowserViewModel" target="viewmodel.InspectionLotBrowserViewModel" relationship="DEPENDENCY">
+      <point x="0.0" y="152.5" />
+      <point x="1200.0" y="1271.0" />
+      <point x="1449.0" y="1271.0" />
+      <point x="1449.0" y="1101.0" />
+      <point x="231.5" y="0.0" />
+    </edge>
+    <edge source="viewmodel.PlanEditorViewModel" target="viewmodel.PlanEditorViewModel.EditorState" relationship="TO_MANY">
+      <point x="-60.0" y="-1280.5" />
+      <point x="0.0" y="80.5" />
+    </edge>
+    <edge source="viewmodel.InspectionLotBrowserViewModel.BrowserData" target="viewmodel.InspectionLotBrowserViewModel" relationship="INNER_CLASS">
+      <point x="0.0" y="56.5" />
+      <point x="0.0" y="-152.5" />
+    </edge>
+    <edge source="viewmodel.PartEditorViewModel" target="viewmodel.PartBubbleRowViewModel" relationship="TO_MANY">
+      <point x="-160.0" y="-764.5" />
+      <point x="0.0" y="332.5" />
+    </edge>
+    <edge source="viewmodel.PartEditorViewModel" target="viewmodel.PartEditorViewModel.EditorState" relationship="TO_MANY">
+      <point x="195.0" y="-764.5" />
+      <point x="15.0" y="68.5" />
+    </edge>
+    <edge source="viewmodel.PlanEditorViewModel" target="viewmodel.PlanEditorViewModel" relationship="DEPENDENCY">
+      <point x="274.5" y="-1280.5" />
+      <point x="274.5" y="-197.0" />
+      <point x="299.5" y="-197.0" />
+      <point x="299.5" y="1101.0" />
+      <point x="276.5" y="0.0" />
+    </edge>
+    <edge source="viewmodel.PlanEditorViewModel" target="viewmodel.PlanEditorViewModel.EditorState" relationship="CREATE">
+      <point x="15.0" y="-1280.5" />
+      <point x="75.0" y="80.5" />
+    </edge>
+    <edge source="viewmodel.PartBubbleRowViewModel" target="viewmodel.PartBubbleRowViewModel" relationship="DEPENDENCY">
+      <point x="0.0" y="-332.5" />
+      <point x="480.0" y="-1018.0" />
+      <point x="710.5" y="-1018.0" />
+      <point x="710.5" y="-639.0" />
+      <point x="213.0" y="0.0" />
+    </edge>
+    <edge source="viewmodel.PartEditorViewModel" target="viewmodel.PartBubbleRowViewModel" relationship="CREATE">
+      <point x="0.0" y="-764.5" />
+      <point x="160.0" y="332.5" />
+    </edge>
+    <edge source="viewmodel.DataEditorViewModel" target="viewmodel.PlanEditorViewModel" relationship="TO_ONE">
+      <point x="-31.0" y="-80.5" />
+      <point x="269.0" y="1280.5" />
+    </edge>
+    <edge source="viewmodel.InspectionLotBrowserViewModel" target="viewmodel.InspectionLotBrowserViewModel.BrowserData" relationship="CREATE">
+      <point x="15.0" y="-152.5" />
+      <point x="15.0" y="56.5" />
+    </edge>
+  </edges>
+  <settings layout="Hierarchic Compact" zoom="0.3269473153516511" showDependencies="true" x="596.0" y="698.5" />
+  <SelectedNodes />
+  <Categories>
+    <Category>Constructors</Category>
+    <Category>Inner Classes</Category>
+    <Category>Methods</Category>
+  </Categories>
+  <SCOPE>All</SCOPE>
+  <VISIBILITY>private</VISIBILITY>
+</Diagram>
+
