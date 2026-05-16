@@ -212,6 +212,11 @@ tools/                 Development utilities
 
 ---
 
+## How AI Was Used
+- AI was first used at the start of this project on Figma to generate a HiFi prototype for this program, so that we knew what to aim for while we were developing it.
+- It's also used for the auto-bubble feature, which gets the image and sends it over to OpenAI so that it can view the measurements of the part and then send back data for the annotation bubbles.
+---
+
 ## Team Roles
 
 | Team Member | Role                        | Responsibilities                                                                                                                                                   | Major Contributions |
