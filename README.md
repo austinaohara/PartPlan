@@ -218,11 +218,11 @@ Update this section with the final project roster before submission.
 
 | Team Member | Role | Responsibilities | Major Contributions |
 |---|---|---|---|
-| `Austin` | `Project Manager` | `<Primary responsibilities>` | `<Major features or work areas>` |
-| `Murid` | `UI/UX Components Developer` | `<Primary responsibilities>` | `<Major features or work areas>` |
-| `Maycol` | `Data Persistence Developer` | `<Primary responsibilities>` | `<Major features or work areas>` |
-| `Kelvin` | `Features & Export Developer` | `<Primary responsibilities>` | `<Major features or work areas>` |
-| `Tim` | `Data Entry & Documentation` | `<Primary responsibilities>` | `<Major features or work areas>` |
+| Austin | Project Manager | <Primary responsibilities> | <Major features or work areas> |
+| Murid | UI/UX Components Developer | <Primary responsibilities> | <Major features or work areas> |
+| Maycol | Data Persistence Developer | <Primary responsibilities> | <Major features or work areas> |
+| Kelvin | Features & Export Developer | <Primary responsibilities> | <Major features or work areas> |
+| Tim | Data Entry & Documentation | <Primary responsibilities> | <Major features or work areas> |
 
 ---
 
