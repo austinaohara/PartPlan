@@ -4,9 +4,9 @@ PartPlan is a JavaFX desktop application for building inspection plans directly 
 
 The application is designed for environments where inspection requirements need to be reviewed visually, approved as controlled revisions, and reused consistently during production inspection. A plan begins as an editable draft, becomes a read-only released revision when complete, and then serves as the basis for inspection lots and recorded measurement results.
 
-![Home Screen](/docs/screenshots/homescreen.png)
->
-> Demonstration placeholder: Insert a link here to the final walkthrough video, presentation, or demonstration recording.
+Click the image below to watch the demo on YouTube.
+
+[![Home Screen](/docs/screenshots/homescreen.png)](https://youtu.be/DZCksmySF88)
 
 ## Table of Contents
 
@@ -212,16 +212,20 @@ tools/                 Development utilities
 
 ---
 
+## How AI Was Used
+- Figma AI was used early in the project to help generate a higher-fidelity prototype, which gave the team a clearer visual target for layout, navigation, and overall UI direction before implementation began.
+- AI is used directly in the product through the auto-balloon feature. A drawing page is sent to the OpenAI Responses API, which returns candidate balloons based on visible dimensions, notes, and callouts; those results are treated as a first pass and must still be reviewed and corrected by the user before saving or releasing a plan.
+- AI was also used internally during development as an engineering aid for writing and refining code, debugging issues, iterating on UI behavior, and speeding up implementation while still keeping final design and technical decisions with the team.
+---
+
 ## Team Roles
 
-Update this section with the final project roster before submission.
-
-| Team Member | Role | Responsibilities | Major Contributions |
-|---|---|---|---|
-| `<Name>` | `<Role>` | `<Primary responsibilities>` | `<Major features or work areas>` |
-| `<Name>` | `<Role>` | `<Primary responsibilities>` | `<Major features or work areas>` |
-| `<Name>` | `<Role>` | `<Primary responsibilities>` | `<Major features or work areas>` |
-| `<Name>` | `<Role>` | `<Primary responsibilities>` | `<Major features or work areas>` |
-
+| Team Member | Role                        | Responsibilities                                                                                                                                                   | Major Contributions |
+|-------------|-----------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------|
+| Austin      | Project Manager             | <ul> <li>Overall system architecture and integration</li> <li>Backend infrastructure and cloud services</li><li>Core application features and workflows</li> </ul> | <ul><li>Firebase Backend Integration</li> <li>AI Integration</li> <li>Plan Editor - Core</li> <li>Menu System & Navigation</li> <li>Inspection Lot Features</li> <li>Bubble System</li> <li>Undo/Redo System</li></ul>           |
+| Murid       | UI/UX Components Developer  | <ul> <li>Reusable UI components</li> <li>Bubble feature set</li> <li>User interaction patterns</li> </ul>                                                          | <ul><li>Bubble Features</li> <li>UI Components</li> <li>Project Foundation</li></ul>           |
+| Maycol      | Data Persistence Developer  | <ul> <li>File storage and retrieval</li> <li>Plan lifecycle management</li> <li>Data persistence layer</li> </ul>                                                  | <ul><li>Plan Storage Service</li> <li>Plan Management UI</li></ul>           |
+| Kelvin      | Features & Export Developer | <ul> <li>Data export and reporting</li> <li>Visual feedback systems</li> <li>Technical documentation</li> </ul>                                                    | <ul><li>Export System</li> <li>Highlighting/Visual Feedback</li> <li>Documentation (UML diagrams)</li></ul>           |
+| Tim         | Data Entry & Documentation  | <ul> <li>Data entry interfaces</li> <li>Project documentation</li> <li>Data models and structure</li> </ul>                                                        | <ul><li>README & Documentation</li> <li>Table/Data Editor</li> <li>UI Panel Fixes</li> <li>Image Controls</li></ul>           |
 ---
 
