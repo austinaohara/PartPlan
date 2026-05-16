@@ -214,15 +214,12 @@ tools/                 Development utilities
 
 ## Team Roles
 
-Update this section with the final project roster before submission.
-
 | Team Member | Role                        | Responsibilities                                                                                                                                                   | Major Contributions |
 |-------------|-----------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------|
-| Austin      | Project Manager             | <ul> <li>Overall system architecture and integration</li> <li>Backend infrastructure and cloud services</li><li>Core application features and workflows</li> </ul> | <ul></ul>           |
-| Murid       | UI/UX Components Developer  | <ul> <li>Reusable UI components</li> <li>Bubble feature set</li> <li>User interaction patterns</li> </ul>                                                          | <ul></ul>           |
-| Maycol      | Data Persistence Developer  | <ul> <li>File storage and retrieval</li> <li>Plan lifecycle management</li> <li>Data persistence layer</li> </ul>                                                  | <ul></ul>           |
-| Kelvin      | Features & Export Developer | <ul> <li>Data export and reporting</li> <li>Visual feedback systems</li> <li>Technical documentation</li> </ul>                                                    | <ul></ul>           |
-| Tim         | Data Entry & Documentation  | <ul> <li>Data entry interfaces</li> <li>Project documentation</li> <li>Data models and structure</li> </ul>                                                        | <ul></ul>           |
-
+| Austin      | Project Manager             | <ul> <li>Overall system architecture and integration</li> <li>Backend infrastructure and cloud services</li><li>Core application features and workflows</li> </ul> | <ul><li>Firebase Backend Integration</li> <li>AI Integration</li> <li>Plan Editor - Core</li> <li>Menu System & Navigation</li> <li>Inspection Lot Features</li> <li>Bubble System</li> <li>Undo/Redo System</li></ul>           |
+| Murid       | UI/UX Components Developer  | <ul> <li>Reusable UI components</li> <li>Bubble feature set</li> <li>User interaction patterns</li> </ul>                                                          | <ul><li>Bubble Features</li> <li>UI Components</li> <li>Project Foundation</li></ul>           |
+| Maycol      | Data Persistence Developer  | <ul> <li>File storage and retrieval</li> <li>Plan lifecycle management</li> <li>Data persistence layer</li> </ul>                                                  | <ul><li>Plan Storage Service</li> <li>Plan Management UI</li></ul>           |
+| Kelvin      | Features & Export Developer | <ul> <li>Data export and reporting</li> <li>Visual feedback systems</li> <li>Technical documentation</li> </ul>                                                    | <ul><li>Export System</li> <li>Highlighting/Visual Feedback</li> <li>Documentation (UML diagrams)</li></ul>           |
+| Tim         | Data Entry & Documentation  | <ul> <li>Data entry interfaces</li> <li>Project documentation</li> <li>Data models and structure</li> </ul>                                                        | <ul><li>README & Documentation</li> <li>Table/Data Editor</li> <li>UI Panel Fixes</li> <li>Image Controls</li></ul>           |
 ---
 
