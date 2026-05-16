@@ -4,9 +4,9 @@ PartPlan is a JavaFX desktop application for building inspection plans directly 
 
 The application is designed for environments where inspection requirements need to be reviewed visually, approved as controlled revisions, and reused consistently during production inspection. A plan begins as an editable draft, becomes a read-only released revision when complete, and then serves as the basis for inspection lots and recorded measurement results.
 
-![Home Screen](/docs/screenshots/homescreen.png)
->
-> Demonstration placeholder: Insert a link here to the final walkthrough video, presentation, or demonstration recording.
+Click the image below to watch the demo on YouTube.
+
+[![Home Screen](/docs/screenshots/homescreen.png)](https://youtu.be/DZCksmySF88)
 
 ## Table of Contents
 
@@ -213,8 +213,9 @@ tools/                 Development utilities
 ---
 
 ## How AI Was Used
-- AI was first used at the start of this project on Figma to generate a HiFi prototype for this program, so that we knew what to aim for while we were developing it.
-- It's also used for the auto-bubble feature, which gets the image and sends it over to OpenAI so that it can view the measurements of the part and then send back data for the annotation bubbles.
+- Figma AI was used early in the project to help generate a higher-fidelity prototype, which gave the team a clearer visual target for layout, navigation, and overall UI direction before implementation began.
+- AI is used directly in the product through the auto-balloon feature. A drawing page is sent to the OpenAI Responses API, which returns candidate balloons based on visible dimensions, notes, and callouts; those results are treated as a first pass and must still be reviewed and corrected by the user before saving or releasing a plan.
+- AI was also used internally during development as an engineering aid for writing and refining code, debugging issues, iterating on UI behavior, and speeding up implementation while still keeping final design and technical decisions with the team.
 ---
 
 ## Team Roles
