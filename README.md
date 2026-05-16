@@ -216,13 +216,13 @@ tools/                 Development utilities
 
 Update this section with the final project roster before submission.
 
-| Team Member | Role | Responsibilities | Major Contributions |
-|---|---|---|---|
-| Austin | Project Manager | <Primary responsibilities> | <Major features or work areas> |
-| Murid | UI/UX Components Developer | <Primary responsibilities> | <Major features or work areas> |
-| Maycol | Data Persistence Developer | <Primary responsibilities> | <Major features or work areas> |
-| Kelvin | Features & Export Developer | <Primary responsibilities> | <Major features or work areas> |
-| Tim | Data Entry & Documentation | <Primary responsibilities> | <Major features or work areas> |
+| Team Member | Role                        | Responsibilities                                                                                                                                                   | Major Contributions |
+|-------------|-----------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------|
+| Austin      | Project Manager             | <ul> <li>Overall system architecture and integration</li> <li>Backend infrastructure and cloud services</li><li>Core application features and workflows</li> </ul> | <ul></ul>           |
+| Murid       | UI/UX Components Developer  | <ul> <li>Reusable UI components</li> <li>Bubble feature set</li> <li>User interaction patterns</li> </ul>                                                          | <ul></ul>           |
+| Maycol      | Data Persistence Developer  | <ul> <li>File storage and retrieval</li> <li>Plan lifecycle management</li> <li>Data persistence layer</li> </ul>                                                  | <ul></ul>           |
+| Kelvin      | Features & Export Developer | <ul> <li>Data export and reporting</li> <li>Visual feedback systems</li> <li>Technical documentation</li> </ul>                                                    | <ul></ul>           |
+| Tim         | Data Entry & Documentation  | <ul> <li>Data entry interfaces</li> <li>Project documentation</li> <li>Data models and structure</li> </ul>                                                        | <ul></ul>           |
 
 ---
 
